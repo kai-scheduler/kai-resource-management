@@ -1,0 +1,36 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+name: Documentation correction
+description: Report inaccurate, unclear, or outdated documentation
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: Link to the affected page or provide its repository path.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is incorrect or unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Suggested correction
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Prevents installation or usage
+        - Causes incorrect behavior
+        - Creates confusion
+        - Minor correction
+    validations:
+      required: true
