@@ -6,7 +6,7 @@ that future components will extend.
 
 ## Prerequisites
 
-- Go 1.26.3 or newer within the Go 1.26 release line.
+- The Go version declared in the root `go.mod`.
 - GNU Make or a compatible Make implementation.
 - Git.
 
@@ -33,8 +33,8 @@ To add missing source headers intentionally:
 make gen-license
 ```
 
-Tools are version-pinned by the Makefile and installed into the ignored `bin/`
-directory.
+The Go version is declared by `go.mod`. Developer tools are version-pinned by
+the Makefile and installed into the ignored `bin/` directory.
 
 ## Repository rules
 

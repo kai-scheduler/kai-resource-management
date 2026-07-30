@@ -2,3 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/kai-scheduler/kai-resource-management/security/advisories/new
+    about: Security issues must be reported privately. See SECURITY.md.

@@ -15,6 +15,28 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 CHANGIE ?= $(LOCALBIN)/changie
 
+# addlicense does not honor .gitignore. Keep source-like ignored paths here so
+# validation remains safe in developer worktrees.
+LICENSE_IGNORES := \
+	-ignore '.changes/**' \
+	-ignore '.changie.yaml' \
+	-ignore 'third_party/**' \
+	-ignore '.claude/**' \
+	-ignore '.codex/**' \
+	-ignore '.idea/**' \
+	-ignore '.vscode/**' \
+	-ignore 'bin/**' \
+	-ignore '.gocache/**' \
+	-ignore '.gotmp/**' \
+	-ignore 'coverage/**' \
+	-ignore 'vendor/**' \
+	-ignore 'charts/*/charts/**' \
+	-ignore '*.test' \
+	-ignore 'cover.out' \
+	-ignore 'coverage.out' \
+	-ignore 'launch.json' \
+	-ignore '.DS_Store'
+
 export GOCACHE
 export GOTMPDIR
 
@@ -95,19 +117,13 @@ mod-check: | $(GOCACHE) $(GOTMPDIR) ## Verify go.mod and go.sum are tidy without
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.
-	$(ADDLICENSE) -c "NVIDIA CORPORATION" -s=only -l apache -y 2026 -v \
-		-ignore '.changes/**' \
-		-ignore '.changie.yaml' \
-		-ignore 'third_party/**' \
-		.
+	$(ADDLICENSE) -c "NVIDIA CORPORATION" -s=only -l apache -v \
+		$(LICENSE_IGNORES) .
 
 .PHONY: license-check
 license-check: addlicense ## Verify Apache-2.0 headers without changing files.
-	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache -y 2026 \
-		-ignore '.changes/**' \
-		-ignore '.changie.yaml' \
-		-ignore 'third_party/**' \
-		.
+	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
+		$(LICENSE_IGNORES) .
 
 .PHONY: validate
 validate: fmt-check mod-check vet-go lint-go test license-check ## Run all repository validation without changing files.

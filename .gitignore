@@ -13,7 +13,8 @@ coverage.out
 # Downloaded Helm dependencies
 /charts/*/charts/
 
-# Editors and local tooling
+# Editors and local agent-harness state
+# Shared agent assets belong in the tracked /.agents/ directory.
 /.claude/
 /.codex/
 /.idea/

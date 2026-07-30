@@ -45,6 +45,7 @@ The repository deliberately uses one Go module and one Makefile.
   infrastructure is introduced.
 - `third_party/<owner>/<project>/` — small reviewed source copies with
   provenance and licenses.
+- `.agents/` — repository-owned skills and other shared agent assets.
 
 Do not add:
 
@@ -109,8 +110,10 @@ packages.
 
 ### Comments and headers
 
-- Go and YAML source files require the Apache-2.0 NVIDIA header represented by
-  `hack/boilerplate.go.txt` and `hack/boilerplate.yaml.txt`.
+- `make gen-license` is authoritative for headers on hand-written source and
+  configuration files and emits language-native line comments.
+- `hack/boilerplate.go.txt` and `hack/boilerplate.yaml.txt` provide the same
+  headers to source generators such as `controller-gen`.
 - Exported Go declarations require useful GoDoc comments.
 - Comments explain why a choice or invariant exists, not what obvious code
   does.
