@@ -34,6 +34,7 @@ KAI Resource Management is intended to provide:
 | `hack/` | Development, generation, and repository-maintenance scripts. |
 | `test/e2e/` | Reserved for the separately developed end-to-end test suites. |
 | `third_party/` | Small, explicitly reviewed source copies with retained provenance and licensing. |
+| `.agents/` | Repository-owned agent skills and other shared agent assets. |
 
 The repository intentionally uses one root `go.mod` and one root `Makefile`.
 

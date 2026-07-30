@@ -26,6 +26,8 @@ Developer setup and repository conventions are documented in
   `docs/`.
 - Use `third_party/` only for small reviewed source copies with retained
   provenance and licensing.
+- Put shared agent skills and assets under `.agents/`. Harness-specific
+  directories such as `.claude/` and `.codex/` are local state and stay ignored.
 
 Detailed coding and testing guidance is maintained in [AGENTS.md](AGENTS.md).
 Its rules apply to both human and automated contributors.
