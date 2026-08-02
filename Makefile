@@ -72,6 +72,7 @@ $(CHANGIE): | $(LOCALBIN) $(GOCACHE) $(GOTMPDIR)
 test-chart: ## Run Helm chart unit tests in the pinned container.
 	@echo "Running tests for Helm chart: kai-resource-management"
 	helm dependency build ./charts/kai-resource-management
+	helm lint ./charts/kai-resource-management
 	docker run -t --rm -v ./charts/kai-resource-management:/apps helmunittest/helm-unittest:3.17.2-0.8.1 . -f 'tests/**/*_test.yaml'
 
 .PHONY: fmt-go

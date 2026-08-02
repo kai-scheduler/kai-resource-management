@@ -7,6 +7,11 @@ departments, node pools, queues, and workload placement.
 
 These instructions apply to the entire repository.
 
+When KAI Scheduler already has a repository pattern for Makefiles, directories,
+workflows, or development tooling, mirror it closely. Do not introduce a new
+abstraction or structure unless this repository requires it or the user approves
+the divergence.
+
 ## Supported commands
 
 Use the root Makefile as the public development interface:
