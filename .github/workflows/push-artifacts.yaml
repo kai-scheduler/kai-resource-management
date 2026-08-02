@@ -14,7 +14,6 @@ permissions:
 env:
   DOCKER_REGISTRY: "ghcr.io/kai-scheduler/kai-resource-management"
 
-# TODO: Enable setup-go dependency caching once the first Go packages add go.sum.
 jobs:
   build-and-push:
     name: Build & Push

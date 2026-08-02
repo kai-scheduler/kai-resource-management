@@ -15,7 +15,6 @@ concurrency:
 permissions:
   contents: read
 
-# TODO: Enable setup-go dependency caching once the first Go packages add go.sum.
 jobs:
   check-build-and-test-required:
     name: Check if build and test are required
