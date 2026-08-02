@@ -4,7 +4,7 @@
 {{- if .Values.podGroupAssigner.enabled }}
 {{- $comp := .Values.podGroupAssigner }}
 {{- $a := $comp.args | default dict }}
-{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "enforceSchedulerAnnotationKey" "namespaceProjectLabelKey" "projectLabelKey") }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "enforceSchedulerAnnotationKey" "namespaceProjectLabelKey" "projectLabelKey" "schedulerName") }}
 {{- $kai := index .Values "kai-scheduler" }}
 {{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
 {{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey }}

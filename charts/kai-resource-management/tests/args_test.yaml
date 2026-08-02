@@ -59,9 +59,11 @@ tests:
           value: kai/project
         template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
 
-  - it: nodepoolController.args.schedulerName renders --scheduler-name only on nodepool-controller
+  - it: commonArgs.schedulerName reaches nodepool-controller and pod-group-assigner, not project-controller
+    # Both binaries must target the same scheduler: nodepool-controller stamps it on
+    # SchedulingShards, pod-group-assigner writes it on pods when enforcement applies.
     set:
-      nodepoolController.args.schedulerName: my-scheduler
+      commonArgs.schedulerName: my-scheduler
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
@@ -71,10 +73,38 @@ tests:
           path: spec.template.spec.containers[0].args
           content: my-scheduler
         template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+        template: templates/pod-group-assigner/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-scheduler
+        template: templates/pod-group-assigner/deployment.yaml
+      # project-controller's binary has no such flag
       - notContains:
           path: spec.template.spec.containers[0].args
           content: --scheduler-name
         template: templates/project-controller/deployment.yaml
+
+  - it: nodepoolController.args.schedulerName overrides the shared value
+    set:
+      commonArgs.schedulerName: my-scheduler
+      nodepoolController.args.schedulerName: np-override
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: np-override
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: my-scheduler
+        template: templates/nodepool-controller/deployment.yaml
+      # the shared value still reaches the controller that did not override it
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-scheduler
+        template: templates/pod-group-assigner/deployment.yaml
 
   - it: nodepool-controller pins --scheduler-namespace to the release namespace
     template: templates/nodepool-controller/deployment.yaml
@@ -353,15 +383,8 @@ tests:
     set:
       commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
       podGroupAssigner.args.enforceSchedulerAnnotationKey: pga-override
-      podGroupAssigner.args.schedulerName: my-scheduler
     template: templates/pod-group-assigner/deployment.yaml
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-name
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: my-scheduler
       - contains:
           path: spec.template.spec.containers[0].args
           content: pga-override

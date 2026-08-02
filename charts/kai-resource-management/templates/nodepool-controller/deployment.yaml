@@ -4,7 +4,7 @@
 {{- if .Values.nodepoolController.enabled }}
 {{- $comp := .Values.nodepoolController }}
 {{- $a := $comp.args | default dict }}
-{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain") }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain" "schedulerName") }}
 {{- $kai := index .Values "kai-scheduler" }}
 {{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
 {{- $defaultNodepoolName := (.Values.defaultNodePool | default dict).name }}

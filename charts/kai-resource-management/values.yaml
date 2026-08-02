@@ -97,6 +97,7 @@ commonArgs:
   namespaceProjectLabelKey: ""      # --namespace-project-label-key
   projectLabelKey: ""               # --project-label-key
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
+  schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
 
 nodepoolController:
   enabled: true
@@ -107,8 +108,6 @@ nodepoolController:
   # resources: { limits: {cpu, memory}, requests: {cpu, memory} }  # defaults in template
   args:
     debug: false
-    # --scheduler-name; empty ⇒ the binary's default (targets the bundled scheduler).
-    schedulerName: ""
   # Namespace of the DCGM exporter Service. Omitted by default so the binary's own default
   # applies; set to override.
   # dcgmExporterNamespace: ""
