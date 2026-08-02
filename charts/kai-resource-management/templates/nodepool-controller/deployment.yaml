@@ -1,0 +1,66 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.nodepoolController.enabled }}
+{{- $comp := .Values.nodepoolController }}
+{{- $a := $comp.args | default dict }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain") }}
+{{- $kai := index .Values "kai-scheduler" }}
+{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
+{{- $defaultNodepoolName := (.Values.defaultNodePool | default dict).name }}
+{{- $metrics := $comp.metrics | default dict }}
+{{- $replicas := $comp.replicas | default 1 }}
+{{- $metricsPort := int ($metrics.port | default 9400) }}
+{{- $metricsPortName := $metrics.portName | default "metrics" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodepool-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nodepool-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: nodepool-controller
+  template:
+    metadata:
+      labels:
+        app: nodepool-controller
+    spec:
+      serviceAccountName: nodepool-controller
+      containers:
+        - name: nodepool-controller
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          ports:
+            - name: {{ $metricsPortName }}
+              containerPort: {{ $metricsPort }}
+          args:
+            # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
+            # label key is the shared vocabulary sourced from the kai-scheduler subchart.
+            - --metrics-port
+            - {{ $metricsPort | quote }}
+            - --scheduler-namespace
+            - {{ .Release.Namespace }}
+            {{- include "kai-resource-management.stringArgs" (dict
+                "nodepool-label-key"      $nodePoolLabelKey
+                "default-nodepool-name"   $defaultNodepoolName
+                "metrics-namespace"       $metrics.namespace
+                "dcgm-exporter-namespace" $comp.dcgmExporterNamespace) | nindent 12 }}
+            {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
+            {{- if $a.debug }}
+            - --debug
+            {{- end }}
+            {{- $leaderElect := .Values.global.leaderElection }}
+            {{- if hasKey $a "leaderElect" }}{{- $leaderElect = $a.leaderElect }}{{- end }}
+            {{- if or $leaderElect (gt (int $replicas) 1) }}
+            - --leader-elect
+            {{- end }}
+          resources:
+            {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "900m" "memory" "1Gi") "requests" (dict "cpu" "450m" "memory" "512Mi"))) | nindent 12 }}
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

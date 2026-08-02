@@ -1,0 +1,100 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.projectController.enabled }}
+{{- $features := .Values.projectController.features | default dict }}
+{{- $ns := .Release.Namespace }}
+# RoleBindings the project-controller replicates into every project namespace it creates.
+# This chart ships only the project-controller's own per-project bindings, each referencing a
+# ClusterRole defined in this chart (project-controller/clusterrole*.yaml) and gated by the same
+# feature flag. Per-project RBAC for other components (scheduler, binder, pod-group-controller,
+# numa-placement-exporter, ...) is owned by those components' charts, not this one — add any
+# extra bindings via projectController.extraProjectRoleBindings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: project-controller-rolebindings-plugin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: project-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+data:
+  # Binds the main project-controller ClusterRole (clusterroles.yaml) into each project namespace.
+  project-controller-project.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: project-controller-project
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: project-controller
+    subjects:
+    - kind: ServiceAccount
+      name: project-controller
+      namespace: {{ $ns }}
+  {{- if $features.clusterWideSecret }}
+  project-secret.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: project-controller-cluster-secret-per-project
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: project-controller-cluster-secret-per-project
+    subjects:
+    - kind: ServiceAccount
+      name: project-controller
+      namespace: {{ $ns }}
+  {{- end }}
+  {{- if $features.clusterWideConfigMap }}
+  project-configmap.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: project-controller-cluster-configmap-per-project
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: project-controller-cluster-configmap-per-project
+    subjects:
+    - kind: ServiceAccount
+      name: project-controller
+      namespace: {{ $ns }}
+  {{- end }}
+  {{- if $features.clusterWidePvc }}
+  project-pvc.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: project-controller-cluster-pvc-per-project
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: project-controller-cluster-pvc-per-project
+    subjects:
+    - kind: ServiceAccount
+      name: project-controller
+      namespace: {{ $ns }}
+  {{- end }}
+  {{- if $features.limitRange }}
+  limit-range.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: project-controller-limit-range-per-project
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: project-controller-limit-range-per-project
+    subjects:
+    - kind: ServiceAccount
+      name: project-controller
+      namespace: {{ $ns }}
+  {{- end }}
+  {{- range $key, $val := (.Values.projectController.extraProjectRoleBindings | default dict) }}
+  {{ $key }}: |
+    {{- $val | nindent 4 }}
+  {{- end }}
+{{- end }}

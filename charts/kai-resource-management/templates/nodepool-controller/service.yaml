@@ -1,0 +1,32 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.nodepoolController.enabled }}
+{{- $comp := .Values.nodepoolController }}
+{{- $svc := $comp.service | default dict }}
+{{- $metricsPort := int (($comp.metrics | default dict).port | default 9400) }}
+{{- $metricsPortName := ($comp.metrics | default dict).portName | default "metrics" }}
+{{- $svcPort := int ($svc.port | default 8080) }}
+{{- $svcTargetPort := int ($svc.targetPort | default 8080) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodepool-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nodepool-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  type: {{ $svc.type | default "ClusterIP" }}
+  selector:
+    app: nodepool-controller
+  ports:
+    - name: np-metrics
+      protocol: TCP
+      port: {{ $svcPort }}
+      targetPort: {{ $svcTargetPort }}
+    - name: {{ $metricsPortName }}
+      protocol: TCP
+      port: {{ $metricsPort }}
+      targetPort: {{ $metricsPort }}
+{{- end }}

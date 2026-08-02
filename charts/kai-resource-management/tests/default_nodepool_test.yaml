@@ -1,0 +1,45 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: default NodePool
+templates:
+  - templates/default-nodepool.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: renders a default kai.resources NodePool by default
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: NodePool
+      - equal:
+          path: apiVersion
+          value: kai.resources/v1alpha1
+      - equal:
+          path: metadata.name
+          value: default
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: is omitted when defaultNodePool.enabled is false
+    set:
+      defaultNodePool.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: honors a custom name and spec passthrough
+    set:
+      defaultNodePool.name: all-nodes
+      defaultNodePool.spec:
+        labelValue: default
+    asserts:
+      - equal:
+          path: metadata.name
+          value: all-nodes
+      - equal:
+          path: spec.labelValue
+          value: default

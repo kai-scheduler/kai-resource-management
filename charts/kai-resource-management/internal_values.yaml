@@ -1,0 +1,90 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# NOTE:
+# This file is documentation ONLY. It is listed in .helmignore and is never merged
+# into .Values, so values here have NO effect at render time. It catalogs the defaults
+# the templates apply via `| default` plus the overridable per-controller args, so they
+# don't clutter values.yaml. To change any of these, add the key to values.yaml (or --set it).
+#
+# Every key under a controller's `args:` renders generically as a CLI flag: the camelCase
+# key becomes a --kebab-case flag, emitted only when non-empty. So any controller flag is
+# settable from values with no template change — this is what lets a parent chart drive the
+# full arg surface. `debug`/`leaderElect` are presence/bool flags handled inline. The
+# node-pool / queue label keys are NOT here: they are shared vocabulary sourced from the
+# kai-scheduler subchart (kai-scheduler.global.nodePoolLabelKey / podgrouper.queueLabelKey).
+
+# Args shared by more than one controller (also surfaced in values.yaml). Each is applied only
+# to the controllers whose binary defines the flag; a per-controller <comp>.args key overrides.
+commonArgs:
+  finalizerDomain: ""             # --finalizer-domain (nodepool + project)
+  namespaceProjectLabelKey: ""    # --namespace-project-label-key (project + pod-group-assigner)
+  projectLabelKey: ""             # --project-label-key (project + pod-group-assigner)
+
+nodepoolController:
+  replicas: 1
+  metrics:
+    port: 9400
+    portName: metrics
+    namespace: ""                   # --metrics-namespace (empty ⇒ binary default "kai")
+  service:
+    type: ClusterIP
+    port: 8080          # "np-metrics" service port
+    targetPort: 8080
+  dcgmExporterNamespace: ""         # --dcgm-exporter-namespace
+  # Per-controller args (empty ⇒ binary default). camelCase key ⇒ --kebab-case flag:
+  args:
+    debug: false                    # --debug (presence)
+    # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
+    schedulerName: ""               # --scheduler-name (empty ⇒ the bundled scheduler)
+    qps: ""                         # --qps   (binary default 50)
+    burst: ""                       # --burst (binary default 300)
+    schedulingShardArgs: ""         # --scheduling-shard-args (JSON map merged into every SchedulingShard)
+    excludedNodepoolName: ""        # --excluded-nodepool-name
+    managedNodesConfigName: ""      # --managed-nodes-config-name
+    toExcludeLabel: ""              # --to-exclude-label
+    unschedulableLabel: ""          # --unschedulable-label
+    groveTopologyAnnotation: ""     # --grove-topology-annotation
+    groveTopologyResourceVersionAnnotation: ""  # --grove-topology-resource-version-annotation
+  resources:
+    limits: { cpu: 900m, memory: 1Gi }
+    requests: { cpu: 450m, memory: 512Mi }
+
+projectController:
+  replicas: 1
+  terminationGracePeriodSeconds: 10
+  service:
+    type: ClusterIP
+    metrics: { port: 9400, portName: metrics, targetPort: 9400 }
+  profiling:
+    apiPort: "8182"
+  args:
+    debug: false                    # --debug (presence)
+    # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
+    qps: ""                         # --qps   (binary default 50)
+    burst: ""                       # --burst (binary default 300)
+    projectNamePrefix: ""           # --project-name-prefix; prefix for managed project namespaces (binary default "kai")
+    projectIdLabelKey: ""           # --project-id-label-key
+    queueDepartmentNameLabelKey: "" # --queue-department-name-label-key
+    namespaceVersionLabelKey: ""    # --namespace-version-label-key
+    resourceManualOverrideLabelKey: ""  # --resource-manual-override-label-key
+    limitRangeName: ""              # --limit-range-name (paired with features.limitRange)
+  resources:
+    limits: { cpu: 300m, memory: 2Gi }
+    requests: { cpu: 150m, memory: 1Gi }
+
+podGroupAssigner:
+  replicas: 1
+  webhook:
+    port: 443                        # Service port
+    targetPort: 8443                 # container --webhook-port
+  args:
+    debug: false                    # --debug (presence)
+    # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
+    qps: ""                         # --qps   (binary default 50)
+    burst: ""                       # --burst (binary default 300)
+    unexistingNodepoolSentinel: ""  # --unexisting-nodepool-sentinel
+    annotationNodepoolsKey: ""      # --annotation-nodepools-key
+  resources:
+    limits: { cpu: 200m, memory: 512Mi }
+    requests: { cpu: 100m, memory: 256Mi }

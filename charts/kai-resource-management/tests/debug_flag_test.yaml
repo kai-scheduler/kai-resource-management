@@ -1,0 +1,29 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: unified --debug flag
+templates:
+  - templates/project-controller/deployment.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: project-controller emits --debug (never --log-level) when args.debug is true
+    set:
+      projectController.args.debug: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --debug
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --log-level
+
+  - it: project-controller emits no debug flag by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --debug
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --log-level

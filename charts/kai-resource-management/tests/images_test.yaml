@@ -1,0 +1,46 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: image resolution
+templates:
+  - templates/nodepool-controller/deployment.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: uses image.registry + component name + chart appVersion tag
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: reg.example.com/kai/nodepool-controller:0.0.0-dev
+
+  - it: honors image.tag over the chart appVersion
+    set:
+      image.registry: reg.example.com/kai
+      image.tag: "2.26.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: reg.example.com/kai/nodepool-controller:2.26.0
+
+  - it: appends -fips when global.fips is set
+    set:
+      image.registry: reg.example.com/kai
+      image.tag: "2.26.0"
+      global.fips: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: reg.example.com/kai/nodepool-controller:2.26.0-fips
+
+  - it: per-component image overrides win
+    set:
+      image.registry: reg.example.com/kai
+      nodepoolController.image.registry: other.example.com/x
+      nodepoolController.image.tag: custom
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: other.example.com/x/nodepool-controller:custom

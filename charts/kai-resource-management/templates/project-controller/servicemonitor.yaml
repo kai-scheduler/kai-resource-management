@@ -1,0 +1,30 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if and .Values.projectController.enabled .Values.serviceMonitor.create }}
+{{- $comp := .Values.projectController }}
+{{- $metricsPortName := (($comp.service | default dict).metrics | default dict).portName | default "metrics" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: project-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: project-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  jobLabel: project-controller
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: project-controller
+  endpoints:
+    - port: {{ $metricsPortName }}
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      metricRelabelings:
+        - action: replace
+          targetLabel: type
+          replacement: stats
+{{- end }}

@@ -17,7 +17,8 @@ make fmt-go           # Format Go files
 make vet-go           # Run go vet
 make lint-go          # Run the pinned golangci-lint version
 make lint             # Run formatting and static checks
-make test             # Run non-e2e Go tests
+make test-chart       # Run chart unit tests in the pinned container
+make test             # Run non-e2e Go and Helm tests
 make validate         # Run all non-mutating repository validation
 make gen-license      # Add missing Apache-2.0 source headers
 ```

@@ -1,0 +1,15 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.defaultNodePool.enabled }}
+# Default catch-all NodePool
+apiVersion: kai.resources/v1alpha1
+kind: NodePool
+metadata:
+  name: {{ .Values.defaultNodePool.name | default "default" }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  {{- toYaml (.Values.defaultNodePool.spec | default dict) | nindent 2 }}
+{{- end }}

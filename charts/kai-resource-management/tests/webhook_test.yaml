@@ -1,0 +1,48 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: pod-group-assigner webhook
+templates:
+  - templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+  - templates/pod-group-assigner/deployment.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: renders the MutatingWebhookConfiguration by default with the mutate path
+    set:
+      image.registry: reg.example.com/kai
+    template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: webhooks[0].clientConfig.service.path
+          value: /mutate-pod-group
+      - equal:
+          path: webhooks[0].clientConfig.service.namespace
+          value: kai
+      - equal:
+          path: webhooks[0].rules[0].resources[0]
+          value: podgroups
+
+  - it: mounts the cert Secret as optional (cert provisioned separately)
+    set:
+      image.registry: reg.example.com/kai
+    template: templates/pod-group-assigner/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[?(@.name=="webhook-certs")].secret.optional
+          value: true
+
+  - it: drops the webhook and cert mount when webhook.enabled is false
+    set:
+      image.registry: reg.example.com/kai
+      podGroupAssigner.webhook.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+      - notExists:
+          path: spec.template.spec.volumes
+        template: templates/pod-group-assigner/deployment.yaml

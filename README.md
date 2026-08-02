@@ -9,10 +9,10 @@ departments, node pools, queues, and workload placement.
 
 ## Project status
 
-This repository is being bootstrapped. Its Helm chart and controllers are not yet
-available from this repository, and there is no published release to install.
-Installation and upgrade instructions will be added when the chart migration is
-complete.
+The KAI Resource Management Helm chart source is available under
+[`charts/kai-resource-management`](charts/kai-resource-management/README.md).
+There is not yet a published release, so cluster administrators must currently
+package the chart from source and supply compatible controller images.
 
 ## Scope
 
@@ -27,7 +27,7 @@ KAI Resource Management is intended to provide:
 
 | Path | Purpose |
 | --- | --- |
-| `charts/` | Helm charts. The main chart will live at `charts/kai-resource-management`. |
+| `charts/` | Helm charts, including the main `kai-resource-management` chart. |
 | `cmd/` | Executable entry points, one subdirectory per binary. |
 | `pkg/` | Shared Go packages used by repository binaries and integrations. |
 | `docs/` | User, administrator, reference, and developer documentation. |

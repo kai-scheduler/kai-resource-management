@@ -31,6 +31,7 @@ LICENSE_IGNORES := \
 	-ignore 'coverage/**' \
 	-ignore 'vendor/**' \
 	-ignore 'charts/*/charts/**' \
+	-ignore 'charts/*/Chart.lock' \
 	-ignore '*.test' \
 	-ignore 'cover.out' \
 	-ignore 'coverage.out' \
@@ -67,6 +68,12 @@ changie: $(CHANGIE) ## Install changie locally.
 $(CHANGIE): | $(LOCALBIN) $(GOCACHE) $(GOTMPDIR)
 	test -s $(CHANGIE) || GOBIN=$(LOCALBIN) $(GO) install github.com/miniscruff/changie@$(CHANGIE_VERSION)
 
+.PHONY: test-chart
+test-chart: ## Run Helm chart unit tests in the pinned container.
+	@echo "Running tests for Helm chart: kai-resource-management"
+	helm dependency build ./charts/kai-resource-management
+	docker run -t --rm -v ./charts/kai-resource-management:/apps helmunittest/helm-unittest:3.17.2-0.8.1 . -f 'tests/**/*_test.yaml'
+
 .PHONY: fmt-go
 fmt-go: ## Format Go source files.
 	find . -type f -name '*.go' -not -path './third_party/*' -exec gofmt -w {} +
@@ -102,7 +109,7 @@ lint-go: | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.
 lint: fmt-check vet-go lint-go ## Run all static checks.
 
 .PHONY: test
-test: | $(GOCACHE) $(GOTMPDIR) ## Run unit and integration tests; e2e is intentionally separate.
+test: test-chart | $(GOCACHE) $(GOTMPDIR) ## Run unit and integration tests; e2e is intentionally separate.
 	@all_packages="$$( $(GO) list ./... )"; \
 	packages="$$(printf '%s\n' "$$all_packages" | grep -v '/test/e2e' || true)"; \
 	if [ -n "$$packages" ]; then \
@@ -126,7 +133,7 @@ license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 		$(LICENSE_IGNORES) .
 
 .PHONY: validate
-validate: fmt-check mod-check vet-go lint-go test license-check ## Run all repository validation without changing files.
+validate: fmt-check mod-check vet-go lint-go test license-check ## Run all repository validation without changing tracked files.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

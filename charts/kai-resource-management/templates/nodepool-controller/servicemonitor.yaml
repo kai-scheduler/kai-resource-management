@@ -1,0 +1,61 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if and .Values.nodepoolController.enabled .Values.serviceMonitor.create }}
+{{- $comp := .Values.nodepoolController }}
+{{- $metricsPortName := ($comp.metrics | default dict).portName | default "metrics" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nodepool-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nodepool-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  jobLabel: nodepool-controller
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: nodepool-controller
+  endpoints:
+    - port: {{ $metricsPortName }}
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      metricRelabelings:
+        - action: replace
+          targetLabel: type
+          replacement: stats
+{{- if .Values.serviceMonitor.accounting }}
+---
+# Second ServiceMonitor for the same endpoint, labeled kai.scheduler/accounting=true so the
+# node->nodepool metrics are also scraped by the KAI accounting Prometheus (which selects
+# ServiceMonitors by that label). The primary Prometheus excludes that label (NotIn), so a
+# single ServiceMonitor can only reach one of the two — hence both are rendered.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nodepool-controller-accounting
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nodepool-controller
+    kai.scheduler/accounting: "true"
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  jobLabel: nodepool-controller
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: nodepool-controller
+  endpoints:
+    - port: {{ $metricsPortName }}
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      metricRelabelings:
+        - action: replace
+          targetLabel: type
+          replacement: stats
+{{- end }}
+{{- end }}

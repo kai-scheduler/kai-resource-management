@@ -1,0 +1,52 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: container securityContext hardening and image helper
+templates:
+  - templates/nodepool-controller/deployment.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: applies KAI's hardened container securityContext by default (non-OpenShift)
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10000
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: all
+
+  - it: omits the securityContext on OpenShift (SCC assigns it)
+    set:
+      image.registry: reg.example.com/kai
+      openshift: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].securityContext
+
+  - it: merges a user-supplied global.securityContext over the hardened defaults
+    set:
+      image.registry: reg.example.com/kai
+      global.securityContext.runAsUser: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 2000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: renders the image without a leading slash when no registry is set
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nodepool-controller:0.0.0-dev

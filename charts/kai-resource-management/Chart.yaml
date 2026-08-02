@@ -1,0 +1,28 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v2
+name: kai-resource-management
+description: |
+  KAI Resource Management. Installs the nodepool-controller, project-controller and
+  pod-group-assigner as a standalone Helm chart. Install into a dedicated namespace,
+  e.g. `helm install krm . -n kai-resource-management --create-namespace`.
+type: application
+home: https://github.com/kai-scheduler/kai-resource-management
+sources:
+  - https://github.com/kai-scheduler/kai-resource-management
+keywords:
+  - kubernetes
+  - scheduling
+  - resource-management
+annotations:
+  artifacthub.io/license: Apache-2.0
+# version/appVersion are placeholders stamped at release/package time.
+# appVersion is the default image tag for every component (see the imageTag helper).
+version: 0.0.0-dev
+appVersion: 0.0.0-dev
+
+dependencies:
+  - name: kai-scheduler
+    repository: oci://ghcr.io/kai-scheduler/kai-scheduler
+    version: "v0.16.4"

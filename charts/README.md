@@ -2,11 +2,14 @@
 
 Helm charts maintained by this repository live in this directory.
 
-The primary chart will be located at:
+The primary chart is located at:
 
 ```text
 charts/kai-resource-management/
 ```
+
+See the [chart documentation](kai-resource-management/README.md) for
+prerequisites, build and test commands, installation, upgrades, and cleanup.
 
 The chart directory name must clearly identify the artifact as a Helm chart
 through its `charts/` parent. Chart source, tests, and documentation belong

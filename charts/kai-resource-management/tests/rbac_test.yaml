@@ -1,0 +1,107 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: rbac creation and binding namespace
+templates:
+  - templates/nodepool-controller/clusterrole.yaml
+  - templates/nodepool-controller/role.yaml
+  - templates/pod-group-assigner/clusterrole.yaml
+  - templates/project-controller/clusterrole.yaml
+  - templates/project-controller/clusterrole_features.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: creates the nodepool ClusterRole and binds the SA in the release namespace
+    set:
+      image.registry: reg.example.com/kai
+    documentSelector:
+      path: kind
+      value: ClusterRoleBinding
+    template: templates/nodepool-controller/clusterrole.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: kai-resource-management
+      - equal:
+          path: subjects[0].name
+          value: nodepool-controller
+
+  - it: omits all RBAC when rbac.create is false
+    set:
+      image.registry: reg.example.com/kai
+      rbac.create: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/nodepool-controller/clusterrole.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/nodepool-controller/role.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/pod-group-assigner/clusterrole.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/project-controller/clusterrole.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/project-controller/clusterrole_features.yaml
+
+  - it: the main project-controller ClusterRole is always created (not feature-gated)
+    set:
+      image.registry: reg.example.com/kai
+      projectController.features.createNamespaces: false
+      projectController.features.createRoleBindings: false
+      projectController.features.clusterWideSecret: false
+      projectController.features.clusterWideConfigMap: false
+      projectController.features.clusterWidePvc: false
+    template: templates/project-controller/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - equal:
+          path: metadata.name
+          value: project-controller
+
+  - it: uses explicit verbs, never the "*" wildcard, on the main ClusterRole
+    set:
+      image.registry: reg.example.com/kai
+    template: templates/project-controller/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - equal:
+          path: rules[0].verbs
+          value: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - notContains:
+          path: rules[0].verbs
+          content: "*"
+
+  - it: feature ClusterRoles disappear when their feature is off
+    set:
+      image.registry: reg.example.com/kai
+      projectController.features.createNamespaces: false
+      projectController.features.createRoleBindings: false
+      projectController.features.clusterWideSecret: false
+      projectController.features.clusterWideConfigMap: false
+      projectController.features.clusterWidePvc: false
+      projectController.features.limitRange: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/project-controller/clusterrole_features.yaml
+
+  - it: binds pod-group-assigner SA in the release namespace
+    set:
+      image.registry: reg.example.com/kai
+    documentSelector:
+      path: kind
+      value: ClusterRoleBinding
+    template: templates/pod-group-assigner/clusterrole.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: kai-resource-management
