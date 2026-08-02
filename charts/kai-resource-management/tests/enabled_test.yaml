@@ -1,0 +1,52 @@
+suite: component enable/disable toggles
+templates:
+  - templates/nodepool-controller/deployment.yaml
+  - templates/project-controller/deployment.yaml
+  - templates/pod-group-assigner/deployment.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: renders all three deployments by default
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/nodepool-controller/deployment.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/project-controller/deployment.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: omits nodepool-controller when disabled
+    set:
+      image.registry: reg.example.com/kai
+      nodepoolController.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/nodepool-controller/deployment.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/project-controller/deployment.yaml
+
+  - it: omits project-controller when disabled
+    set:
+      image.registry: reg.example.com/kai
+      projectController.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/project-controller/deployment.yaml
+
+  - it: omits pod-group-assigner when disabled
+    set:
+      image.registry: reg.example.com/kai
+      podGroupAssigner.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/pod-group-assigner/deployment.yaml

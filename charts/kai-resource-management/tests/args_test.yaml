@@ -1,0 +1,307 @@
+suite: controller args exposed as chart values
+templates:
+  - templates/nodepool-controller/deployment.yaml
+  - templates/project-controller/deployment.yaml
+  - templates/pod-group-assigner/deployment.yaml
+  - templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+release:
+  name: rm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: kai-scheduler.global.nodePoolLabelKey cascades --nodepool-label-key to all three controllers
+    set:
+      kai-scheduler.global.nodePoolLabelKey: custom/np
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: custom/np
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: kai-scheduler.podgrouper.queueLabelKey cascades --queue-label-key to project + pod-group-assigner, not nodepool
+    set:
+      kai-scheduler.podgrouper.queueLabelKey: custom/queue
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --queue-label-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --queue-label-key
+        template: templates/pod-group-assigner/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --queue-label-key
+        template: templates/nodepool-controller/deployment.yaml
+
+  - it: the webhook namespaceSelector key is pinned to the controllers' namespace-project label
+    # Not a chart value; must match the --namespace-project-label-key default in both controllers.
+    asserts:
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: kai/project
+        template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+
+  - it: nodepoolController.args.schedulerName renders --scheduler-name only on nodepool-controller
+    set:
+      nodepoolController.args.schedulerName: my-scheduler
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-scheduler
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+        template: templates/project-controller/deployment.yaml
+
+  - it: nodepool-controller pins --scheduler-namespace to the release namespace
+    template: templates/nodepool-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-namespace
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: kai
+
+  - it: project-controller renders --install-namespace, not --scheduler-namespace
+    template: templates/project-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --install-namespace
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-namespace
+
+  - it: projectController.args.projectNamePrefix renders --project-name-prefix
+    set:
+      projectController.args.projectNamePrefix: acme
+    template: templates/project-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --project-name-prefix
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme
+
+  - it: per-controller args.qps / args.burst render
+    set:
+      projectController.args.qps: 100
+      projectController.args.burst: 200
+    template: templates/project-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --qps
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "100"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --burst
+
+  - it: per-controller args.leaderElect true overrides a global-off default
+    set:
+      podGroupAssigner.args.leaderElect: true
+    template: templates/pod-group-assigner/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+
+  - it: global.leaderElection true renders --leader-elect on all three controllers
+    set:
+      global.leaderElection: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: explicit args.leaderElect false overrides a global-on setting (issue 1 regression)
+    set:
+      global.leaderElection: true
+      nodepoolController.args.leaderElect: false
+      projectController.args.leaderElect: false
+      podGroupAssigner.args.leaderElect: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/project-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: nodepool-controller metrics.namespace / schedulingShardArgs / excludedNodepoolName render
+    set:
+      nodepoolController.metrics.namespace: kai
+      nodepoolController.args.schedulingShardArgs: '{"v":"2"}'
+      nodepoolController.args.excludedNodepoolName: kai-excluded
+    template: templates/nodepool-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --metrics-namespace
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduling-shard-args
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --excluded-nodepool-name
+
+  - it: pod-group-assigner args.unexistingNodepoolSentinel renders
+    set:
+      podGroupAssigner.args.unexistingNodepoolSentinel: kai-unexisting-node-pool
+    template: templates/pod-group-assigner/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --unexisting-nodepool-sentinel
+
+  - it: arbitrary <comp>.args keys cascade generically as camelCase -> --kebab-case flags
+    # Proves any go-operator flag is settable from values without a template edit — required
+    # for using this chart as a subchart of a parent that drives the full arg surface.
+    set:
+      nodepoolController.args.finalizerDomain: example.org
+      nodepoolController.args.toExcludeLabel: acme/exclude
+      projectController.args.projectLabelKey: acme/project
+      projectController.args.namespaceProjectLabelKey: acme/queue
+      podGroupAssigner.args.annotationNodepoolsKey: acme/nps
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --finalizer-domain
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --to-exclude-label
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --project-label-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --namespace-project-label-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --annotation-nodepools-key
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: defaultNodePool.name is the single source for --default-nodepool-name on all three controllers
+    set:
+      defaultNodePool.name: my-default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --default-nodepool-name
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-default
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-default
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-default
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: commonArgs apply only to controllers whose binary defines the flag, per-controller overrides win
+    set:
+      commonArgs.finalizerDomain: acme.io
+      commonArgs.projectLabelKey: acme/project
+      projectController.args.finalizerDomain: proj-override
+    asserts:
+      # finalizer-domain: nodepool + project, NOT pod-group-assigner
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --finalizer-domain
+        template: templates/nodepool-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme.io
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --finalizer-domain
+        template: templates/pod-group-assigner/deployment.yaml
+      # per-controller override wins over the shared value
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: proj-override
+        template: templates/project-controller/deployment.yaml
+      # project-label-key: project + pod-group-assigner, NOT nodepool
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --project-label-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --project-label-key
+        template: templates/pod-group-assigner/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --project-label-key
+        template: templates/nodepool-controller/deployment.yaml
+
+  - it: vocabulary/operational flags are omitted by default (render-when-set)
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --qps
+        template: templates/nodepool-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --namespace-project-label-key
+        template: templates/pod-group-assigner/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/project-controller/deployment.yaml

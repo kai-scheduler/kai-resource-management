@@ -1,0 +1,72 @@
+{{- if .Values.podGroupAssigner.enabled }}
+{{- $comp := .Values.podGroupAssigner }}
+{{- $a := $comp.args | default dict }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "namespaceProjectLabelKey" "projectLabelKey") }}
+{{- $kai := index .Values "kai-scheduler" }}
+{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
+{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey }}
+{{- $defaultNodepoolName := (.Values.defaultNodePool | default dict).name }}
+{{- $replicas := $comp.replicas | default 1 }}
+{{- $webhook := $comp.webhook | default dict }}
+{{- $webhookTargetPort := int ($webhook.targetPort | default 8443) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-group-assigner
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: pod-group-assigner
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: pod-group-assigner
+  template:
+    metadata:
+      labels:
+        app: pod-group-assigner
+    spec:
+      serviceAccountName: pod-group-assigner
+      containers:
+        - name: pod-group-assigner
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          args:
+            # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
+            # and queue label keys are shared vocabulary sourced from the kai-scheduler subchart.
+            - --webhook-port
+            - {{ $webhookTargetPort | quote }}
+            {{- include "kai-resource-management.stringArgs" (dict
+                "nodepool-label-key"           $nodePoolLabelKey
+                "queue-label-key"              $queueLabelKey
+                "default-nodepool-name"        $defaultNodepoolName) | nindent 12 }}
+            {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
+            {{- if $a.debug }}
+            - --debug
+            {{- end }}
+            {{- $leaderElect := .Values.global.leaderElection }}
+            {{- if hasKey $a "leaderElect" }}{{- $leaderElect = $a.leaderElect }}{{- end }}
+            {{- if or $leaderElect (gt (int $replicas) 1) }}
+            - --leader-elect
+            {{- end }}
+          {{- if $webhook.enabled }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          {{- end }}
+          resources:
+            {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "200m" "memory" "512Mi") "requests" (dict "cpu" "100m" "memory" "256Mi"))) | nindent 12 }}
+      {{- if $webhook.enabled }}
+      volumes:
+        - name: webhook-certs
+          secret:
+            # Cert Secret is provisioned separately. optional so the pod starts before the
+            # Secret exists; the webhook only serves once the cert is present.
+            secretName: {{ $webhook.certSecretName | default "pod-group-assigner-tls-secret" }}
+            optional: true
+      {{- end }}
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

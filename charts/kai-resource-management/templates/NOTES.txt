@@ -1,0 +1,25 @@
+KAI Resource Management installed into namespace: {{ .Release.Namespace }}
+
+Components:
+{{- if .Values.nodepoolController.enabled }}
+  ✓ nodepool-controller
+{{- end }}
+{{- if .Values.projectController.enabled }}
+  ✓ project-controller
+{{- end }}
+{{- if .Values.podGroupAssigner.enabled }}
+  ✓ pod-group-assigner{{ if .Values.podGroupAssigner.webhook.enabled }} (with PodGroup mutating webhook){{ end }}
+{{- end }}
+
+Notes:
+  - KAI-scheduler is bundled as a subchart, bringing its scheduler and CRDs
+    (scheduling.run.ai/podgroups,queues; kai.scheduler/schedulingshards,topologies). Its Config CR is
+    applied by KAI's config-deployer hook.
+{{- if .Values.podGroupAssigner.webhook.enabled }}
+  - The pod-group-assigner webhook TLS cert is provisioned separately. Until the Secret
+    "{{ .Values.podGroupAssigner.webhook.certSecretName }}" exists with tls.crt/tls.key and the
+    MutatingWebhookConfiguration caBundle is populated, the webhook will not serve.
+{{- end }}
+
+Verify:
+  kubectl -n {{ .Release.Namespace }} get deploy,svc,servicemonitor

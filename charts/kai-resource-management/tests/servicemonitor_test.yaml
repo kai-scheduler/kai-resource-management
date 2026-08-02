@@ -1,0 +1,46 @@
+suite: nodepool ServiceMonitors (primary + accounting)
+templates:
+  - templates/nodepool-controller/servicemonitor.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: renders both the primary and accounting ServiceMonitors by default
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: the accounting ServiceMonitor carries the kai.scheduler/accounting label
+    set:
+      image.registry: reg.example.com/kai
+    documentSelector:
+      path: metadata.name
+      value: nodepool-controller-accounting
+    asserts:
+      - equal:
+          path: metadata.labels["kai.scheduler/accounting"]
+          value: "true"
+      - equal:
+          path: spec.namespaceSelector.matchNames[0]
+          value: kai
+
+  - it: drops the accounting ServiceMonitor when serviceMonitor.accounting is false
+    set:
+      image.registry: reg.example.com/kai
+      serviceMonitor.accounting: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: nodepool-controller
+
+  - it: omits all ServiceMonitors when serviceMonitor.create is false
+    set:
+      image.registry: reg.example.com/kai
+      serviceMonitor.create: false
+    asserts:
+      - hasDocuments:
+          count: 0

@@ -1,0 +1,62 @@
+suite: project-controller rolebindings-plugin ConfigMap
+templates:
+  - templates/project-controller/configmap-rolebindings.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: ships the main per-project binding plus the feature bindings (features default on)
+    asserts:
+      - exists:
+          path: data["project-controller-project.yaml"]
+      - exists:
+          path: data["project-secret.yaml"]
+      - exists:
+          path: data["project-configmap.yaml"]
+      - exists:
+          path: data["project-pvc.yaml"]
+      - notExists:
+          path: data["limit-range.yaml"]
+
+  - it: each per-project binding references a ClusterRole this chart defines
+    documentIndex: 0
+    asserts:
+      - matchRegex:
+          path: data["project-controller-project.yaml"]
+          pattern: "name: project-controller"
+      - matchRegex:
+          path: data["project-secret.yaml"]
+          pattern: "name: project-controller-cluster-secret-per-project"
+
+  - it: gates each feature per-project binding on its feature flag
+    set:
+      projectController.features.clusterWideSecret: false
+      projectController.features.limitRange: true
+    asserts:
+      - exists:
+          path: data["project-controller-project.yaml"]
+      - notExists:
+          path: data["project-secret.yaml"]
+      - exists:
+          path: data["project-configmap.yaml"]
+      - exists:
+          path: data["limit-range.yaml"]
+
+  - it: subjects reference the release namespace
+    documentIndex: 0
+    asserts:
+      - matchRegex:
+          path: data["project-secret.yaml"]
+          pattern: "namespace: kai-resource-management"
+
+  - it: appends extra RoleBindings supplied via values
+    set:
+      projectController.extraProjectRoleBindings:
+        my-extra.yaml: |
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: my-extra
+    asserts:
+      - exists:
+          path: data["my-extra.yaml"]

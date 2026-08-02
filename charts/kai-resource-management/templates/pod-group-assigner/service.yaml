@@ -1,0 +1,26 @@
+{{- if .Values.podGroupAssigner.enabled }}
+{{- $comp := .Values.podGroupAssigner }}
+{{- $webhook := $comp.webhook | default dict }}
+{{- $webhookPort := int ($webhook.port | default 443) }}
+{{- $webhookTargetPort := int ($webhook.targetPort | default 8443) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pod-group-assigner
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: pod-group-assigner
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if include "kai-resource-management.openshift" . }}
+  annotations:
+    # On OpenShift the service-CA operator mints the webhook serving cert into this Secret.
+    service.beta.openshift.io/serving-cert-secret-name: {{ $webhook.certSecretName | default "pod-group-assigner-tls-secret" }}
+  {{- end }}
+spec:
+  selector:
+    app: pod-group-assigner
+  ports:
+    - protocol: TCP
+      port: {{ $webhookPort }}
+      targetPort: {{ $webhookTargetPort }}
+{{- end }}

@@ -1,0 +1,56 @@
+{{- if and .Values.projectController.enabled .Values.rbac.create }}
+# Main project-controller ClusterRole — always created (not gated by a feature).
+# Grants the project-controller's core cluster access: projects/departments/queues, plus the
+# leader-election leases and event emission it always needs. Feature-specific access
+# (cluster-wide secrets/configmaps/pvcs, namespace/rolebinding creation, limit ranges) lives in
+# clusterrole_features.yaml, each gated by its projectController.features flag.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: project-controller
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["kai.resources"]
+    resources:
+      - projects
+      - projects/finalizers
+      - projects/status
+      - departments
+      - departments/finalizers
+      - departments/status
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["scheduling.run.ai"]
+    resources: ["queues"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "get", "list", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: project-controller
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: project-controller
+subjects:
+  - kind: ServiceAccount
+    name: project-controller
+    namespace: {{ .Release.Namespace }}
+{{- end }}

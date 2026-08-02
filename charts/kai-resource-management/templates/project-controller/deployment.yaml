@@ -1,0 +1,102 @@
+{{- if .Values.projectController.enabled }}
+{{- $comp := .Values.projectController }}
+{{- $replicas := $comp.replicas | default 1 }}
+{{- $metrics := ($comp.service | default dict).metrics | default dict }}
+{{- $metricsPort := int ($metrics.port | default 9400) }}
+{{- $metricsPortName := $metrics.portName | default "metrics" }}
+{{- $features := $comp.features | default dict }}
+{{- $profiling := $comp.profiling | default dict }}
+{{- $a := $comp.args | default dict }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain" "namespaceProjectLabelKey" "projectLabelKey") }}
+{{- $kai := index .Values "kai-scheduler" }}
+{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
+{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey }}
+{{- $defaultNodepoolName := (.Values.defaultNodePool | default dict).name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: project-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: project-controller
+  template:
+    metadata:
+      labels:
+        app: project-controller
+    spec:
+      serviceAccountName: project-controller
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: project-controller
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          ports:
+            - name: {{ $metricsPortName }}
+              containerPort: {{ $metricsPort }}
+          args:
+            # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
+            # and queue label keys are shared vocabulary sourced from the kai-scheduler subchart.
+            # Deployment-specific flags and flags pointing at this chart's own ConfigMaps (in the
+            # install namespace) are always set.
+            - --metrics-port
+            - {{ $metricsPort | quote }}
+            - --profiler-api-port
+            - {{ $profiling.apiPort | default "8182" | quote }}
+            - --rolebindings-configmap-name
+            - project-controller-rolebindings-plugin
+            - --rolebindings-configmap-namespace
+            - {{ .Release.Namespace }}
+            - --project-delete-blockers-namespace
+            - {{ .Release.Namespace }}
+            - --enable-project-validation-webhook=false
+            - --enable-department-validation-webhook=false
+            - --install-namespace
+            - {{ .Release.Namespace }}
+            {{- include "kai-resource-management.stringArgs" (dict
+                "nodepool-label-key"          $nodePoolLabelKey
+                "queue-label-key"             $queueLabelKey
+                "default-nodepool-name"       $defaultNodepoolName) | nindent 12 }}
+            {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
+            {{- if include "kai-resource-management.openshift" . }}
+            - --openshift
+            {{- end }}
+            {{- if $features.createNamespaces }}
+            - --namespaces
+            {{- end }}
+            {{- if $features.createRoleBindings }}
+            - --role-bindings
+            {{- end }}
+            {{- if $features.clusterWideSecret }}
+            - --cluster-wide-secrets
+            {{- end }}
+            {{- if $features.clusterWidePvc }}
+            - --cluster-wide-pvcs
+            {{- end }}
+            {{- if $features.clusterWideConfigMap }}
+            - --cluster-wide-config-maps
+            {{- end }}
+            {{- if $features.limitRange }}
+            - --limit-range
+            {{- end }}
+            {{- if $profiling.enabled }}
+            - --enable-profiling
+            {{- end }}
+            {{- if $a.debug }}
+            - --debug
+            {{- end }}
+            {{- $leaderElect := .Values.global.leaderElection }}
+            {{- if hasKey $a "leaderElect" }}{{- $leaderElect = $a.leaderElect }}{{- end }}
+            {{- if or $leaderElect (gt (int $replicas) 1) }}
+            - --leader-elect
+            {{- end }}
+          resources:
+            {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "300m" "memory" "2Gi") "requests" (dict "cpu" "150m" "memory" "1Gi"))) | nindent 12 }}
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

@@ -1,0 +1,147 @@
+# KAI Resource Management chart — user-facing values.
+#
+# This file is intentionally slim. Static defaults (ports, resource requests/limits,
+# replica counts, metrics port names) live in the templates via `| default`, and the
+# controllers' own label/vocabulary defaults are used by omitting those flags entirely.
+# Override anything by adding the corresponding key.
+# See internal_values.yaml for a catalog of the hidden knobs.
+#
+# The install namespace is the single source of truth: `.Release.Namespace`
+# (e.g. `helm install krm . -n kai-resource-management`). The chart hardcodes no namespace.
+
+# Registry/tag for THIS chart's component images. Kept OUT of `global` on purpose: Helm shares
+# `global.*` into subcharts, so a global registry/tag would override kai-scheduler's own ghcr images.
+image:
+  # Registry for all components (per-component <comp>.image.registry overrides it).
+  registry: ""
+  # Tag for all components. Empty -> the chart appVersion (per-component <comp>.image.tag overrides).
+  tag: ""
+
+global:
+  # Pull policy for all components (per-component image.pullPolicy overrides; default IfNotPresent).
+  imagePullPolicy: IfNotPresent
+  # List of {name: <secret>} image pull secrets added to every pod.
+  imagePullSecrets: []
+  # Select the FIPS image variants (appends "-fips" to every image tag).
+  fips: false
+  # Emit `--leader-elect` on every component (also implied when a component has >1 replica).
+  leaderElection: false
+  # Container security context. Defaults to runAsUser 10000 on non-OpenShift (see helper).
+  securityContext: {}
+  # Pod scheduling, applied to every component.
+  affinity: {}
+  tolerations: []
+  nodeSelector: {}
+
+# Force OpenShift mode. When false it is auto-detected via a cluster lookup;
+# set true explicitly for offline rendering (helm template / ArgoCD).
+openshift: false
+
+# Create the ClusterRoles / Roles / bindings the components need.
+rbac:
+  create: true
+
+serviceMonitor:
+  # Create Prometheus ServiceMonitors for the components that expose metrics
+  # (nodepool-controller, project-controller; pod-group-assigner does not expose metrics).
+  create: true
+  # Additionally create the nodepool-controller "accounting" ServiceMonitor (labeled
+  # kai.scheduler/accounting=true) so the node->nodepool metrics reach the KAI accounting
+  # Prometheus. Harmless without it; required if the KAI accounting Prometheus is deployed.
+  accounting: true
+
+# KAI-scheduler subchart (oci://ghcr.io/kai-scheduler/kai-scheduler), always bundled — the controllers
+# depend on its scheduler + CRDs. Parent global.* (fips, imagePullSecrets, securityContext, scheduling)
+# is shared with the subchart automatically by Helm; KAI-specific overrides are set here. (Our
+# registry/tag live under the top-level `image:` block, NOT global, so they don't clobber KAI's images.)
+kai-scheduler:
+  global:
+    # Pin KAI to its own published images regardless of the parent global.registry.
+    registry: ghcr.io/kai-scheduler/kai-scheduler
+    # Shared node-pool label key. One source: KAI's kai-config and all three controllers read it.
+    # Empty ⇒ the scheduler and controllers use their built-in default.
+    nodePoolLabelKey: ""
+  podgrouper:
+    # Shared queue label key (sibling of global.nodePoolLabelKey), read by KAI's kai-config,
+    # project-controller and pod-group-assigner. Empty ⇒ built-in default.
+    queueLabelKey: ""
+  # KAI owns its Config CR via the built-in deployer hook (no operator in this chart).
+  # For GitOps/ArgoCD instead set kaiConfigDeployer.enabled=false and kaiConfig.render=true.
+  kaiConfigDeployer:
+    enabled: true
+  kaiConfig:
+    render: false
+  # Our controllers own these: nodepool-controller creates SchedulingShards, project-controller Queues.
+  defaultShard:
+    enabled: false
+  defaultQueue:
+    createDefaultQueue: false
+
+# Chart-managed default catch-all NodePool (replaces KAI's disabled default shard/queue).
+# Enabled by default; set enabled=false to opt out. spec is a passthrough (empty = catch-all).
+# `name` is the single source of truth for the default nodepool: it names the NodePool CR and
+# is passed to every controller as --default-nodepool-name.
+defaultNodePool:
+  enabled: true
+  name: default
+  spec: {}
+
+# Args shared by more than one controller (set once; per-controller <comp>.args overrides).
+# Each is applied only to controllers whose binary accepts it. Empty ⇒ binary default.
+# See internal_values.yaml for which controllers use each.
+commonArgs:
+  finalizerDomain: ""            # --finalizer-domain
+  namespaceProjectLabelKey: ""   # --namespace-project-label-key
+  projectLabelKey: ""            # --project-label-key
+
+nodepoolController:
+  enabled: true
+  image:
+    name: nodepool-controller
+    # registry / tag / pullPolicy fall back to global.
+  # replicas: 1
+  # resources: { limits: {cpu, memory}, requests: {cpu, memory} }  # defaults in template
+  args:
+    debug: false
+    # --scheduler-name; empty ⇒ the binary's default (targets the bundled scheduler).
+    schedulerName: ""
+  # Namespace of the DCGM exporter Service. Omitted by default so the binary's own default
+  # applies; set to override.
+  # dcgmExporterNamespace: ""
+
+projectController:
+  enabled: true
+  image:
+    name: project-controller
+  # replicas / resources: defaults in template
+  args:
+    debug: false
+    projectNamePrefix: ""   # --project-name-prefix; prefix for managed project namespaces (default "kai")
+  profiling:
+    enabled: false
+  # Feature flags controlling which per-project resources / RoleBindings the controller manages.
+  # Each flag also gates the matching ClusterRole/RoleBinding and rolebindings-plugin entry.
+  features:
+    createNamespaces: true
+    createRoleBindings: true
+    clusterWideSecret: true
+    clusterWideConfigMap: true
+    clusterWidePvc: true
+    limitRange: false
+  # Extra per-project RoleBindings to add to the rolebindings-plugin ConfigMap, as a map of
+  # <key>: <RoleBinding YAML>. Use this to wire RoleBindings for components from other charts.
+  extraProjectRoleBindings: {}
+
+podGroupAssigner:
+  enabled: true
+  image:
+    name: pod-group-assigner
+  # replicas / resources: defaults in template
+  args:
+    debug: false
+  webhook:
+    # Create the PodGroup mutating webhook (Service + MutatingWebhookConfiguration + cert mount).
+    enabled: true
+    # TLS Secret providing tls.crt/tls.key at /etc/webhook/certs. Provisioned separately;
+    # until then the mount is optional and the caBundle is empty.
+    certSecretName: pod-group-assigner-tls-secret

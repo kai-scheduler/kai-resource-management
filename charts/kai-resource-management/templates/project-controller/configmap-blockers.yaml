@@ -1,0 +1,22 @@
+{{- if .Values.projectController.enabled }}
+# project-controller reads this at startup (--project-delete-blockers-namespace) to build its
+# project-deletion blockers. The default is an empty set; override via
+# projectController.deleteBlockers, e.g. to block deletion while project namespaces still hold PVCs:
+#   projectController:
+#     deleteBlockers:
+#       - displayName: Pvcs
+#         group: ""
+#         version: v1
+#         kind: PersistentVolumeClaim
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: project-delete-blockers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: project-controller
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+data:
+  blockers.yaml: |
+    {{- toYaml (.Values.projectController.deleteBlockers | default list) | nindent 4 }}
+{{- end }}

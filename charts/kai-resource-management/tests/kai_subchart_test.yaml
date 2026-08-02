@@ -1,0 +1,45 @@
+suite: kai-scheduler subchart wiring
+release:
+  name: krm
+  namespace: kai-resource-management
+templates:
+  - charts/kai-scheduler/templates/services/operator.yaml
+  - templates/nodepool-controller/deployment.yaml
+  - charts/kai-scheduler/templates/default-shard.yaml
+  - charts/kai-scheduler/templates/default-queue.yaml
+tests:
+  - it: renders the KAI operator from ghcr, proving the pinned dependency is bundled
+    template: charts/kai-scheduler/templates/services/operator.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^ghcr\\.io/kai-scheduler/kai-scheduler/"
+
+  - it: keeps our chart's registry and the KAI subchart's registry separate
+    set:
+      image.registry: my.reg
+    asserts:
+      # our component uses the chart's image.registry
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^my\\.reg/nodepool-controller:"
+        template: templates/nodepool-controller/deployment.yaml
+      # KAI stays on ghcr, NOT clobbered by our image.registry
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^ghcr\\.io/kai-scheduler/kai-scheduler/"
+        template: charts/kai-scheduler/templates/services/operator.yaml
+
+  - it: disables KAI's default SchedulingShard (nodepool-controller owns shards)
+    template: charts/kai-scheduler/templates/default-shard.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables KAI's default Queue (project-controller owns queues)
+    template: charts/kai-scheduler/templates/default-queue.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
