@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if and .Values.projectController.enabled .Values.rbac.create }}
 # Main project-controller ClusterRole — always created (not gated by a feature).
 # Grants the project-controller's core cluster access: projects/departments/queues, plus the

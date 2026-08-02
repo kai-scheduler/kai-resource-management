@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 suite: pod-group-assigner webhook
 templates:
   - templates/pod-group-assigner/mutatingwebhookconfiguration.yaml

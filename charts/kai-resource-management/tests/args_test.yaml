@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 suite: controller args exposed as chart values
 templates:
   - templates/nodepool-controller/deployment.yaml

@@ -1,18 +1,17 @@
 # Building from source
 
-This repository currently contains its development infrastructure but no
-buildable services or Helm chart. The commands below are the stable entry points
-that future components will extend.
+The commands below are the stable entry points for building and validating the
+repository's Go code and Helm chart.
 
 ## Prerequisites
 
 - The Go version declared in the root `go.mod`.
 - GNU Make or a compatible Make implementation.
 - Git.
+- Helm 3 for dependency resolution, linting, rendering, and packaging.
+- Docker for the chart unit-test image used by `make test-chart`.
 
-Additional component-specific requirements, such as Helm, Docker, Kind, or
-controller-generation tools, will be documented when those components are
-introduced.
+Helm dependency resolution requires network access to GHCR.
 
 ## Common commands
 
@@ -24,8 +23,28 @@ make test
 make validate
 ```
 
-`make validate` is non-mutating. It verifies formatting, module tidiness, static
-analysis, tests, and source license headers.
+`make test` runs Go tests and the chart unit tests. `make validate` verifies
+formatting, module tidiness, static analysis, tests, and source license headers
+without changing tracked files.
+
+The root Makefile exposes one chart-specific test target:
+
+```bash
+make test-chart
+```
+
+Package the chart with Helm:
+
+```bash
+helm dependency build ./charts/kai-resource-management
+mkdir -p ./bin/charts
+helm package ./charts/kai-resource-management \
+  --destination ./bin/charts \
+  --app-version 0.1.0 \
+  --version 0.1.0
+```
+
+Downloaded subchart archives and packaged build output are ignored by Git.
 
 To add missing source headers intentionally:
 

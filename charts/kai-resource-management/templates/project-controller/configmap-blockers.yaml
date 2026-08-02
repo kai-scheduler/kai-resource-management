@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if .Values.projectController.enabled }}
 # project-controller reads this at startup (--project-delete-blockers-namespace) to build its
 # project-deletion blockers. The default is an empty set; override via

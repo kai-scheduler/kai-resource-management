@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if and .Values.podGroupAssigner.enabled .Values.rbac.create }}
 # Watches pods and groups them into PodGroups according to their job type.
 apiVersion: rbac.authorization.k8s.io/v1

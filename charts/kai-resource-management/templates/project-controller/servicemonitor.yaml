@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 {{- if and .Values.projectController.enabled .Values.serviceMonitor.create }}
 {{- $comp := .Values.projectController }}
 {{- $metricsPortName := (($comp.service | default dict).metrics | default dict).portName | default "metrics" }}

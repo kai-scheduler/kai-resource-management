@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
 # NOTE:
 # This file is documentation ONLY. It is listed in .helmignore and is never merged
 # into .Values, so values here have NO effect at render time. It catalogs the defaults

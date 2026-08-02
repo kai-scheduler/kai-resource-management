@@ -35,3 +35,6 @@ documentation is incomplete.
 
 Developer setup begins in
 [developer/building-from-source.md](developer/building-from-source.md).
+
+Cluster administrators can start with the
+[KAI Resource Management chart documentation](../charts/kai-resource-management/README.md).
