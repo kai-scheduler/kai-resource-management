@@ -1,0 +1,27 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+name: New documentation
+description: Request documentation for an uncovered workflow or concept
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What documentation is missing?
+      description: Describe the task, concept, reference, or troubleshooting information needed.
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Intended audience
+      description: For example, cluster administrator, application developer, or contributor.
+    validations:
+      required: true
+  - type: textarea
+    id: searched
+    attributes:
+      label: Where did you look?
+      description: Link related pages or describe the search terms used.

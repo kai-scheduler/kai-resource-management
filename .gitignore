@@ -1,0 +1,25 @@
+# Build and tool output
+/bin/
+/.gocache/
+/.gotmp/
+/coverage/
+*.test
+cover.out
+coverage.out
+
+# Go
+/vendor/
+
+# Downloaded Helm dependencies
+/charts/*/charts/
+
+# Editors and local agent-harness state
+# Shared agent assets belong in the tracked /.agents/ directory.
+/.claude/
+/.codex/
+/.idea/
+/.vscode/
+launch.json
+
+# Operating systems
+.DS_Store
