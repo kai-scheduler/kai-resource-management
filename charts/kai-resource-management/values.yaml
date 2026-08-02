@@ -93,9 +93,10 @@ defaultNodePool:
 # Each is applied only to controllers whose binary accepts it. Empty ⇒ binary default.
 # See internal_values.yaml for which controllers use each.
 commonArgs:
-  finalizerDomain: ""            # --finalizer-domain
-  namespaceProjectLabelKey: ""   # --namespace-project-label-key
-  projectLabelKey: ""            # --project-label-key
+  finalizerDomain: ""               # --finalizer-domain
+  namespaceProjectLabelKey: ""      # --namespace-project-label-key
+  projectLabelKey: ""               # --project-label-key
+  enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
 
 nodepoolController:
   enabled: true

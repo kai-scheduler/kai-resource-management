@@ -308,3 +308,63 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --leader-elect
         template: templates/project-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --enforce-scheduler-annotation-key
+        template: templates/project-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --enforce-scheduler-annotation-key
+        template: templates/pod-group-assigner/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: commonArgs.enforceSchedulerAnnotationKey reaches both sides of the enforcement contract
+    # project-controller writes the annotation, pod-group-assigner reads it back; a single
+    # shared value keeps the two keys from drifting apart.
+    set:
+      commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --enforce-scheduler-annotation-key
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme/enforce-scheduler-name
+        template: templates/project-controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --enforce-scheduler-annotation-key
+        template: templates/pod-group-assigner/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme/enforce-scheduler-name
+        template: templates/pod-group-assigner/deployment.yaml
+      # nodepool-controller's binary has no such flag
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --enforce-scheduler-annotation-key
+        template: templates/nodepool-controller/deployment.yaml
+
+  - it: podGroupAssigner.args.schedulerName renders --scheduler-name, per-controller override wins
+    set:
+      commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
+      podGroupAssigner.args.enforceSchedulerAnnotationKey: pga-override
+      podGroupAssigner.args.schedulerName: my-scheduler
+    template: templates/pod-group-assigner/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --scheduler-name
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-scheduler
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: pga-override
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: acme/enforce-scheduler-name
