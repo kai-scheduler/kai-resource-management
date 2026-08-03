@@ -62,6 +62,17 @@ gocache:
 fmt-go: ## Format Go source files.
 	go fmt ./...
 
+.PHONY: fmt-check
+fmt-check: ## Verify Go source formatting without changing files.
+	@source_files="$$(git ls-files --cached --others --exclude-standard -- '*.go')"; \
+	if [ -n "$$source_files" ]; then \
+		unformatted="$$(gofmt -l $$source_files)"; \
+		if [ -n "$$unformatted" ]; then \
+			printf 'Go files require formatting:\n%s\n' "$$unformatted"; \
+			exit 1; \
+		fi; \
+	fi
+
 .PHONY: vet-go
 vet-go:
 	@packages="$$( $(GO) list ./... )"; \

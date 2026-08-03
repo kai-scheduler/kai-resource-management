@@ -23,7 +23,7 @@ make test
 make validate
 ```
 
-`make test` runs Go tests with envtest in the pinned builder image and runs the
+`make test` runs all non-e2e Go tests with the local Go toolchain and runs the
 chart unit tests. `make validate` verifies formatting, module tidiness, static
 analysis, tests, and source license headers without changing tracked files.
 

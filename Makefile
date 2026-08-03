@@ -73,7 +73,7 @@ $(SERVICE_NAMES):
 	$(MAKE) docker-build-generic SERVICE_NAME=$@
 
 .PHONY: lint
-lint: vet-go lint-go ## Run all static checks.
+lint: fmt-check vet-go lint-go ## Run all static checks.
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.
@@ -86,7 +86,7 @@ license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 		$(LICENSE_IGNORES) .
 
 .PHONY: validate
-validate: mod-check vet-go lint-go test license-check ## Run all repository validation without changing tracked files.
+validate: mod-check lint test license-check ## Run all repository validation without changing tracked files.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.
