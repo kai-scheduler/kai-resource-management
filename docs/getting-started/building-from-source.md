@@ -9,7 +9,7 @@ repository's Go code and Helm chart.
 - GNU Make or a compatible Make implementation.
 - Git.
 - Helm 3 for dependency resolution, linting, rendering, and packaging.
-- Docker for the chart unit-test image used by `make test-chart`.
+- Docker for Go builds, service images, and the chart unit-test image.
 
 Helm dependency resolution requires network access to GHCR.
 
@@ -23,15 +23,35 @@ make test
 make validate
 ```
 
-`make test` runs Go tests and the chart unit tests. `make validate` verifies
-formatting, module tidiness, static analysis, tests, and source license headers
-without changing tracked files.
+`make test` runs Go tests with envtest in the pinned builder image and runs the
+chart unit tests. `make validate` verifies formatting, module tidiness, static
+analysis, tests, and source license headers without changing tracked files.
 
 The root Makefile exposes one chart-specific test target:
 
 ```bash
 make test-chart
 ```
+
+Run Go tests directly with the local Go toolchain, either for all non-e2e
+packages or for one selected package tree:
+
+```bash
+make test-go
+make test-go TEST_TARGETS=./pkg/<name>/...
+```
+
+When services are introduced, add their names to `SERVICE_NAMES` in the root
+Makefile. The aggregate and single-service build commands then follow the same
+interface as KAI Scheduler:
+
+```bash
+make build
+make build-go SERVICE_NAME=<name>
+```
+
+Go and Docker build mechanics are kept under `build/makefile/`; the root
+Makefile remains the public development interface.
 
 Package the chart with Helm:
 
