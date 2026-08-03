@@ -22,13 +22,13 @@ testing this chart requires network access to pull it from GHCR.
 Run chart commands from the repository root:
 
 ```bash
-helm dependency build ./charts/kai-resource-management
-helm lint ./charts/kai-resource-management
-helm template kai-resource-management ./charts/kai-resource-management \
+helm dependency build ./deployments/kai-resource-management-chart
+helm lint ./deployments/kai-resource-management-chart
+helm template kai-resource-management ./deployments/kai-resource-management-chart \
   --namespace kai-resource-management >/dev/null
 make test-chart
 mkdir -p ./bin/charts
-helm package ./charts/kai-resource-management \
+helm package ./deployments/kai-resource-management-chart \
   --destination ./bin/charts \
   --app-version 0.1.0 \
   --version 0.1.0

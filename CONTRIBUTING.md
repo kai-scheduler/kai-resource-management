@@ -14,18 +14,16 @@ Read the [Code of Conduct](CODE_OF_CONDUCT.md) and the
 5. Commit with DCO sign-off and open a pull request.
 
 Developer setup and repository conventions are documented in
-[docs/developer/building-from-source.md](docs/developer/building-from-source.md).
+[docs/getting-started/building-from-source.md](docs/getting-started/building-from-source.md).
 
 ## Repository conventions
 
 - Keep one root `go.mod` and one root Makefile.
 - Put executable entry points under `cmd/`.
 - Put shared Go implementation under `pkg/`.
-- Put Helm charts under `charts/`.
+- Put deployment configuration and Helm charts under `deployments/`.
 - Put examples and sample manifests alongside their documentation under
   `docs/`.
-- Use `third_party/` only for small reviewed source copies with retained
-  provenance and licensing.
 - Put shared agent skills and assets under `.agents/`. Harness-specific
   directories such as `.claude/` and `.codex/` are local state and stay ignored.
 

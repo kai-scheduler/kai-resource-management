@@ -11,7 +11,7 @@ coverage.out
 /vendor/
 
 # Downloaded Helm dependencies
-/charts/*/charts/
+/deployments/*/charts/
 
 # Editors and local agent-harness state
 # Shared agent assets belong in the tracked /.agents/ directory.

@@ -9,7 +9,7 @@ repository's Go code and Helm chart.
 - GNU Make or a compatible Make implementation.
 - Git.
 - Helm 3 for dependency resolution, linting, rendering, and packaging.
-- Docker for the chart unit-test image used by `make test-chart`.
+- Docker for Go builds, service images, and the chart unit-test image.
 
 Helm dependency resolution requires network access to GHCR.
 
@@ -23,9 +23,9 @@ make test
 make validate
 ```
 
-`make test` runs Go tests and the chart unit tests. `make validate` verifies
-formatting, module tidiness, static analysis, tests, and source license headers
-without changing tracked files.
+`make test` runs all non-e2e Go tests with the local Go toolchain and runs the
+chart unit tests. `make validate` verifies formatting, module tidiness, static
+analysis, tests, and source license headers without changing tracked files.
 
 The root Makefile exposes one chart-specific test target:
 
@@ -33,12 +33,32 @@ The root Makefile exposes one chart-specific test target:
 make test-chart
 ```
 
+Run Go tests directly with the local Go toolchain, either for all non-e2e
+packages or for one selected package tree:
+
+```bash
+make test-go
+make test-go TEST_TARGETS=./pkg/<name>/...
+```
+
+When services are introduced, add their names to `SERVICE_NAMES` in the root
+Makefile. The aggregate and single-service build commands then follow the same
+interface as KAI Scheduler:
+
+```bash
+make build
+make build-go SERVICE_NAME=<name>
+```
+
+Go and Docker build mechanics are kept under `build/makefile/`; the root
+Makefile remains the public development interface.
+
 Package the chart with Helm:
 
 ```bash
-helm dependency build ./charts/kai-resource-management
+helm dependency build ./deployments/kai-resource-management-chart
 mkdir -p ./bin/charts
-helm package ./charts/kai-resource-management \
+helm package ./deployments/kai-resource-management-chart \
   --destination ./bin/charts \
   --app-version 0.1.0 \
   --version 0.1.0
@@ -61,10 +81,8 @@ the Makefile and installed into the ignored `bin/` directory.
 - Use the single root `Makefile`.
 - Add executables under `cmd/<name>`.
 - Add shared implementation under `pkg/<name>`.
-- Add Helm charts under `charts/<chart-name>`.
+- Add deployment configuration and Helm charts under `deployments/<name>`.
 - Keep examples with their documentation under `docs/`.
-- Keep small copied dependencies under `third_party/` with provenance and
-  licensing information.
 
 ## Before opening a pull request
 

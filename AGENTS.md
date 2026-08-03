@@ -43,14 +43,12 @@ The repository deliberately uses one Go module and one Makefile.
 
 - `cmd/<name>/` — executable entry points and process wiring.
 - `pkg/<name>/` — shared Go implementation.
-- `charts/<name>/` — Helm charts. The primary chart belongs at
-  `charts/kai-resource-management/`.
+- `deployments/<name>/` — deployment configuration and Helm charts. The
+  primary chart belongs at `deployments/kai-resource-management-chart/`.
 - `docs/` — user, administrator, reference, and developer documentation.
 - `hack/` — maintenance, generation, and developer integration scripts.
 - `test/e2e/` — end-to-end suites and framework when their separate
   infrastructure is introduced.
-- `third_party/<owner>/<project>/` — small reviewed source copies with
-  provenance and licenses.
 - `.agents/` — repository-owned skills and other shared agent assets.
 
 Do not add:
@@ -123,7 +121,7 @@ packages.
 - Exported Go declarations require useful GoDoc comments.
 - Comments explain why a choice or invariant exists, not what obvious code
   does.
-- Preserve upstream headers on generated or third-party files.
+- Preserve upstream headers on generated files.
 - Use kubebuilder markers immediately above the declaration they affect.
 
 Run `make gen-license` after adding source files and `make validate` before
@@ -147,7 +145,7 @@ finishing.
 
 When the chart is introduced:
 
-- Keep it at `charts/kai-resource-management`.
+- Keep it at `deployments/kai-resource-management-chart`.
 - Keep `Chart.yaml`, values, templates, CRDs, chart tests, and chart
   documentation together.
 - Expose chart commands through the root Makefile; do not add a chart Makefile.
@@ -199,7 +197,8 @@ Documentation is part of the definition of done.
   operational changes.
 - Update reference docs when APIs, flags, Helm values, metrics, or defaults
   change.
-- Put architecture, design, and maintenance material under `docs/developer/`.
+- Put architecture and design material under `docs/designs/`.
+- Put onboarding and local development material under `docs/getting-started/`.
 - Put examples beside the guide or concept that explains them.
 - State prerequisites, expected results, side effects, permissions, and
   cleanup.
@@ -207,23 +206,6 @@ Documentation is part of the definition of done.
 - Keep links and commands current.
 
 Use `docs/README.md` to select the correct audience and location.
-
-## Third-party source
-
-Use a normal Go module dependency for maintained, evolving, or
-security-sensitive libraries.
-
-Only copy source into `third_party/` when it is small, stable, and the local
-maintenance tradeoff is explicitly justified. Each copied project must record:
-
-- Upstream URL.
-- Exact release, tag, or commit.
-- Files copied and copy date.
-- Local modifications.
-- Update procedure.
-- License and retained copyright notices.
-
-Never copy code to bypass dependency, vulnerability, or license review.
 
 ## Pull request requirements
 
