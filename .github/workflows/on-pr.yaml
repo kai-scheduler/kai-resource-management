@@ -1,0 +1,122 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+name: KAI Resource Management - Pull Request
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+concurrency:
+  group: ${{ github.event_name == 'merge_group' && github.ref || github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-build-and-test-required:
+    name: Check if build and test are required
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          predicate-quantifier: "every"
+          filters: |
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - '.changes/**'
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!.changes/**'
+
+  validate-and-test:
+    needs: [ check-build-and-test-required ]
+    if: needs.check-build-and-test-required.outputs.code == 'true'
+    name: Validate & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Cache Go build cache (Docker-mounted)
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build-docker-gocache
+            ~/.cache/go-build-docker-gopath
+          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-docker-${{ runner.os }}-
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.3'
+          cache: false
+
+      - name: Run validation
+        run: make validate
+
+  build:
+    needs: [ check-build-and-test-required ]
+    if: needs.check-build-and-test-required.outputs.code == 'true'
+    name: Build
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.package_version.outputs.PACKAGE_VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Cache Go build cache (Docker-mounted)
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build-docker-gocache
+            ~/.cache/go-build-docker-gopath
+          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-docker-${{ runner.os }}-
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.3'
+          cache: false
+
+      - name: Extract package version
+        id: package_version
+        run: |
+          GIT_REV=$(git rev-parse --short HEAD | sed 's/^0*//')
+          PACKAGE_VERSION=0.0.0-$GIT_REV
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          echo $PACKAGE_VERSION
+
+      - name: Build Helm chart
+        run: |
+          helm dependency build ./charts/kai-resource-management
+          helm package ./charts/kai-resource-management -d ./charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
+
+  skip-build-and-test-message:
+    name: Skip Build and Test Message
+    needs: [ check-build-and-test-required ]
+    if: needs.check-build-and-test-required.outputs.code != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip message
+        run: |
+          echo "Skipping build and test since only documentation files (.md or docs/) were changed."
