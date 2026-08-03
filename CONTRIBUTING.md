@@ -107,6 +107,9 @@ user-facing, and under 20 words.
 Changelog fragments are not required for internal refactors, tests,
 documentation, or CI-only changes.
 
+Maintainers fold the accumulated fragments into `CHANGELOG.md` at release time.
+See [docs/releasing.md](docs/releasing.md).
+
 ## DCO sign-off
 
 Every commit must be signed off to certify that the contribution complies with

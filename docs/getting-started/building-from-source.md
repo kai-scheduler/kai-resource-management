@@ -41,14 +41,18 @@ make test-go
 make test-go TEST_TARGETS=./pkg/<name>/...
 ```
 
-When services are introduced, add their names to `SERVICE_NAMES` in the root
-Makefile. The aggregate and single-service build commands then follow the same
-interface as KAI Scheduler:
+`SERVICE_NAMES` in the root Makefile lists the services that are built. Add each
+new service there when its `cmd/<name>/main.go` entry point is introduced. The
+aggregate and single-service build commands follow the same interface as KAI
+Scheduler:
 
 ```bash
 make build
 make build-go SERVICE_NAME=<name>
 ```
+
+`make build` cross-compiles every service for `linux/amd64` and `linux/arm64` in
+the pinned builder image and builds its container image.
 
 Go and Docker build mechanics are kept under `build/makefile/`; the root
 Makefile remains the public development interface.
