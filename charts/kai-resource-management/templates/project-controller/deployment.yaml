@@ -10,7 +10,7 @@
 {{- $features := $comp.features | default dict }}
 {{- $profiling := $comp.profiling | default dict }}
 {{- $a := $comp.args | default dict }}
-{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain" "namespaceProjectLabelKey" "projectLabelKey") }}
+{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "enforceSchedulerAnnotationKey" "finalizerDomain" "namespaceProjectLabelKey" "projectLabelKey") }}
 {{- $kai := index .Values "kai-scheduler" }}
 {{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
 {{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey }}

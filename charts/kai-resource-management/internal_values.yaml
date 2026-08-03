@@ -17,9 +17,11 @@
 # Args shared by more than one controller (also surfaced in values.yaml). Each is applied only
 # to the controllers whose binary defines the flag; a per-controller <comp>.args key overrides.
 commonArgs:
-  finalizerDomain: ""             # --finalizer-domain (nodepool + project)
-  namespaceProjectLabelKey: ""    # --namespace-project-label-key (project + pod-group-assigner)
-  projectLabelKey: ""             # --project-label-key (project + pod-group-assigner)
+  finalizerDomain: ""                # --finalizer-domain (nodepool + project)
+  namespaceProjectLabelKey: ""       # --namespace-project-label-key (project + pod-group-assigner)
+  projectLabelKey: ""                # --project-label-key (project + pod-group-assigner)
+  enforceSchedulerAnnotationKey: ""  # --enforce-scheduler-annotation-key (project writes it, pod-group-assigner reads it)
+  schedulerName: ""                  # --scheduler-name (nodepool + pod-group-assigner); must be the name KAI runs under
 
 nodepoolController:
   replicas: 1
@@ -36,7 +38,6 @@ nodepoolController:
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
-    schedulerName: ""               # --scheduler-name (empty ⇒ the bundled scheduler)
     qps: ""                         # --qps   (binary default 50)
     burst: ""                       # --burst (binary default 300)
     schedulingShardArgs: ""         # --scheduling-shard-args (JSON map merged into every SchedulingShard)
