@@ -102,6 +102,11 @@ changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.
 		$(CHANGIE) new; \
 	fi
 
+.PHONY: changelog-release
+changelog-release: changie ## Fold unreleased fragments into CHANGELOG.md; requires VERSION.
+	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
+	CHANGIE=$(CHANGIE) bash hack/changelog-fold.sh $(VERSION)
+
 .PHONY: changelog-preview
 changelog-preview: changie ## Preview a release changelog; requires VERSION.
 	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
