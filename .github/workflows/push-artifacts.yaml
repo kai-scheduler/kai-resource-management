@@ -8,7 +8,7 @@ on:
       - '*.*.*'
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -41,11 +41,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker build & push
+        run: make build DOCKER_BUILD_PLATFORM=linux/amd64,linux/arm64 DOCKER_REPO_BASE=${DOCKER_REGISTRY} VERSION=$PACKAGE_VERSION DOCKER_BUILDX_ADDITIONAL_ARGS=--push
+
       - name: Build Helm chart
         run: |
+          yq -i '.image.registry = strenv(DOCKER_REGISTRY)' ./deployments/kai-resource-management-chart/values.yaml
           helm dependency build ./deployments/kai-resource-management-chart
           mkdir -p ./bin/charts
           helm package ./deployments/kai-resource-management-chart -d ./bin/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
 
       - name: Push Helm chart
         run: helm push ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz oci://${DOCKER_REGISTRY}
+
+      - name: Attach Helm chart to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$PACKAGE_VERSION" >/dev/null 2>&1; then
+            gh release upload "$PACKAGE_VERSION" ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz --clobber
+          else
+            echo "No GitHub Release for $PACKAGE_VERSION; skipping chart asset upload."
+          fi
