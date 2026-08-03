@@ -9,9 +9,8 @@ CHANGIE_VERSION ?= v1.25.0
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 CHANGIE ?= $(LOCALBIN)/changie
 
-# Space-separated list of services to build by default. Add each service when
-# its cmd/<name>/main.go entry point is introduced.
-SERVICE_NAMES :=
+# Space-separated list of services to build by default
+SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
