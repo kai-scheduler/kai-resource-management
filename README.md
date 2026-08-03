@@ -10,7 +10,7 @@ departments, node pools, queues, and workload placement.
 ## Project status
 
 The KAI Resource Management Helm chart source is available under
-[`charts/kai-resource-management`](charts/kai-resource-management/README.md).
+[`deployments/kai-resource-management-chart`](deployments/kai-resource-management-chart/README.md).
 There is not yet a published release, so cluster administrators must currently
 package the chart from source and supply compatible controller images.
 
@@ -27,13 +27,12 @@ KAI Resource Management is intended to provide:
 
 | Path | Purpose |
 | --- | --- |
-| `charts/` | Helm charts, including the main `kai-resource-management` chart. |
+| `deployments/` | Deployment assets, including the `kai-resource-management-chart` Helm chart. |
 | `cmd/` | Executable entry points, one subdirectory per binary. |
 | `pkg/` | Shared Go packages used by repository binaries and integrations. |
 | `docs/` | User, administrator, reference, and developer documentation. |
 | `hack/` | Development, generation, and repository-maintenance scripts. |
 | `test/e2e/` | Reserved for the separately developed end-to-end test suites. |
-| `third_party/` | Small, explicitly reviewed source copies with retained provenance and licensing. |
 | `.agents/` | Repository-owned agent skills and other shared agent assets. |
 
 The repository intentionally uses one root `go.mod` and one root `Makefile`.
@@ -42,7 +41,7 @@ The repository intentionally uses one root `go.mod` and one root `Makefile`.
 
 Start with the [documentation index](docs/README.md). Developer setup and
 validation commands are described in
-[building from source](docs/developer/building-from-source.md).
+[building from source](docs/getting-started/building-from-source.md).
 
 Examples and sample manifests belong alongside the documentation that explains
 them. This repository does not use a separate top-level `examples` directory.

@@ -36,9 +36,9 @@ make test-chart
 Package the chart with Helm:
 
 ```bash
-helm dependency build ./charts/kai-resource-management
+helm dependency build ./deployments/kai-resource-management-chart
 mkdir -p ./bin/charts
-helm package ./charts/kai-resource-management \
+helm package ./deployments/kai-resource-management-chart \
   --destination ./bin/charts \
   --app-version 0.1.0 \
   --version 0.1.0
@@ -61,10 +61,8 @@ the Makefile and installed into the ignored `bin/` directory.
 - Use the single root `Makefile`.
 - Add executables under `cmd/<name>`.
 - Add shared implementation under `pkg/<name>`.
-- Add Helm charts under `charts/<chart-name>`.
+- Add deployment configuration and Helm charts under `deployments/<name>`.
 - Keep examples with their documentation under `docs/`.
-- Keep small copied dependencies under `third_party/` with provenance and
-  licensing information.
 
 ## Before opening a pull request
 

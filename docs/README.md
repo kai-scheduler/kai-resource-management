@@ -4,24 +4,20 @@ Documentation is a product surface. Changes to behavior, configuration,
 installation, or operations must update the relevant documentation in the same
 pull request.
 
-## Audiences
+## Structure
 
-Organize new documentation by its intended reader:
+The initial documentation structure is intentionally small:
 
-- `getting-started/` — first installation and first successful use.
-- `concepts/` — projects, departments, node pools, queues, and ownership models.
-- `guides/` — task-oriented operational workflows.
-- `reference/` — configuration, Helm values, APIs, metrics, and compatibility.
-- `migration-guides/` — release-to-release upgrade and breaking-change guidance.
-- `developer/` — architecture, designs, local development, and maintenance.
+- `getting-started/` — local setup, first installation, and first successful use.
+- `designs/` — architecture decisions and implementation designs.
 
-Create these directories when the first real document in that category is
-added. Do not add empty directory placeholders.
+Chart-specific build, configuration, upgrade, and uninstall documentation
+belongs with the chart under `deployments/kai-resource-management-chart/`.
 
 ## Examples
 
-Examples and sample YAML belong beside the guide or concept that explains them.
-Do not create a top-level `examples` directory. A sample without surrounding
+Examples and sample YAML belong beside the documentation that explains them. Do
+not create a top-level `examples` directory. A sample without surrounding
 documentation is incomplete.
 
 ## Writing requirements
@@ -34,7 +30,7 @@ documentation is incomplete.
 - Do not describe planned behavior as if it is already released.
 
 Developer setup begins in
-[developer/building-from-source.md](developer/building-from-source.md).
+[getting-started/building-from-source.md](getting-started/building-from-source.md).
 
 Cluster administrators can start with the
-[KAI Resource Management chart documentation](../charts/kai-resource-management/README.md).
+[KAI Resource Management chart documentation](../deployments/kai-resource-management-chart/README.md).
