@@ -8,6 +8,10 @@ GOLANGCI_LINT_VERSION ?= v2.11.3
 ADDLICENSE_VERSION ?= v1.2.0
 CHANGIE_VERSION ?= v1.25.0
 
+# Add service names here when cmd/<name>/ entry points are introduced.
+SERVICE_NAMES ?=
+TEST_TARGETS ?=
+
 LOCALBIN ?= $(CURDIR)/bin
 GOCACHE ?= $(CURDIR)/.gocache
 GOTMPDIR ?= $(CURDIR)/.gotmp
@@ -108,15 +112,31 @@ lint-go: | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.
 .PHONY: lint
 lint: fmt-check vet-go lint-go ## Run all static checks.
 
-.PHONY: test
-test: test-chart | $(GOCACHE) $(GOTMPDIR) ## Run unit and integration tests; e2e is intentionally separate.
-	@all_packages="$$( $(GO) list ./... )"; \
-	packages="$$(printf '%s\n' "$$all_packages" | grep -v '/test/e2e' || true)"; \
+.PHONY: test-go
+test-go: | $(GOCACHE) $(GOTMPDIR) ## Run Go tests; optionally set TEST_TARGETS=./pkg/<name>/....
+	@packages="$(strip $(TEST_TARGETS))"; \
+	if [ -z "$$packages" ]; then \
+		all_packages="$$( $(GO) list ./... )"; \
+		packages="$$(printf '%s\n' "$$all_packages" | grep -v '/test/e2e' || true)"; \
+	fi; \
 	if [ -n "$$packages" ]; then \
 		$(GO) test $$packages; \
 	else \
 		echo "No Go packages to test."; \
 	fi
+
+.PHONY: test
+test: test-chart test-go ## Run Helm and all non-e2e Go tests.
+
+.PHONY: build
+build: $(SERVICE_NAMES) ## Build all configured Go services.
+	@if [ -z "$(strip $(SERVICE_NAMES))" ]; then \
+		echo "No Go services are configured in SERVICE_NAMES."; \
+	fi
+
+.PHONY: $(SERVICE_NAMES)
+$(SERVICE_NAMES):
+	$(MAKE) build-go SERVICE_NAME=$@
 
 .PHONY: mod-check
 mod-check: | $(GOCACHE) $(GOTMPDIR) ## Verify go.mod and go.sum are tidy without changing them.
