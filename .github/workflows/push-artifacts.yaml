@@ -49,7 +49,7 @@ jobs:
 
       - name: Build Helm chart
         run: |
-          yq -i '.image.registry = strenv(DOCKER_REGISTRY)' ./deployments/kai-resource-management-chart/values.yaml
+          sed -i 's#registry/local/kai-resource-management#${{ env.DOCKER_REGISTRY }}#' ./deployments/kai-resource-management-chart/values.yaml
           helm dependency build ./deployments/kai-resource-management-chart
           mkdir -p ./bin/charts
           helm package ./deployments/kai-resource-management-chart -d ./bin/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION

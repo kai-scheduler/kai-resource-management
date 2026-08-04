@@ -46,6 +46,8 @@ tests:
           value: false
 
   - it: renders the image without a leading slash when no registry is set
+    set:
+      image.registry: ""
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
