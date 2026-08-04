@@ -16,7 +16,9 @@
 # `global.*` into subcharts, so a global registry/tag would override kai-scheduler's own ghcr images.
 image:
   # Registry for all components (per-component <comp>.image.registry overrides it).
-  registry: ""
+  # Defaults to the local registry the Makefile builds into; release packaging
+  # rewrites it to the published registry.
+  registry: registry/local/kai-resource-management
   # Tag for all components. Empty -> the chart appVersion (per-component <comp>.image.tag overrides).
   tag: ""
 
