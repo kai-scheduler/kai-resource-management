@@ -31,15 +31,17 @@ global:
   fips: false
   # Emit `--leader-elect` on every component (also implied when a component has >1 replica).
   leaderElection: false
-  # Container security context. Defaults to runAsUser 10000 on non-OpenShift (see helper).
+  # Container security context. Defaults to runAsUser 10000, matching the uid the OpenShift
+  # SCC pins. There is deliberately no pod-level context: no volume needs an fsGroup.
   securityContext: {}
   # Pod scheduling, applied to every component.
   affinity: {}
   tolerations: []
   nodeSelector: {}
 
-# Force OpenShift mode. When false it is auto-detected via a cluster lookup;
-# set true explicitly for offline rendering (helm template / ArgoCD).
+# Force OpenShift mode: creates the SecurityContextConstraints and its use grant (subject to
+# rbac.create). When false it is auto-detected via a cluster lookup; set true explicitly for
+# offline rendering (helm template / ArgoCD).
 openshift: false
 
 # Create the ClusterRoles / Roles / bindings the components need.

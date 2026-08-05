@@ -59,13 +59,12 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 {{- end -}}
 
-{{/* Container securityContext; user global.securityContext merges over the defaults. Omitted on OpenShift. */}}
+{{/* Container securityContext; user global.securityContext merges over the defaults. runAsUser
+matches the uid the OpenShift SCC pins (see templates/rbac/scc.yaml). */}}
 {{- define "kai-resource-management.securityContext" -}}
-{{- if not (include "kai-resource-management.openshift" .) -}}
 {{- $default := dict "allowPrivilegeEscalation" false "runAsNonRoot" true "runAsUser" 10000 "capabilities" (dict "drop" (list "all")) -}}
 securityContext:
   {{- toYaml (merge (deepCopy (.Values.global.securityContext | default dict)) $default) | nindent 2 }}
-{{- end -}}
 {{- end -}}
 
 {{/*

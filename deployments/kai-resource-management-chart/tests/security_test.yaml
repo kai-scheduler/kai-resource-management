@@ -25,13 +25,32 @@ tests:
           path: spec.template.spec.containers[0].securityContext.capabilities.drop
           content: all
 
-  - it: omits the securityContext on OpenShift (SCC assigns it)
+  # runAsUser matches the uid the SCC pins, so the manifest and the SCC agree.
+  - it: applies the same hardening on OpenShift
+    set:
+      image.registry: reg.example.com/kai
+      openshift: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: all
+
+  - it: never sets a pod-level securityContext
     set:
       image.registry: reg.example.com/kai
       openshift: true
     asserts:
       - notExists:
-          path: spec.template.spec.containers[0].securityContext
+          path: spec.template.spec.securityContext
 
   - it: merges a user-supplied global.securityContext over the hardened defaults
     set:

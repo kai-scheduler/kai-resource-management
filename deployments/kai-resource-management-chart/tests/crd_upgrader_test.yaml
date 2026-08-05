@@ -72,6 +72,22 @@ tests:
           path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
           value: false
 
+  # openshift.io/scc is set by the admission plugin, not requested by the manifest.
+  - it: keeps its label and adds no annotations on OpenShift
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    set:
+      openshift: true
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.app
+          value: kai-resource-management-crd-upgrader
+      - notExists:
+          path: spec.template.metadata.annotations
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10000
+
   - it: grants CRD permissions scoped to this chart's CRDs only
     templates:
       - templates/rbac/crd-manager.yaml
