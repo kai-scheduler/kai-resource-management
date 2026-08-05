@@ -1,0 +1,41 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+name: DCO
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  dco-check:
+    name: DCO Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.4'
+
+      - name: Run python DCO check
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The merge-queue skip is a bash guard rather than the step-level `if:` the other
+        # validators use: a job whose steps all skip confuses the merge queue for this
+        # check. kai-scheduler moved away from `if:` here for the same reason.
+        run: |
+          if [ "$GITHUB_EVENT_NAME" == "merge_group" ]; then
+            echo "Skipping DCO check for merge group"
+            exit 0
+          fi
+
+          python3 .github/scripts/dco_check.py --verbose \
+            --exclude-pattern "(dependabot|github-actions)\[bot\]@users\.noreply\.github\.com"
