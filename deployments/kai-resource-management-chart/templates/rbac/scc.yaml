@@ -1,0 +1,119 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# Named kai-resource-management, not kai-system: the kai-scheduler subchart renders its
+# own kai-system SCC into this release, and the chart must also work without it.
+{{- if and (include "kai-resource-management.openshift" .) .Values.rbac.create }}
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: kai-resource-management
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    # No hook-succeeded: pods are admitted against the SCC on every restart, so it must
+    # outlive the hook run. Consequence: helm uninstall leaves it behind.
+    "helm.sh/hook-delete-policy": before-hook-creation
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+groups: []
+priority: 1
+readOnlyRootFilesystem: false
+requiredDropCapabilities: null
+runAsUser:
+  type: MustRunAs
+  uid: 10000
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+# Listed unconditionally: entries naming a ServiceAccount that does not exist, because a
+# component is disabled or the hook SA was deleted, are legal and inert.
+users:
+- system:serviceaccount:{{ .Release.Namespace }}:nodepool-controller
+- system:serviceaccount:{{ .Release.Namespace }}:project-controller
+- system:serviceaccount:{{ .Release.Namespace }}:pod-group-assigner
+- system:serviceaccount:{{ .Release.Namespace }}:kai-resource-management-crd-manager
+volumes:
+- awsElasticBlockStore
+- azureDisk
+- azureFile
+- cephFS
+- cinder
+- configMap
+- csi
+- downwardAPI
+- emptyDir
+- ephemeral
+- fc
+- flexVolume
+- flocker
+- gcePersistentDisk
+- gitRepo
+- glusterfs
+- iscsi
+- nfs
+- persistentVolumeClaim
+- photonPersistentDisk
+- portworxVolume
+- projected
+- quobyte
+- rbd
+- scaleIO
+- secret
+- storageOS
+- vsphere
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kai-resource-management-scc
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+  - apiGroups:
+      - security.openshift.io
+    resourceNames:
+      - kai-resource-management
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kai-resource-management-scc
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kai-resource-management-scc
+subjects:
+  - kind: ServiceAccount
+    name: nodepool-controller
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: project-controller
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: pod-group-assigner
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: kai-resource-management-crd-manager
+    namespace: {{ .Release.Namespace }}
+{{- end }}

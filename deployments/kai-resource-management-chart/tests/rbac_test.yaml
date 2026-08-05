@@ -8,6 +8,7 @@ templates:
   - templates/pod-group-assigner/clusterrole.yaml
   - templates/project-controller/clusterrole.yaml
   - templates/project-controller/clusterrole_features.yaml
+  - templates/rbac/scc.yaml
 release:
   name: krm
   namespace: kai-resource-management
@@ -27,11 +28,16 @@ tests:
           path: subjects[0].name
           value: nodepool-controller
 
+  # openshift is set so the SCC assertion below fails for the right reason.
   - it: omits all RBAC when rbac.create is false
     set:
       image.registry: reg.example.com/kai
       rbac.create: false
+      openshift: true
     asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/rbac/scc.yaml
       - hasDocuments:
           count: 0
         template: templates/nodepool-controller/clusterrole.yaml

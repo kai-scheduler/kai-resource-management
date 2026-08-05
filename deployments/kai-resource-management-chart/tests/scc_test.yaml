@@ -1,0 +1,187 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: OpenShift SecurityContextConstraints
+templates:
+  - templates/rbac/scc.yaml
+release:
+  name: krm
+  namespace: kai-resource-management
+tests:
+  - it: renders nothing off OpenShift
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders the SCC, ClusterRole and ClusterRoleBinding on OpenShift
+    set:
+      openshift: true
+    asserts:
+      - hasDocuments:
+          count: 3
+
+  - it: is named distinctly from the kai-scheduler subchart's kai-system SCC
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - isKind:
+          of: SecurityContextConstraints
+      - equal:
+          path: metadata.name
+          value: kai-resource-management
+
+  - it: pins uid 10000 and outranks restricted-v2
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: runAsUser.type
+          value: MustRunAs
+      - equal:
+          path: runAsUser.uid
+          value: 10000
+      - equal:
+          path: priority
+          value: 1
+      - equal:
+          path: fsGroup.type
+          value: RunAsAny
+      - equal:
+          path: seLinuxContext.type
+          value: MustRunAs
+
+  - it: denies host access and hostPath volumes
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: allowHostNetwork
+          value: false
+      - equal:
+          path: allowHostPID
+          value: false
+      - equal:
+          path: allowHostIPC
+          value: false
+      - equal:
+          path: allowHostPorts
+          value: false
+      - equal:
+          path: allowHostDirVolumePlugin
+          value: false
+      - equal:
+          path: allowPrivilegedContainer
+          value: false
+      - notContains:
+          path: volumes
+          content: hostPath
+
+  # The SCC is a ceiling, not the effective setting: escalation is denied by the
+  # container securityContext, which every workload in this chart renders.
+  - it: leaves privilege escalation to the container securityContext
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: allowPrivilegeEscalation
+          value: true
+
+  - it: lists every ServiceAccount of this chart in the release namespace
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:nodepool-controller
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:project-controller
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:pod-group-assigner
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:kai-resource-management-crd-manager
+
+  # The SCC must outlive the hook run, so hook-succeeded is deliberately absent.
+  - it: keeps the SCC for the lifetime of the release
+    set:
+      openshift: true
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-1"
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: before-hook-creation
+
+  - it: grants only the use verb on this chart's own SCC
+    set:
+      openshift: true
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - equal:
+          path: metadata.name
+          value: kai-resource-management-scc
+      - equal:
+          path: rules[0].apiGroups
+          value:
+            - security.openshift.io
+      - equal:
+          path: rules[0].resourceNames
+          value:
+            - kai-resource-management
+      - equal:
+          path: rules[0].verbs
+          value:
+            - use
+
+  - it: binds every ServiceAccount to the SCC ClusterRole
+    set:
+      openshift: true
+    documentIndex: 2
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+      - equal:
+          path: roleRef.name
+          value: kai-resource-management-scc
+      - lengthEqual:
+          path: subjects
+          count: 4
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: kai-resource-management-crd-manager
+            namespace: kai-resource-management
+
+  # Subjects and users are plain strings; entries for a disabled component are inert.
+  - it: keeps every subject when components are disabled
+    set:
+      openshift: true
+      nodepoolController.enabled: false
+      podGroupAssigner.enabled: false
+    documentIndex: 2
+    asserts:
+      - lengthEqual:
+          path: subjects
+          count: 4
+
+  - it: renders nothing when rbac.create is false
+    set:
+      openshift: true
+      rbac.create: false
+    asserts:
+      - hasDocuments:
+          count: 0

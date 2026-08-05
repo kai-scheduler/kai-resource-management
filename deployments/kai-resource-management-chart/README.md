@@ -75,6 +75,7 @@ The main configuration groups are:
 | `image`, `global` | Controller images, pull policy, FIPS mode, pod security, and scheduling. |
 | `kai-scheduler` | Values passed to the bundled KAI Scheduler chart. |
 | `rbac.create` | Creation of required roles and bindings. |
+| `openshift` | OpenShift mode: SecurityContextConstraints and uid handling. |
 | `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
@@ -85,6 +86,40 @@ The main configuration groups are:
 `values.yaml` documents the supported public surface. `internal_values.yaml` is
 a developer reference for template defaults and is not included in packaged
 charts.
+
+## OpenShift
+
+OpenShift is detected automatically through a cluster lookup. That lookup returns
+nothing when the chart is rendered offline, so set the value explicitly for
+`helm template` and for GitOps tools such as ArgoCD:
+
+```bash
+helm upgrade --install kai-resource-management ... --set openshift=true
+```
+
+In OpenShift mode the chart creates three cluster-scoped objects, subject to
+`rbac.create`:
+
+| Object | Name |
+| --- | --- |
+| `SecurityContextConstraints` | `kai-resource-management` |
+| `ClusterRole` (verb `use`) | `kai-resource-management-scc` |
+| `ClusterRoleBinding` | `kai-resource-management-scc` |
+
+The SCC grants the chart's ServiceAccounts a fixed uid of 10000, which is the uid
+the containers request, regardless of the namespace `openshift.io/sa.scc.uid-range`
+annotation. It is deliberately separate from the `kai-system` SCC that the bundled
+KAI Scheduler chart creates, so the chart also works where KAI Scheduler was
+installed independently.
+
+Two consequences worth planning for. The objects are cluster-scoped and named
+without the release name, so only one release of this chart per cluster is
+supported. They are also Helm hooks that intentionally outlive the hook run, since
+pods are admitted against the SCC on every restart — which means `helm uninstall`
+leaves them behind (see below).
+
+With `rbac.create: false` the chart creates neither the SCC nor its `use` grant,
+and you are responsible for granting the ServiceAccounts an equivalent SCC.
 
 ## Upgrade
 
@@ -127,3 +162,13 @@ helm uninstall kai-resource-management --namespace "${KRM_NAMESPACE}"
 Helm intentionally retains CRDs installed from `crds/`, and Kubernetes therefore
 retains their custom resources. Back up and delete those resources and CRDs only
 when permanent data removal is intended.
+
+Helm does not track hook resources in the release manifest, so on OpenShift the
+SecurityContextConstraints and its grant also survive uninstallation. Remove them
+once no release of this chart remains in the cluster:
+
+```bash
+oc delete scc kai-resource-management
+oc delete clusterrolebinding kai-resource-management-scc
+oc delete clusterrole kai-resource-management-scc
+```
