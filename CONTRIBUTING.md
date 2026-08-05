@@ -126,6 +126,20 @@ This adds:
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
+The `DCO Check` job fails a pull request containing any unsigned commit. To sign
+commits you have already made:
+
+```bash
+# Amend the last commit
+git commit --amend -s
+
+# Sign every commit on your branch at once
+git rebase --signoff origin/main
+```
+
+Both rewrite history, so force-push the branch afterwards with
+`git push --force-with-lease`.
+
 ## Reporting issues
 
 Use the GitHub issue templates for bugs, enhancements, and documentation
