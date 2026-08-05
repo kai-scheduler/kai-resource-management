@@ -41,12 +41,12 @@ jobs:
             exit 0
           fi
 
-          if sed -nE 's|.*github\.com/([^)]*).*|\1|p' MAINTAINERS.md | grep -Fxq "$PR_AUTHOR"; then
+          if [ "$PR_AUTHOR" = "KaiPilotBot" ] || sed -nE 's|.*github\.com/([^)]*).*|\1|p' MAINTAINERS.md | grep -Fxq "$PR_AUTHOR"; then
             echo "CHANGELOG.md change authorized for $PR_AUTHOR."
             exit 0
           fi
 
-          echo "::error::Only maintainers listed in MAINTAINERS.md may modify CHANGELOG.md. Add a changelog fragment under .changes/unreleased/ instead."
+          echo "::error::Only maintainers listed in MAINTAINERS.md or KaiPilotBot may modify CHANGELOG.md. Add a changelog fragment under .changes/unreleased/ instead."
           exit 1
 
       # Changelog entries are managed as changie fragments (see CONTRIBUTING.md).

@@ -105,7 +105,8 @@ Valid kinds are `Added`, `Changed`, `Fixed`, and `Removed`. Keep the body clear,
 user-facing, and under 20 words.
 
 Changelog fragments are not required for internal refactors, tests,
-documentation, or CI-only changes.
+documentation, or CI-only changes. Apply the `skip-changelog` label to those
+pull requests; dependency updates use `dependencies`.
 
 Maintainers fold the accumulated fragments into `CHANGELOG.md` at release time.
 See [docs/releasing.md](docs/releasing.md).
