@@ -101,6 +101,11 @@ commonArgs:
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
   schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
 
+crdUpgrader:
+  image:
+    name: crd-upgrader
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+
 nodepoolController:
   enabled: true
   image:

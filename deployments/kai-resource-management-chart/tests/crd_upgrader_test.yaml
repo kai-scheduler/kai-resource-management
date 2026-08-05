@@ -1,0 +1,95 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: CRD upgrader hook
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: runs as a pre-install and pre-upgrade hook after its RBAC
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "2"
+      # before-hook-creation keeps a failed Job from blocking the next upgrade.
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: hook-succeeded,before-hook-creation
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: is named and serviced distinctly from the kai-scheduler subchart's own upgrader
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: kai-resource-management-crd-upgrader
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: kai-resource-management-crd-manager
+
+  - it: resolves the image through the shared registry and tag helpers
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    set:
+      image.registry: reg.example.com/kai
+      image.tag: "2.26.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: reg.example.com/kai/crd-upgrader:2.26.0
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: honors a per-component image override
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    set:
+      image.registry: reg.example.com/kai
+      crdUpgrader.image.registry: mirror.example.com/x
+      crdUpgrader.image.tag: pinned
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: mirror.example.com/x/crd-upgrader:pinned
+
+  - it: applies the hardened container securityContext by default
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: grants CRD permissions scoped to this chart's CRDs only
+    templates:
+      - templates/rbac/crd-manager.yaml
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-1"
+      - equal:
+          path: rules[0].apiGroups[0]
+          value: apiextensions.k8s.io
+      # Must stay in sync with the chart's crds/ directory.
+      - equal:
+          path: rules[0].resourceNames
+          value:
+            - departments.kai.resources
+            - managednodesconfigs.kai.resources
+            - nodepools.kai.resources
+            - projects.kai.resources

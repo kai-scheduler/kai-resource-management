@@ -19,8 +19,8 @@ annotations:
   artifacthub.io/license: Apache-2.0
 # version/appVersion are placeholders stamped at release/package time.
 # appVersion is the default image tag for every component (see the imageTag helper).
-version: 0.0.0-dev
-appVersion: 0.0.0-dev
+version: 0.0.0
+appVersion: 0.0.0
 
 dependencies:
   - name: kai-scheduler
