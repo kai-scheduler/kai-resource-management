@@ -37,6 +37,10 @@ make changelog KIND=Added BODY="Add configurable project namespace prefix"
 Valid changelog kinds are `Added`, `Changed`, `Fixed`, and `Removed`. Keep the
 body user-facing and under 20 words.
 
+Never edit `CHANGELOG.md` directly; it is written at release time. Pull requests
+that do not change behavior apply the `skip-changelog` label instead of adding a
+fragment; dependency updates use `dependencies`.
+
 ## Repository structure
 
 The repository deliberately uses one Go module and one Makefile.

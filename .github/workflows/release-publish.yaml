@@ -38,7 +38,7 @@ jobs:
           ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+          token: ${{ secrets.KAIBOT_TOKEN }}
 
       - name: Derive version and release notes from CHANGELOG.md
         id: notes
@@ -82,7 +82,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
           VERSION: ${{ steps.notes.outputs.version }}
         run: |
           set -euo pipefail
