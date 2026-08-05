@@ -79,6 +79,17 @@ tests:
           path: volumes
           content: hostPath
 
+  # The SCC is a ceiling, not the effective setting: escalation is denied by the
+  # container securityContext, which every workload in this chart renders.
+  - it: leaves privilege escalation to the container securityContext
+    set:
+      openshift: true
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: allowPrivilegeEscalation
+          value: true
+
   - it: lists every ServiceAccount of this chart in the release namespace
     set:
       openshift: true
