@@ -14,7 +14,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: reg.example.com/kai/nodepool-controller:0.0.0-dev
+          value: reg.example.com/kai/nodepool-controller:0.0.0
 
   - it: honors image.tag over the chart appVersion
     set:

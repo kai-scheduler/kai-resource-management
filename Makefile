@@ -62,9 +62,7 @@ test: test-chart test-go ## Run Helm and all non-e2e Go tests.
 
 .PHONY: build
 build: $(SERVICE_NAMES) ## Build all configured service images.
-	@if [ -z "$(strip $(SERVICE_NAMES))" ]; then \
-		echo "No Go services are configured in SERVICE_NAMES."; \
-	fi
+	$(MAKE) docker-build-crd-upgrader
 
 .PHONY: $(SERVICE_NAMES)
 $(SERVICE_NAMES):

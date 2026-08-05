@@ -75,6 +75,7 @@ The main configuration groups are:
 | `image`, `global` | Controller images, pull policy, FIPS mode, pod security, and scheduling. |
 | `kai-scheduler` | Values passed to the bundled KAI Scheduler chart. |
 | `rbac.create` | Creation of required roles and bindings. |
+| `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodepoolController` | Node-pool controller deployment and arguments. |
@@ -87,21 +88,30 @@ charts.
 
 ## Upgrade
 
-Helm installs files under `crds/` only on first installation. Apply the CRDs from
-the new package before upgrading so existing clusters receive schema updates:
+Helm installs files under `crds/` only on first installation and never updates
+them afterwards. The chart handles this itself: a `pre-install` and `pre-upgrade`
+hook Job named `kai-resource-management-crd-upgrader` applies the packaged CRDs
+on every install and upgrade, so no manual CRD step is required.
 
 ```bash
-helm show crds ./bin/charts/kai-resource-management-0.1.0.tgz | \
-  kubectl apply --server-side \
-    --field-manager=kai-resource-management-crds \
-    -f -
-
 helm upgrade kai-resource-management \
   ./bin/charts/kai-resource-management-0.1.0.tgz \
   --namespace "${KRM_NAMESPACE}" \
   --set-string image.registry="${KRM_IMAGE_REGISTRY}" \
   --set-string image.tag="${KRM_IMAGE_TAG}"
 ```
+
+The hook runs as the `kai-resource-management-crd-manager` ServiceAccount, whose
+ClusterRole is restricted to this chart's own CRDs, and both are removed once the
+hook succeeds. It applies server-side with `--force-conflicts` to take field
+ownership of the CRDs from Helm. Because the CRDs are baked into the
+`crd-upgrader` image at build time, the image and the chart always carry the same
+CRD revision. Set `crdUpgrader.image.registry` to serve that image from a mirror
+in air-gapped installations.
+
+If the hook fails, the release stops before any workload is updated. Inspect it
+with `kubectl logs job/kai-resource-management-crd-upgrader -n "${KRM_NAMESPACE}"`;
+a failed Job is replaced automatically on the next upgrade attempt.
 
 Use a values file for persistent overrides and review new defaults before each
 upgrade. Do not assume `helm rollback` is a safe downgrade path: the bundled KAI

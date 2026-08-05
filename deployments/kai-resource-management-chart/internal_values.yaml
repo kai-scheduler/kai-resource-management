@@ -23,6 +23,11 @@ commonArgs:
   enforceSchedulerAnnotationKey: ""  # --enforce-scheduler-annotation-key (project writes it, pod-group-assigner reads it)
   schedulerName: ""                  # --scheduler-name (nodepool + pod-group-assigner); must be the name KAI runs under
 
+crdUpgrader:
+  resources:
+    limits: { cpu: 500m, memory: 256Mi }
+    requests: { cpu: 100m, memory: 128Mi }
+
 nodepoolController:
   replicas: 1
   metrics:

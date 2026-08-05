@@ -12,6 +12,7 @@ SUCCESS_MESSAGE_HANDLER = ($(ECHO_COMMAND) $(GREEN_CONSOLE) "$(CONSOLE_PREFIX) S
 
 DOCKER_SOCK_PATH = /var/run/docker.sock
 DOCKERFILE_PATH ?= ./Dockerfile
+CRD_UPGRADER_DOCKERFILE_PATH = ./deployments/crd-upgrader/Dockerfile
 
 DOCKER_TAG ?= 0.0.0
 VERSION ?= $(DOCKER_TAG)
@@ -58,3 +59,7 @@ builder: ## Build the pinned Go builder image.
 .PHONY: docker-build-generic
 docker-build-generic: ## Build one service image; requires SERVICE_NAME=<cmd-directory>.
 	DOCKER_BUILDKIT=1 docker buildx build $(DOCKER_BUILD_ADDITIONAL_ARGS) --build-arg SERVICE_NAME=$(SERVICE_NAME) -f $(DOCKERFILE_PATH) -t $(DOCKER_IMAGE_NAME) $(DOCKER_BUILDX_ADDITIONAL_ARGS) --platform $(DOCKER_BUILD_PLATFORM) .
+
+.PHONY: docker-build-crd-upgrader
+docker-build-crd-upgrader: ## Build the CRD upgrader hook image.
+	$(MAKE) docker-build-generic DOCKERFILE_PATH=$(CRD_UPGRADER_DOCKERFILE_PATH) DOCKER_BUILD_ADDITIONAL_ARGS="" SERVICE_NAME=crd-upgrader
