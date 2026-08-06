@@ -111,6 +111,13 @@ pull requests; dependency updates use `dependencies`.
 Maintainers fold the accumulated fragments into `CHANGELOG.md` at release time.
 See [docs/releasing.md](docs/releasing.md).
 
+## Review and approval
+
+Pull requests from external contributors require approval from two trusted
+reviewers — organization members or repository collaborators — before merging.
+Pull requests from trusted authors follow the standard single-approval rule.
+The `Check Approvals` job enforces this.
+
 ## DCO sign-off
 
 Every commit must be signed off to certify that the contribution complies with
