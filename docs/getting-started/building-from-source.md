@@ -42,8 +42,12 @@ Two execution contexts need configuring, and they fail for different reasons.
 than replacing — an existing entry such as `github.com/run-ai/*` is common:
 
 ```bash
-go env -w GOPRIVATE="$(go env GOPRIVATE),github.com/kai-scheduler/kai-resource-management-api"
+current=$(go env GOPRIVATE)
+go env -w GOPRIVATE="${current:+$current,}github.com/kai-scheduler/kai-resource-management-api"
 ```
+
+`${current:+$current,}` appends a separator only when there is already a value,
+so this is also correct on a machine where `GOPRIVATE` is unset.
 
 The value is scoped to the exact module rather than
 `github.com/kai-scheduler/*` on purpose. `GOPRIVATE` also disables

@@ -82,10 +82,13 @@ jobs:
         env:
           TOKEN: ${{ steps.apptoken.outputs.token }}
         run: |
-          echo "GOPRIVATE=github.com/kai-scheduler/kai-resource-management-api" >> "$GITHUB_ENV"
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          # The rewrite is scoped to this one repository, so the token is
+          # never sent to any other GitHub URL.
           git config --global \
-            url."https://x-access-token:${TOKEN}@github.com/".insteadOf \
-            "https://github.com/"
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
           echo "GIT_CONFIG_GLOBAL=$HOME/.gitconfig" >> "$GITHUB_ENV"
       # --- END private API module access -----------------------------------
 
@@ -142,10 +145,13 @@ jobs:
         env:
           TOKEN: ${{ steps.apptoken.outputs.token }}
         run: |
-          echo "GOPRIVATE=github.com/kai-scheduler/kai-resource-management-api" >> "$GITHUB_ENV"
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          # The rewrite is scoped to this one repository, so the token is
+          # never sent to any other GitHub URL.
           git config --global \
-            url."https://x-access-token:${TOKEN}@github.com/".insteadOf \
-            "https://github.com/"
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
           echo "GIT_CONFIG_GLOBAL=$HOME/.gitconfig" >> "$GITHUB_ENV"
       # --- END private API module access -----------------------------------
 
