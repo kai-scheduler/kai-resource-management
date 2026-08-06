@@ -113,10 +113,12 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## Review and approval
 
-Pull requests from external contributors require approval from two trusted
-reviewers — organization members or repository collaborators — before merging.
-Pull requests from trusted authors follow the standard single-approval rule.
-The `Check Approvals` job enforces this.
+Every pull request needs at least one approving review before it can be merged.
+
+Pull requests from external contributors are expected to carry approval from two
+trusted reviewers — organization members or repository collaborators. The
+`Check Approvals` job reports whether that threshold is met. It is advisory: it
+does not block merging on its own.
 
 ## DCO sign-off
 

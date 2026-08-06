@@ -48,7 +48,9 @@ jobs:
             // 3. External contributors require 2 approvals to merge
             console.log("Author is an external contributor. Enforcing 2 approvals.");
 
-            const reviews = await github.rest.pulls.listReviews({
+            // Paginated: listReviews returns the oldest 30 reviews by default, which would
+            // hide the most recent ones on a heavily reviewed pull request.
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
               owner,
               repo,
               pull_number: prNumber,
@@ -58,7 +60,7 @@ jobs:
             // COMMENTED reviews are skipped so that commenting after approving does not
             // retract the approval, matching how branch protection counts reviews.
             const latestReviews = {};
-            reviews.data.forEach(review => {
+            reviews.forEach(review => {
               if (review.state === 'COMMENTED') {
                 return;
               }
