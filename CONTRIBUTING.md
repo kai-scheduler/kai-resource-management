@@ -111,6 +111,15 @@ pull requests; dependency updates use `dependencies`.
 Maintainers fold the accumulated fragments into `CHANGELOG.md` at release time.
 See [docs/releasing.md](docs/releasing.md).
 
+## Review and approval
+
+Every pull request needs at least one approving review before it can be merged.
+
+Pull requests from external contributors are expected to carry approval from two
+trusted reviewers — organization members or repository collaborators. The
+`Check Approvals` job reports whether that threshold is met. It is advisory: it
+does not block merging on its own.
+
 ## DCO sign-off
 
 Every commit must be signed off to certify that the contribution complies with
