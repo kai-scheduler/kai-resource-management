@@ -32,6 +32,22 @@ endif
 ifneq ($(GOSUMDB),)
 DOCKER_GO_CACHING_VOLUME_AND_ENV += -e GOSUMDB=$(GOSUMDB)
 endif
+# --- BEGIN private API module access ---------------------------------------
+# TEMPORARY: needed only while kai-resource-management-api is a private
+# repository. The containers resolve modules against their own GOPATH volume,
+# not the host module cache, so they must be able to fetch it themselves.
+# Remove both blocks once the repositories are public.
+ifneq ($(GOPRIVATE),)
+DOCKER_GO_CACHING_VOLUME_AND_ENV += -e GOPRIVATE=$(GOPRIVATE)
+endif
+# Credentials travel via GIT_CONFIG_GLOBAL rather than $(HOME)/.gitconfig: the
+# container runs as a numeric uid with no passwd entry, so HOME is "/" and git
+# would look for "//.gitconfig". Mounted read-only outside the repo mount so a
+# credential can never land in the checkout.
+ifneq ($(GIT_CONFIG_GLOBAL),)
+DOCKER_GO_CACHING_VOLUME_AND_ENV += -v $(GIT_CONFIG_GLOBAL):/tmp/gitconfig:ro -e GIT_CONFIG_GLOBAL=/tmp/gitconfig
+endif
+# --- END private API module access -----------------------------------------
 
 DOCKER_GO_BASE_COMMAND = $(DOCKER_COMMAND) -e CGO_ENABLED=$(CGO_ENABLED) -e GO111MODULE=on $(DOCKER_GO_CACHING_VOLUME_AND_ENV)
 GO_ENV_ARCH_AMD = -e GOOS=linux -e GOARCH=amd64 -e CC=x86_64-linux-gnu-gcc -e CXX=x86_64-linux-gnu-g++

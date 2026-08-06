@@ -28,6 +28,23 @@ make validate         # Run all non-mutating repository validation
 make gen-license      # Add missing Apache-2.0 source headers
 ```
 
+### Private API module access (temporary)
+
+**Delete this section once the repositories are public.**
+
+`github.com/kai-scheduler/kai-resource-management-api` is a private repository,
+so the public Go module proxy cannot serve it. Every Go command needs
+`GOPRIVATE` set to that exact module path, plus working GitHub git credentials.
+Commands that run Go inside a container (`make build`, `make lint-go`)
+additionally need `GOPATH_HOST_DIR` or `GIT_CONFIG_GLOBAL`.
+
+Do not widen `GOPRIVATE` to `github.com/kai-scheduler/*`: it also disables
+checksum-database verification, and the sibling module
+`github.com/kai-scheduler/api` is public and published in the checksum database.
+
+See `docs/getting-started/building-from-source.md` for setup and for the removal
+checklist. Every affected file is marked `private API module access`.
+
 For a behavior-changing pull request, create a changelog fragment:
 
 ```bash
