@@ -61,6 +61,37 @@ jobs:
           restore-keys: |
             go-docker-${{ runner.os }}-
 
+      # --- BEGIN private API module access ---------------------------------
+      # TEMPORARY: needed only while kai-resource-management-api is a private
+      # repository. GITHUB_TOKEN is scoped to this repository and cannot read
+      # it. Remove this block once the repositories are public: the public Go
+      # module proxy will then serve the module anonymously.
+      - name: Mint a token for the private API module
+        uses: actions/create-github-app-token@v2
+        id: apptoken
+        with:
+          app-id: ${{ secrets.KAI_MODULE_READER_APP_ID }}
+          private-key: ${{ secrets.KAI_MODULE_READER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: kai-resource-management-api
+
+      # Scoped to the exact module, not github.com/kai-scheduler/*: GOPRIVATE
+      # also disables checksum-database verification, and the sibling module
+      # github.com/kai-scheduler/api is public and is in the sumdb.
+      - name: Configure Go and git for the private API module
+        env:
+          TOKEN: ${{ steps.apptoken.outputs.token }}
+        run: |
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          # The rewrite is scoped to this one repository, so the token is
+          # never sent to any other GitHub URL.
+          git config --global \
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
+          echo "GIT_CONFIG_GLOBAL=$HOME/.gitconfig" >> "$GITHUB_ENV"
+      # --- END private API module access -----------------------------------
+
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
@@ -90,6 +121,39 @@ jobs:
           key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-docker-${{ runner.os }}-
+
+      # --- BEGIN private API module access ---------------------------------
+      # TEMPORARY: needed only while kai-resource-management-api is a private
+      # repository. GITHUB_TOKEN is scoped to this repository and cannot read
+      # it. Remove this block once the repositories are public: the public Go
+      # module proxy will then serve the module anonymously.
+      - name: Mint a token for the private API module
+        uses: actions/create-github-app-token@v2
+        id: apptoken
+        with:
+          app-id: ${{ secrets.KAI_MODULE_READER_APP_ID }}
+          private-key: ${{ secrets.KAI_MODULE_READER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: kai-resource-management-api
+
+      # Scoped to the exact module, not github.com/kai-scheduler/*: GOPRIVATE
+      # also disables checksum-database verification, and the sibling module
+      # github.com/kai-scheduler/api is public and is in the sumdb.
+      # GIT_CONFIG_GLOBAL is what build/makefile/golang.mk forwards into the
+      # builder container, which fetches modules into its own GOPATH volume.
+      - name: Configure Go and git for the private API module
+        env:
+          TOKEN: ${{ steps.apptoken.outputs.token }}
+        run: |
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          # The rewrite is scoped to this one repository, so the token is
+          # never sent to any other GitHub URL.
+          git config --global \
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
+          echo "GIT_CONFIG_GLOBAL=$HOME/.gitconfig" >> "$GITHUB_ENV"
+      # --- END private API module access -----------------------------------
 
       - name: Set up Go
         uses: actions/setup-go@v7

@@ -13,6 +13,118 @@ repository's Go code and Helm chart.
 
 Helm dependency resolution requires network access to GHCR.
 
+## Private API module access (temporary)
+
+> **This entire section should be deleted once the repositories are public.**
+> It exists only because `github.com/kai-scheduler/kai-resource-management-api`
+> is currently a private repository. Once it is public, the public Go module
+> proxy serves it anonymously and none of the configuration below is needed.
+
+The API types and CRD manifests for the `kai.resources` group live in
+`github.com/kai-scheduler/kai-resource-management-api`. While that repository is
+private, `proxy.golang.org` cannot read it and returns `404` for every version.
+Go must be told to bypass the proxy and fetch the module directly over
+authenticated git; that is what `GOPRIVATE` does.
+
+Without this configuration you will see one of:
+
+```text
+410 Gone
+fatal: could not read Username for 'https://github.com'
+```
+
+Two execution contexts need configuring, and they fail for different reasons.
+
+### Commands that run Go on your machine
+
+`make test`, `make test-go`, `make vet-go` and the host portion of
+`make validate` use your local Go toolchain. Set `GOPRIVATE`, appending rather
+than replacing — an existing entry such as `github.com/run-ai/*` is common:
+
+```bash
+current=$(go env GOPRIVATE)
+go env -w GOPRIVATE="${current:+$current,}github.com/kai-scheduler/kai-resource-management-api"
+```
+
+`${current:+$current,}` appends a separator only when there is already a value,
+so this is also correct on a machine where `GOPRIVATE` is unset.
+
+The value is scoped to the exact module rather than
+`github.com/kai-scheduler/*` on purpose. `GOPRIVATE` also disables
+checksum-database verification, and the sibling module
+`github.com/kai-scheduler/api` is public and is published in the checksum
+database; a wildcard would silently stop verifying it. `go.sum` still pins the
+private module either way.
+
+If `GOPRIVATE` is exported from your shell profile, an exported environment
+variable takes precedence over the value `go env -w` writes, and the command
+above will appear to have no effect. Check which one is in force:
+
+```bash
+env | grep GOPRIVATE          # exported: edit your shell profile instead
+go env GOPRIVATE              # the effective value Go will use
+```
+
+You also need working GitHub git credentials, for example:
+
+```bash
+gh auth setup-git
+```
+
+### Commands that run Go in a container
+
+`make build` and `make lint-go` run the Go toolchain inside Docker. These
+containers resolve modules against their own `GOPATH` volume
+(`~/.cache/go-build-docker-gopath`), which is a different module cache from your
+host's, so they must be able to fetch the module themselves. A macOS or Linux
+keychain credential helper cannot work inside the Linux container.
+
+The simplest approach is to reuse the module cache your host has already
+populated:
+
+```bash
+go mod download
+make build GOPATH_HOST_DIR="$(go env GOPATH)"
+```
+
+Alternatively, point `GIT_CONFIG_GLOBAL` at a git configuration file containing
+a token-based URL rewrite. `build/makefile/golang.mk` mounts that file into the
+container read-only:
+
+```bash
+make build GIT_CONFIG_GLOBAL="$HOME/.config/kai-module-gitconfig"
+```
+
+The container reads `GIT_CONFIG_GLOBAL` rather than `~/.gitconfig` because it
+runs as a numeric uid with no passwd entry, so `HOME` is `/` and git would look
+for `//.gitconfig`.
+
+**That file contains a credential.** Keep it outside this repository, and give
+it `0600` permissions.
+
+### Continuous integration
+
+CI needs no manual setup. The `validate-and-test`, `build` and `build-and-push`
+jobs mint a short-lived installation token from the `kai-module-reader` GitHub
+App and configure `GOPRIVATE` and a git URL rewrite before any Go command runs.
+The repository secrets `KAI_MODULE_READER_APP_ID` and
+`KAI_MODULE_READER_PRIVATE_KEY` back this. The default `GITHUB_TOKEN` cannot be
+used: it is scoped to this repository alone.
+
+### Removing this
+
+Once the repositories are public, delete every block marked
+`private API module access`:
+
+```bash
+grep -rn "private API module access" .
+```
+
+That covers `.github/workflows/on-pr.yaml` (two jobs),
+`.github/workflows/push-artifacts.yaml`, `build/makefile/golang.mk`, this
+section, and the note in `AGENTS.md`. Then revoke the `kai-module-reader` App
+installation and delete the two repository secrets.
+
 ## Common commands
 
 ```bash
