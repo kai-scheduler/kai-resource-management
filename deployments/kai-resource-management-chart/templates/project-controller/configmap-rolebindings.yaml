@@ -24,11 +24,11 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: project-controller-project
+      name: kai-project-controller-project
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: project-controller
+      name: kai-project-controller
     subjects:
     - kind: ServiceAccount
       name: project-controller
@@ -38,11 +38,11 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: project-controller-cluster-secret-per-project
+      name: kai-project-controller-cluster-secret-per-project
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: project-controller-cluster-secret-per-project
+      name: kai-project-controller-cluster-secret-per-project
     subjects:
     - kind: ServiceAccount
       name: project-controller
@@ -53,11 +53,11 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: project-controller-cluster-configmap-per-project
+      name: kai-project-controller-cluster-configmap-per-project
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: project-controller-cluster-configmap-per-project
+      name: kai-project-controller-cluster-configmap-per-project
     subjects:
     - kind: ServiceAccount
       name: project-controller
@@ -68,11 +68,11 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: project-controller-cluster-pvc-per-project
+      name: kai-project-controller-cluster-pvc-per-project
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: project-controller-cluster-pvc-per-project
+      name: kai-project-controller-cluster-pvc-per-project
     subjects:
     - kind: ServiceAccount
       name: project-controller
@@ -83,11 +83,11 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: project-controller-limit-range-per-project
+      name: kai-project-controller-limit-range-per-project
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
-      name: project-controller-limit-range-per-project
+      name: kai-project-controller-limit-range-per-project
     subjects:
     - kind: ServiceAccount
       name: project-controller
