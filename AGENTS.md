@@ -139,7 +139,11 @@ packages.
   configuration files and emits language-native line comments.
 - `hack/boilerplate.go.txt` and `hack/boilerplate.yaml.txt` provide the same
   headers to source generators such as `controller-gen`.
-- Exported Go declarations require useful GoDoc comments.
+- Comment an exported Go declaration only when the comment says something the
+  signature does not. Never restate the function name, its parameters or its
+  return type: `// Scheme returns the scheme` on `func (c *Controller) Scheme()
+  *runtime.Scheme` is noise, and so is describing a parameter that is already
+  visible in the signature. Prefer no comment to an obvious one.
 - Comments explain why a choice or invariant exists, not what obvious code
   does.
 - Preserve upstream headers on generated files.

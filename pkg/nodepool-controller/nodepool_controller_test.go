@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestNodePoolController(t *testing.T) {
@@ -15,12 +16,15 @@ func TestNodePoolController(t *testing.T) {
 	RunSpecs(t, "NodePool controller suite")
 }
 
-// TEMPORARY: placeholder suite. It exists only so every package is covered by
-// the test targets the CI workflows run. Replace it with real specs.
 var _ = Describe("NodePoolController", func() {
-	Context("placeholder", func() {
-		It("has no behavior to assert yet", func() {
-			Expect(0).To(Equal(0))
+	Context("construction", func() {
+		It("retains the scheme it is given", func() {
+			scheme := runtime.NewScheme()
+			Expect(New(scheme).Scheme()).To(BeIdenticalTo(scheme))
+		})
+
+		It("reports its name", func() {
+			Expect(New(runtime.NewScheme()).Name()).To(Equal(ControllerName))
 		})
 	})
 })

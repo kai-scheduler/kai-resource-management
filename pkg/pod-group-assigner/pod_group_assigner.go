@@ -11,6 +11,7 @@ package podgroupassigner
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -19,12 +20,16 @@ const ServiceName = "pod-group-assigner"
 
 // Assigner runs the pod-group-assigner service.
 type Assigner struct {
-	name string
+	name   string
+	scheme *runtime.Scheme
 }
 
-// New returns an Assigner for the pod-group-assigner service.
-func New() *Assigner {
-	return &Assigner{name: ServiceName}
+func New(scheme *runtime.Scheme) *Assigner {
+	return &Assigner{name: ServiceName, scheme: scheme}
+}
+
+func (a *Assigner) Scheme() *runtime.Scheme {
+	return a.scheme
 }
 
 // Name returns the service name.

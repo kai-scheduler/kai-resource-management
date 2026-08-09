@@ -11,6 +11,7 @@ package nodepoolcontroller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -19,17 +20,21 @@ const ControllerName = "nodepool-controller"
 
 // Controller runs the nodepool-controller service.
 type Controller struct {
-	name string
+	name   string
+	scheme *runtime.Scheme
 }
 
-// New returns a Controller for the nodepool-controller service.
-func New() *Controller {
-	return &Controller{name: ControllerName}
+func New(scheme *runtime.Scheme) *Controller {
+	return &Controller{name: ControllerName, scheme: scheme}
 }
 
 // Name returns the controller name.
 func (c *Controller) Name() string {
 	return c.name
+}
+
+func (c *Controller) Scheme() *runtime.Scheme {
+	return c.scheme
 }
 
 // Run starts the controller and blocks until ctx is canceled.
