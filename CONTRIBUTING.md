@@ -26,6 +26,12 @@ Developer setup and repository conventions are documented in
   `docs/`.
 - Put shared agent skills and assets under `.agents/`. Harness-specific
   directories such as `.claude/` and `.codex/` are local state and stay ignored.
+- Treat `deployments/kai-resource-management-chart/crds/` as generated output.
+  It is produced by `make sync-crds` from the
+  `github.com/kai-scheduler/kai-resource-management-api` version pinned in
+  `go.mod`. Do not hand-edit it; change the API repository, release it, and bump
+  the pin instead. `make validate` fails when the two drift. See
+  [docs/updating-the-api-module.md](docs/updating-the-api-module.md).
 
 Detailed coding and testing guidance is maintained in [AGENTS.md](AGENTS.md).
 Its rules apply to both human and automated contributors.

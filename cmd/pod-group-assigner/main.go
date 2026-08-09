@@ -11,12 +11,24 @@ import (
 	"fmt"
 	"os"
 
+	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	podgroupassigner "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner"
 )
+
+var scheme = runtime.NewScheme()
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+
+	utilruntime.Must(kaires.AddToScheme(scheme))
+}
 
 func main() {
 	logOptions := zap.Options{
@@ -29,7 +41,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logOptions), zap.WriteTo(os.Stderr)))
 
 	ctx := ctrl.SetupSignalHandler()
-	if err := podgroupassigner.New().Run(ctx); err != nil {
+	if err := podgroupassigner.New(scheme).Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error while running the app: %v\n", err)
 		os.Exit(1)
 	}

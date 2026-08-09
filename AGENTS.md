@@ -139,7 +139,11 @@ packages.
   configuration files and emits language-native line comments.
 - `hack/boilerplate.go.txt` and `hack/boilerplate.yaml.txt` provide the same
   headers to source generators such as `controller-gen`.
-- Exported Go declarations require useful GoDoc comments.
+- Comment an exported Go declaration only when the comment says something the
+  signature does not. Never restate the function name, its parameters or its
+  return type: `// Scheme returns the scheme` on `func (c *Controller) Scheme()
+  *runtime.Scheme` is noise, and so is describing a parameter that is already
+  visible in the signature. Prefer no comment to an obvious one.
 - Comments explain why a choice or invariant exists, not what obvious code
   does.
 - Preserve upstream headers on generated files.
@@ -179,6 +183,29 @@ When the chart is introduced:
   contexts, images, and upgrade-sensitive behavior.
 - Do not commit downloaded dependency archives under a chart's nested
   `charts/` directory.
+
+### Generated CRDs
+
+The `kai.resources` API types belong to
+`github.com/kai-scheduler/kai-resource-management-api`. This repository consumes
+them and never defines them.
+
+`deployments/kai-resource-management-chart/crds/` is **generated output**. It is
+produced by `make sync-crds`, which copies the CRD manifests from the API module
+version pinned in `go.mod`. Never hand-edit those files: `make validate` runs
+`sync-crds-check` and fails when they drift from the pinned module.
+
+Changing a CRD means changing the API repository, releasing it, and bumping the
+pin here — not editing the manifests. The procedure is in
+`docs/updating-the-api-module.md`.
+
+Do not add `controller-gen` to this repository, and do not generate Kubernetes
+clientsets, informers or listers. The API module deliberately ships none;
+controller-runtime's client with `AddToScheme` is the intended path.
+
+When adding a CRD to the API module, also add it to `resourceNames` in
+`templates/rbac/crd-manager.yaml`, otherwise the pre-install hook cannot apply
+it. `make crd-rbac-check` enforces this.
 
 ## Testing
 

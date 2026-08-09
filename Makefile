@@ -12,6 +12,13 @@ CHANGIE ?= $(LOCALBIN)/changie
 # Space-separated list of services to build by default
 SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller
 
+# CRDs are copied from the pinned API module; nothing here generates them.
+# See docs/updating-the-api-module.md.
+API_MODULE := github.com/kai-scheduler/kai-resource-management-api
+API_CRD_DIR = $(shell $(GO) list -m -f '{{.Dir}}' $(API_MODULE))/config/crd
+CHART_CRD_DIR := deployments/kai-resource-management-chart/crds
+CRD_MANAGER_ROLE := deployments/kai-resource-management-chart/templates/rbac/crd-manager.yaml
+
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
 LICENSE_IGNORES := \
@@ -82,8 +89,39 @@ license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
 		$(LICENSE_IGNORES) .
 
+.PHONY: sync-crds
+sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
+	cp $(API_CRD_DIR)/*.yaml $(CHART_CRD_DIR)/
+	@# The module cache is read-only, so the copies land unwritable and the
+	@# next sync would fail with "Permission denied".
+	chmod u+w $(CHART_CRD_DIR)/*.yaml
+
+.PHONY: sync-crds-check
+sync-crds-check: ## Verify the chart CRDs match the pinned API module.
+	@# Compares against a temporary copy rather than syncing first, so a
+	@# failure never leaves modified files behind. diff -r also reports CRDs
+	@# added or removed by the API module, which a content-only check misses.
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	cp $(API_CRD_DIR)/*.yaml "$$tmp/"; \
+	if ! diff -ru "$$tmp" $(CHART_CRD_DIR); then \
+		echo "::error::Chart CRDs are out of sync with $(API_MODULE). Run 'make sync-crds' and commit the result."; \
+		exit 1; \
+	fi
+
+.PHONY: crd-rbac-check
+crd-rbac-check: ## Verify every chart CRD is named in the crd-manager ClusterRole.
+	@# The pre-install hook applies the CRDs under a ClusterRole restricted by
+	@# resourceNames. A CRD added by a future API module release would sync in
+	@# here but fail to apply without a matching entry.
+	@rc=0; \
+	for name in $$(awk '/^metadata:/{m=1;next} m&&/^  name: /{print $$2; m=0}' $(CHART_CRD_DIR)/*.yaml); do \
+		grep -q -- "- $$name" $(CRD_MANAGER_ROLE) || { \
+			echo "::error::$$name is missing from resourceNames in $(CRD_MANAGER_ROLE)"; rc=1; }; \
+	done; \
+	exit $$rc
+
 .PHONY: validate
-validate: mod-check lint test license-check ## Run all repository validation without changing tracked files.
+validate: mod-check lint test license-check sync-crds-check crd-rbac-check ## Run all repository validation without changing tracked files.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

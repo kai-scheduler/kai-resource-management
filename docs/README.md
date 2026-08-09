@@ -11,6 +11,8 @@ The initial documentation structure is intentionally small:
 - `getting-started/` — local setup, first installation, and first successful use.
 - `designs/` — architecture decisions and implementation designs.
 - `releasing.md` — the maintainer release process.
+- `updating-the-api-module.md` — releasing a `kai.resources` CRD change and
+  consuming it here.
 
 Chart-specific build, configuration, upgrade, and uninstall documentation
 belongs with the chart under `deployments/kai-resource-management-chart/`.
@@ -37,3 +39,6 @@ Cluster administrators can start with the
 [KAI Resource Management chart documentation](../deployments/kai-resource-management-chart/README.md).
 
 Maintainers cutting a release start with [releasing.md](releasing.md).
+
+Maintainers changing a `kai.resources` CRD start with
+[updating-the-api-module.md](updating-the-api-module.md).

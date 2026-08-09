@@ -11,6 +11,7 @@ package projectcontroller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -19,12 +20,16 @@ const ControllerName = "project-controller"
 
 // Controller runs the project-controller service.
 type Controller struct {
-	name string
+	name   string
+	scheme *runtime.Scheme
 }
 
-// New returns a Controller for the project-controller service.
-func New() *Controller {
-	return &Controller{name: ControllerName}
+func New(scheme *runtime.Scheme) *Controller {
+	return &Controller{name: ControllerName, scheme: scheme}
+}
+
+func (c *Controller) Scheme() *runtime.Scheme {
+	return c.scheme
 }
 
 // Name returns the controller name.
