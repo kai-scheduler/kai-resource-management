@@ -7,7 +7,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: pod-group-mutation
+  name: kai-pod-group-mutation
   labels:
     {{- include "kai-resource-management.labels" . | nindent 4 }}
 webhooks:

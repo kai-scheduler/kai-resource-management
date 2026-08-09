@@ -26,10 +26,10 @@ tests:
     asserts:
       - matchRegex:
           path: data["project-controller-project.yaml"]
-          pattern: "name: project-controller"
+          pattern: "name: kai-project-controller"
       - matchRegex:
           path: data["project-secret.yaml"]
-          pattern: "name: project-controller-cluster-secret-per-project"
+          pattern: "name: kai-project-controller-cluster-secret-per-project"
 
   - it: gates each feature per-project binding on its feature flag
     set:
