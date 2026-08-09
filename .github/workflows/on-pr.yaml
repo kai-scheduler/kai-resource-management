@@ -159,7 +159,10 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: '1.26.3'
-          cache: true
+          # No host Go build runs in this job, so setup-go's cache would only
+          # save and restore directories nothing reads. The Docker-mounted
+          # cache above is the one that matters.
+          cache: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
