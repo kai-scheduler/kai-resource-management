@@ -28,6 +28,20 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
 
+      # `make build` runs the Go toolchain only inside containers, which mount
+      # these two host directories as GOPATH and GOCACHE. actions/setup-go's
+      # own cache covers ~/go/pkg/mod instead, which this job never reads, so
+      # these are the directories that have to be cached here.
+      - name: Cache Go build cache (Docker-mounted)
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build-docker-gocache
+            ~/.cache/go-build-docker-gopath
+          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-docker-${{ runner.os }}-
+
       # --- BEGIN private API module access ---------------------------------
       # TEMPORARY: needed only while kai-resource-management-api is a private
       # repository. GITHUB_TOKEN is scoped to this repository and cannot read
@@ -65,6 +79,9 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: '1.26.3'
+          # No host Go build runs in this job, so setup-go's cache would only
+          # save and restore directories nothing reads. The Docker-mounted
+          # cache above is the one that matters.
           cache: false
 
       - name: Log in to GitHub Container Registry
