@@ -12,9 +12,8 @@ CHANGIE ?= $(LOCALBIN)/changie
 # Space-separated list of services to build by default
 SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller
 
-# The API module owns the kai.resources types and generates their CRD
-# manifests. This repository only copies the released output; the CRDs under
-# CHART_CRD_DIR are generated and must not be hand-edited.
+# CRDs are copied from the pinned API module; nothing here generates them.
+# See docs/updating-the-api-module.md.
 API_MODULE := github.com/kai-scheduler/kai-resource-management-api
 API_CRD_DIR = $(shell $(GO) list -m -f '{{.Dir}}' $(API_MODULE))/config/crd
 CHART_CRD_DIR := deployments/kai-resource-management-chart/crds

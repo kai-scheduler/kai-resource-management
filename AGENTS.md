@@ -196,7 +196,8 @@ version pinned in `go.mod`. Never hand-edit those files: `make validate` runs
 `sync-crds-check` and fails when they drift from the pinned module.
 
 Changing a CRD means changing the API repository, releasing it, and bumping the
-pin here — not editing the manifests.
+pin here — not editing the manifests. The procedure is in
+`docs/updating-the-api-module.md`.
 
 Do not add `controller-gen` to this repository, and do not generate Kubernetes
 clientsets, informers or listers. The API module deliberately ships none;
