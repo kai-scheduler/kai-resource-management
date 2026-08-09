@@ -180,6 +180,28 @@ When the chart is introduced:
 - Do not commit downloaded dependency archives under a chart's nested
   `charts/` directory.
 
+### Generated CRDs
+
+The `kai.resources` API types belong to
+`github.com/kai-scheduler/kai-resource-management-api`. This repository consumes
+them and never defines them.
+
+`deployments/kai-resource-management-chart/crds/` is **generated output**. It is
+produced by `make sync-crds`, which copies the CRD manifests from the API module
+version pinned in `go.mod`. Never hand-edit those files: `make validate` runs
+`sync-crds-check` and fails when they drift from the pinned module.
+
+Changing a CRD means changing the API repository, releasing it, and bumping the
+pin here — not editing the manifests.
+
+Do not add `controller-gen` to this repository, and do not generate Kubernetes
+clientsets, informers or listers. The API module deliberately ships none;
+controller-runtime's client with `AddToScheme` is the intended path.
+
+When adding a CRD to the API module, also add it to `resourceNames` in
+`templates/rbac/crd-manager.yaml`, otherwise the pre-install hook cannot apply
+it. `make crd-rbac-check` enforces this.
+
 ## Testing
 
 ### Unit and integration tests
