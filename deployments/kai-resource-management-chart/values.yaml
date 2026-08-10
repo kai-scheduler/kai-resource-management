@@ -88,6 +88,9 @@ kai-scheduler:
 # Enabled by default; set enabled=false to opt out. spec is a passthrough (empty = catch-all).
 # `name` is the single source of truth for the default nodepool: it names the NodePool CR and
 # is passed to every controller as --default-nodepool-name.
+# While enabled, nodepool-controller also keeps the pool alive (--ensure-default-nodepool): it
+# recreates it if anything deletes it. The recreated pool is bare — a customized `spec` below is
+# reapplied by the next `helm upgrade`, not by the controller.
 defaultNodePool:
   enabled: true
   name: default

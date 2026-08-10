@@ -391,3 +391,28 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].args
           content: acme/enforce-scheduler-name
+
+  - it: owning the default NodePool gives nodepool-controller --ensure-default-nodepool
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --ensure-default-nodepool
+        template: templates/nodepool-controller/deployment.yaml
+      # only the nodepool-controller binary defines it
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --ensure-default-nodepool
+        template: templates/project-controller/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --ensure-default-nodepool
+        template: templates/pod-group-assigner/deployment.yaml
+
+  - it: opting out of the default NodePool also drops --ensure-default-nodepool
+    set:
+      defaultNodePool.enabled: false
+    template: templates/nodepool-controller/deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --ensure-default-nodepool

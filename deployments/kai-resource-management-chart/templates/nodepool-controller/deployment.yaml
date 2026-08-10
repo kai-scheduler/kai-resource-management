@@ -52,6 +52,11 @@ spec:
                 "metrics-namespace"       $metrics.namespace
                 "dcgm-exporter-namespace" $comp.dcgmExporterNamespace) | nindent 12 }}
             {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
+            {{- if (.Values.defaultNodePool | default dict).enabled }}
+            # The chart installs the default NodePool, so the controller keeps it alive:
+            # it recreates the pool if anything deletes it out of band.
+            - --ensure-default-nodepool
+            {{- end }}
             {{- if $a.debug }}
             - --debug
             {{- end }}

@@ -78,7 +78,7 @@ The main configuration groups are:
 | `openshift` | OpenShift mode: SecurityContextConstraints and uid handling. |
 | `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
-| `defaultNodePool` | The chart-managed catch-all NodePool. |
+| `defaultNodePool` | The chart-managed catch-all NodePool. While enabled, nodepool-controller recreates it if it is deleted. |
 | `nodepoolController` | Node-pool controller deployment and arguments. |
 | `projectController` | Project controller deployment, features, and arguments. |
 | `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhook. |
