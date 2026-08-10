@@ -153,6 +153,42 @@ upgrade. Do not assume `helm rollback` is a safe downgrade path: the bundled KAI
 Scheduler uses lifecycle hooks and retained resources. Back up custom resources
 and follow the target release's migration guidance before downgrading.
 
+### Bumping the bundled KAI Scheduler
+
+The chart bundles KAI Scheduler as a subchart. Upgrading it is one line in
+`Chart.yaml`:
+
+```yaml
+dependencies:
+  - name: kai-scheduler
+    repository: oci://ghcr.io/kai-scheduler/kai-scheduler
+    version: "v0.17.0"
+```
+
+`Chart.lock` and `charts/*.tgz` are generated and gitignored, so the version is
+the only tracked change. Run `make test-chart` and you are done.
+
+Two things are worth checking first, because neither fails loudly.
+
+**Take the version from the [releases page][kai-releases], not from the registry
+tag list.**
+
+**Confirm the values this chart overrides still exist.** Helm ignores unknown
+values silently, so a key KAI renames turns our override into a no-op with no
+error. The dangerous one is `defaultShard.enabled: false`: if it stops applying,
+KAI creates its own default SchedulingShard and competes with the
+nodepool-controller. Compare against the new subchart's defaults:
+
+```bash
+helm show values oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler \
+  --version v0.17.0 > /tmp/new-values.yaml
+```
+
+and check every key this chart sets under `kai-scheduler:` in `values.yaml`
+still appears there.
+
+[kai-releases]: https://github.com/NVIDIA/KAI-Scheduler/releases
+
 ## Uninstall
 
 ```bash
