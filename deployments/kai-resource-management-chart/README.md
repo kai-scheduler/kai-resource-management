@@ -162,7 +162,7 @@ The chart bundles KAI Scheduler as a subchart. Upgrading it is one line in
 dependencies:
   - name: kai-scheduler
     repository: oci://ghcr.io/kai-scheduler/kai-scheduler
-    version: "v0.17.0"
+    version: "<VERSION>"
 ```
 
 `Chart.lock` and `charts/*.tgz` are generated and gitignored, so the version is
@@ -181,7 +181,7 @@ nodepool-controller. Compare against the new subchart's defaults:
 
 ```bash
 helm show values oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler \
-  --version v0.17.0 > /tmp/new-values.yaml
+  --version <VERSION> > /tmp/new-values.yaml
 ```
 
 and check every key this chart sets under `kai-scheduler:` in `values.yaml`
