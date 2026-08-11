@@ -6,7 +6,7 @@ templates:
   - templates/nodepool-controller/deployment.yaml
   - templates/project-controller/deployment.yaml
   - templates/pod-group-assigner/deployment.yaml
-  - templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+  - templates/pod-group-assigner/webhook.yaml
 release:
   name: rm
   namespace: kai
@@ -57,7 +57,17 @@ tests:
       - equal:
           path: webhooks[0].namespaceSelector.matchExpressions[0].key
           value: kai/project
-        template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-group-mutation
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: kai/project
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-mutation
 
   - it: commonArgs.schedulerName reaches nodepool-controller and pod-group-assigner, not project-controller
     # Both binaries must target the same scheduler: nodepool-controller stamps it on
