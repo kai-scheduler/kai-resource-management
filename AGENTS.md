@@ -203,6 +203,14 @@ Do not add `controller-gen` to this repository, and do not generate Kubernetes
 clientsets, informers or listers. The API module deliberately ships none;
 controller-runtime's client with `AddToScheme` is the intended path.
 
+> **Temporary exception — `KRMConfig`.** The `KRMConfig` type lives in
+> `pkg/operator/apis/` while its shape settles through review, so `controller-gen`
+> is pinned here and `make gen-krmconfig` produces its deepcopy plus a CRD manifest
+> under `templates/krm-operator/` (not `crds/`, which `sync-crds-check` owns).
+> None of it is hand-edited. When `KRMConfig` moves to the API module, delete
+> `pkg/operator/apis/`, the generated manifest, the `gen-krmconfig` and
+> `controller-gen` targets and their variables, and this exception.
+
 When adding a CRD to the API module, also add it to `resourceNames` in
 `templates/rbac/crd-manager.yaml`, otherwise the pre-install hook cannot apply
 it. `make crd-rbac-check` enforces this.

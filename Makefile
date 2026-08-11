@@ -10,7 +10,7 @@ ADDLICENSE ?= $(LOCALBIN)/addlicense
 CHANGIE ?= $(LOCALBIN)/changie
 
 # Space-separated list of services to build by default
-SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller
+SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller krm-operator
 
 # CRDs are copied from the pinned API module; nothing here generates them.
 # See docs/updating-the-api-module.md.
