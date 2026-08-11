@@ -39,6 +39,10 @@ nodepoolController:
     port: 8080          # "np-metrics" service port
     targetPort: 8080
   dcgmExporterNamespace: ""         # --dcgm-exporter-namespace
+  webhook:
+    port: 443                       # Service port the API server dials
+    targetPort: 8443                # container --webhook-port
+    certSecretName: nodepool-controller-tls-secret
   # Per-controller args (empty ⇒ binary default). camelCase key ⇒ --kebab-case flag:
   args:
     debug: false                    # --debug (presence)
@@ -64,6 +68,10 @@ projectController:
     metrics: { port: 9400, portName: metrics, targetPort: 9400 }
   profiling:
     apiPort: "8182"
+  webhook:
+    port: 443                       # Service port the API server dials
+    targetPort: 8443                # container --webhook-port
+    certSecretName: project-controller-tls-secret
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
@@ -82,8 +90,9 @@ projectController:
 podGroupAssigner:
   replicas: 1
   webhook:
-    port: 443                        # Service port
+    port: 443                        # Service port the API server dials
     targetPort: 8443                 # container --webhook-port
+    certSecretName: pod-group-assigner-tls-secret
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
