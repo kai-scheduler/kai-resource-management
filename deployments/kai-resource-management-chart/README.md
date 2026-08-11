@@ -183,7 +183,7 @@ With `rbac.create: false` the chart creates neither the SCC nor its `use` grant,
 and you are responsible for granting the ServiceAccounts an equivalent SCC.
 
 OpenShift mode also changes how webhook serving certificates are provisioned; see
-[Admission webhooks](#tls-certificates).
+[TLS certificates](#tls-certificates).
 
 ## Upgrade
 

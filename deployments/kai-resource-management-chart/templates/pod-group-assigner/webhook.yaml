@@ -12,7 +12,8 @@ off - the binary would keep serving it, so the value could not honour its own na
 {{- $secretName := $webhook.certSecretName | default "pod-group-assigner-tls-secret" }}
 {{- $webhookPort := int ($webhook.port | default 443) }}
 {{- $openshift := include "kai-resource-management.openshift" . }}
-{{- $nsProjectLabelKey := "kai/project" }}
+{{- $a := merge (deepCopy (.Values.podGroupAssigner.args | default dict)) (pick (.Values.commonArgs | default dict) "namespaceProjectLabelKey") }}
+{{- $nsProjectLabelKey := $a.namespaceProjectLabelKey | default "kai/project" }}
 {{- $certs := dict }}
 {{- if not $openshift }}
 {{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName)) }}
