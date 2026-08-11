@@ -1000,8 +1000,10 @@ spec:
                       a namespace to its project.
                     type: string
                   nodePoolLabelKey:
-                    description: NodePoolLabelKey is the label key carrying a node's
-                      node pool.
+                    description: |-
+                      NodePoolLabelKey is the label key carrying a node's node pool.
+
+                      Install-time only, for the same reason as SchedulerName.
                     type: string
                   nodeSelector:
                     additionalProperties:
@@ -1020,17 +1022,30 @@ spec:
                       project.
                     type: string
                   queueLabelKey:
-                    description: QueueLabelKey is the label key carrying a workload's
-                      queue.
+                    description: |-
+                      QueueLabelKey is the label key carrying a workload's queue.
+
+                      Install-time only, for the same reason as SchedulerName.
                     type: string
                   replicaCount:
                     description: ReplicaCount is the default replica count for services
                       that do not set their own.
                     format: int32
                     type: integer
+                  requireDefaultPodAntiAffinityTerm:
+                    description: |-
+                      RequireDefaultPodAntiAffinityTerm makes the default per-host pod
+                      anti-affinity required rather than preferred, for services that set no
+                      anti-affinity of their own.
+                    type: boolean
                   schedulerName:
-                    description: SchedulerName is the scheduler the controllers bind
-                      workloads to.
+                    description: |-
+                      SchedulerName is the scheduler the controllers bind workloads to.
+
+                      Install-time only: set it at install and do not change it afterwards. The
+                      scheduler and the controllers must agree on it, and nothing reconciles the
+                      two — changing it on a running cluster stops workloads being scheduled until
+                      both sides are brought back into line.
                     type: string
                   securityContext:
                     description: |-

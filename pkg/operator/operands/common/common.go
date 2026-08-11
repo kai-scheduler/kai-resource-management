@@ -1,0 +1,294 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
+package common
+
+import (
+	"context"
+	"fmt"
+	"slices"
+	"strings"
+
+	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
+)
+
+const (
+	OperatorManagedByLabelKey   = "app.kubernetes.io/managed-by"
+	OperatorManagedByLabelValue = "krm-operator"
+)
+
+var controllerTypes = []string{"Deployment"}
+
+func ObjectForKRMConfig(
+	ctx context.Context, runtimeClient client.Reader, object client.Object,
+	resourceName string, resourceNamespace string,
+) (client.Object, error) {
+	err := runtimeClient.Get(ctx, client.ObjectKey{
+		Name:      resourceName,
+		Namespace: resourceNamespace,
+	}, object)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+
+	object.SetName(resourceName)
+	object.SetNamespace(resourceNamespace)
+	if object.GetLabels() == nil {
+		object.SetLabels(map[string]string{})
+	}
+	object.GetLabels()["app"] = resourceName
+
+	return object, nil
+}
+
+func DeploymentForKRMConfig(
+	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
+	service *kaicommon.Service, deploymentName string,
+) (*appsv1.Deployment, error) {
+
+	deploymentObj, err := ObjectForKRMConfig(
+		ctx, runtimeClient, &appsv1.Deployment{}, deploymentName, krmConfig.Spec.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	deployment := deploymentObj.(*appsv1.Deployment)
+	deployment.Labels[OperatorManagedByLabelKey] = OperatorManagedByLabelValue
+	deployment.TypeMeta = metav1.TypeMeta{
+		Kind:       "Deployment",
+		APIVersion: "apps/v1",
+	}
+
+	deployment.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app": deploymentName,
+		},
+	}
+
+	if deployment.Spec.Template.Labels == nil {
+		deployment.Spec.Template.Labels = map[string]string{}
+	}
+	deployment.Spec.Template.Labels["app"] = deploymentName
+
+	deployment.Spec.Template.Spec.ServiceAccountName = deploymentName
+	deployment.Spec.Template.Spec.NodeSelector = krmConfig.Spec.Global.NodeSelector
+	deployment.Spec.Template.Spec.Tolerations = krmConfig.Spec.Global.Tolerations
+	deployment.Spec.Template.Spec.PriorityClassName = ptr.Deref(krmConfig.Spec.Global.PriorityClassName, "")
+
+	deployment.Spec.Template.Spec.Affinity = MergeAffinities(service.Affinity,
+		krmConfig.Spec.Global.Affinity,
+		deployment.Spec.Selector.MatchLabels,
+		ptr.Deref(krmConfig.Spec.Global.RequireDefaultPodAntiAffinityTerm, false))
+
+	deployment.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name:            deploymentName,
+			Image:           service.Image.Url(),
+			ImagePullPolicy: *service.Image.PullPolicy,
+			Resources:       corev1.ResourceRequirements(*service.Resources),
+			SecurityContext: krmConfig.Spec.Global.GetSecurityContext(),
+		},
+	}
+
+	deployment.Spec.Template.Spec.ImagePullSecrets = GetGlobalImagePullSecrets(krmConfig.Spec.Global)
+
+	return deployment, nil
+}
+
+func ServiceAccountForKRMConfig(
+	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
+	serviceAccountName string,
+) (*corev1.ServiceAccount, error) {
+	serviceAccountObj, err := ObjectForKRMConfig(
+		ctx, runtimeClient, &corev1.ServiceAccount{}, serviceAccountName, krmConfig.Spec.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	serviceAccount := serviceAccountObj.(*corev1.ServiceAccount)
+	serviceAccount.TypeMeta = metav1.TypeMeta{
+		Kind:       "ServiceAccount",
+		APIVersion: "v1",
+	}
+
+	return serviceAccount, nil
+}
+
+func ServiceForKRMConfig(
+	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
+	serviceName string, ports []corev1.ServicePort,
+) (*corev1.Service, error) {
+	serviceObj, err := ObjectForKRMConfig(
+		ctx, runtimeClient, &corev1.Service{}, serviceName, krmConfig.Spec.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	service := serviceObj.(*corev1.Service)
+	service.TypeMeta = metav1.TypeMeta{
+		Kind:       "Service",
+		APIVersion: "v1",
+	}
+
+	service.Spec.Selector = map[string]string{"app": serviceName}
+	service.Spec.Ports = ports
+
+	return service, nil
+}
+
+func AllObjectsExists(
+	ctx context.Context, runtimeClient client.Reader, objects []client.Object,
+) (bool, error) {
+	for _, object := range objects {
+		err := runtimeClient.Get(ctx, client.ObjectKeyFromObject(object), object)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+func AllControllersAvailable(
+	ctx context.Context, readerClient client.Reader, objects []client.Object,
+) (bool, error) {
+	errorMessages := []string{}
+
+	for _, object := range objects {
+		objectKind := object.GetObjectKind().GroupVersionKind().Kind
+		err := readerClient.Get(ctx, client.ObjectKeyFromObject(object), object)
+		if err != nil {
+			errorMessages = append(errorMessages, err.Error())
+			continue
+		}
+
+		if slices.Contains(controllerTypes, objectKind) {
+			available, err := isControllerAvailable(object, objectKind)
+			if err != nil {
+				errorMessages = append(errorMessages, err.Error())
+				continue
+			}
+			if !available {
+				errorMessages = append(errorMessages, fmt.Sprintf(
+					"%s [%s] is not available", objectKind, object.GetName()))
+				continue
+			}
+		}
+	}
+
+	if len(errorMessages) > 0 {
+		return false, fmt.Errorf("%s", strings.Join(errorMessages, "\n"))
+	}
+
+	return true, nil
+}
+
+func isControllerAvailable(object client.Object, objectKind string) (bool, error) {
+	if objectKind != "Deployment" {
+		return false, nil
+	}
+
+	deployment, ok := object.(*appsv1.Deployment)
+	if !ok {
+		return false, fmt.Errorf("failed to process deployment %s/%s", object.GetNamespace(), object.GetName())
+	}
+
+	if deployment.Spec.Replicas == nil {
+		return false, nil
+	}
+
+	if deployment.Status.UpdatedReplicas != *deployment.Spec.Replicas {
+		return false, nil
+	}
+
+	for _, condition := range deployment.Status.Conditions {
+		if condition.Type == appsv1.DeploymentAvailable && condition.Status == corev1.ConditionTrue {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func MergeAffinities(localAffinity *corev1.Affinity,
+	globalAffinity *corev1.Affinity,
+	podAntiAffinityLabel map[string]string,
+	requireDefaultPodAntiAffinityTerm bool) *corev1.Affinity {
+	if localAffinity == nil {
+		return globalAffinity
+	}
+
+	if globalAffinity == nil {
+		return localAffinity
+	}
+
+	affinity := &corev1.Affinity{}
+
+	// If NodeAffinity is defined in localAffinity, use it; otherwise use from globalAffinity
+	if localAffinity.NodeAffinity != nil {
+		affinity.NodeAffinity = localAffinity.NodeAffinity
+	} else if globalAffinity.NodeAffinity != nil {
+		affinity.NodeAffinity = globalAffinity.NodeAffinity
+	}
+
+	// If PodAffinity is defined in localAffinity, use it; otherwise use from globalAffinity
+	if localAffinity.PodAffinity != nil {
+		affinity.PodAffinity = localAffinity.PodAffinity
+	} else if globalAffinity.PodAffinity != nil {
+		affinity.PodAffinity = globalAffinity.PodAffinity
+	}
+
+	podAntiAffinity := &corev1.PodAntiAffinity{}
+
+	if localAffinity.PodAntiAffinity != nil {
+		podAntiAffinity = localAffinity.PodAntiAffinity
+	} else if globalAffinity.PodAntiAffinity != nil {
+		podAntiAffinity = globalAffinity.PodAntiAffinity
+	} else if len(podAntiAffinityLabel) > 0 {
+		podAffinityTerm := corev1.PodAffinityTerm{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: podAntiAffinityLabel,
+			},
+			TopologyKey: "kubernetes.io/hostname",
+		}
+
+		podAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(
+			podAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+			corev1.WeightedPodAffinityTerm{
+				Weight:          100,
+				PodAffinityTerm: podAffinityTerm,
+			},
+		)
+
+		if requireDefaultPodAntiAffinityTerm {
+			podAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(
+				podAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+				podAffinityTerm,
+			)
+		}
+	}
+
+	affinity.PodAntiAffinity = podAntiAffinity
+
+	return affinity
+}
+
+func GetGlobalImagePullSecrets(global *krmv1alpha1.GlobalConfig) []corev1.LocalObjectReference {
+	imagePullSecrets := []corev1.LocalObjectReference{}
+	for _, secretName := range global.ImagePullSecrets {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: secretName})
+	}
+
+	if len(imagePullSecrets) == 0 {
+		return nil
+	}
+	return imagePullSecrets
+}

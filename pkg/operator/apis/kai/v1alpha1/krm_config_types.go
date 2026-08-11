@@ -23,9 +23,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-// KRMConfigSingletonName is the only name the operator reconciles. A second
-// KRMConfig is ignored rather than merged, so two of them cannot fight.
-const KRMConfigSingletonName = "krm-config"
+const (
+	// KRMConfigSingletonName is the only name the operator reconciles. A second
+	// KRMConfig is ignored rather than merged, so two of them cannot fight.
+	KRMConfigSingletonName = "krm-config"
+
+	// KRMConfigKind is needed explicitly because a typed object read back from the
+	// API server carries no TypeMeta, and owner references are built from the Kind.
+	KRMConfigKind = "KRMConfig"
+)
 
 var (
 	// GroupVersion is the group version used to register these objects.
@@ -41,6 +47,29 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster,shortName=krmconfig
+// +kubebuilder:storageversion
+
+// KRMConfig is the Schema for the KAI Resource Management configuration API.
+type KRMConfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   KRMConfigSpec   `json:"spec,omitempty"`
+	Status KRMConfigStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// KRMConfigList contains a list of KRMConfig.
+type KRMConfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []KRMConfig `json:"items"`
+}
 
 // KRMConfigSpec is the desired state of the KAI Resource Management installation.
 //
@@ -87,22 +116,30 @@ type SchedulerConfigRef struct {
 
 // GlobalConfig holds the settings every KRM service inherits.
 //
-// The scheduler vocabulary fields (SchedulerName, QueueLabelKey, NodePoolLabelKey)
-// are resolved with a precedence chain: an explicit value here wins; otherwise the
-// operator reads the Config named by SchedulerConfigRef; otherwise the KAI
-// Scheduler built-in default applies. Setting them here is how an installation that
-// bundles the scheduler as a subchart configures them, and leaving them empty is
-// how an installation alongside an existing scheduler inherits its vocabulary.
+// SchedulerName, QueueLabelKey and NodePoolLabelKey resolve as: a value here wins,
+// else the Config named by SchedulerConfigRef, else the KAI built-in default.
+// Setting them here is what makes a fresh install independent of when that Config
+// appears; leaving them empty is how a co-install inherits an existing scheduler's
+// settings. KRM only ever reads that Config, never writes it.
 type GlobalConfig struct {
 	// SchedulerName is the scheduler the controllers bind workloads to.
+	//
+	// Install-time only: set it at install and do not change it afterwards. The
+	// scheduler and the controllers must agree on it, and nothing reconciles the
+	// two — changing it on a running cluster stops workloads being scheduled until
+	// both sides are brought back into line.
 	// +optional
 	SchedulerName *string `json:"schedulerName,omitempty"`
 
 	// QueueLabelKey is the label key carrying a workload's queue.
+	//
+	// Install-time only, for the same reason as SchedulerName.
 	// +optional
 	QueueLabelKey *string `json:"queueLabelKey,omitempty"`
 
 	// NodePoolLabelKey is the label key carrying a node's node pool.
+	//
+	// Install-time only, for the same reason as SchedulerName.
 	// +optional
 	NodePoolLabelKey *string `json:"nodePoolLabelKey,omitempty"`
 
@@ -142,6 +179,12 @@ type GlobalConfig struct {
 	// Affinity is applied to every service pod that does not set its own.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// RequireDefaultPodAntiAffinityTerm makes the default per-host pod
+	// anti-affinity required rather than preferred, for services that set no
+	// anti-affinity of their own.
+	// +optional
+	RequireDefaultPodAntiAffinityTerm *bool `json:"requireDefaultPodAntiAffinityTerm,omitempty"`
 
 	// SecurityContext is applied to every service container. Ignored on OpenShift,
 	// where the platform assigns the UID range.
@@ -263,27 +306,13 @@ const (
 	ReasonDependenciesMissing   ConditionReason = "DependenciesMissing"
 )
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster,shortName=krmconfig
-// +kubebuilder:storageversion
-
-// KRMConfig is the Schema for the KAI Resource Management configuration API.
-type KRMConfig struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   KRMConfigSpec   `json:"spec,omitempty"`
-	Status KRMConfigStatus `json:"status,omitempty"`
-}
-
-// +kubebuilder:object:root=true
-
-// KRMConfigList contains a list of KRMConfig.
-type KRMConfigList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []KRMConfig `json:"items"`
+// GetSecurityContext returns nil on OpenShift, which assigns the UID range itself
+// and rejects a pod that pins one.
+func (g *GlobalConfig) GetSecurityContext() *corev1.SecurityContext {
+	if g.Openshift != nil && *g.Openshift {
+		return nil
+	}
+	return g.SecurityContext
 }
 
 // GetConditions implements the status-reconciler's objectWithConditions contract.
