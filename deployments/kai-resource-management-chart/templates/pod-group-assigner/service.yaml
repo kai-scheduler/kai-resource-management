@@ -23,7 +23,8 @@ spec:
   selector:
     app: pod-group-assigner
   ports:
-    - protocol: TCP
+    - name: webhook
+      protocol: TCP
       port: {{ $webhookPort }}
       targetPort: {{ $webhookTargetPort }}
 {{- end }}

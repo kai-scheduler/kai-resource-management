@@ -12,6 +12,9 @@
 {{- $replicas := $comp.replicas | default 1 }}
 {{- $metricsPort := int ($metrics.port | default 9400) }}
 {{- $metricsPortName := $metrics.portName | default "metrics" }}
+{{- $webhook := $comp.webhook | default dict }}
+{{- $webhookOn := $webhook.nodepool }}
+{{- $webhookTargetPort := int ($webhook.targetPort | default 8443) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +42,10 @@ spec:
           ports:
             - name: {{ $metricsPortName }}
               containerPort: {{ $metricsPort }}
+            {{- if $webhookOn }}
+            - name: webhook
+              containerPort: {{ $webhookTargetPort }}
+            {{- end }}
           args:
             # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
             # label key is the shared vocabulary sourced from the kai-scheduler subchart.
@@ -46,6 +53,13 @@ spec:
             - {{ $metricsPort | quote }}
             - --scheduler-namespace
             - {{ .Release.Namespace }}
+            # Always explicit: the binary defaults this to true and would then start a TLS
+            # server with no certificate mounted.
+            - --enable-nodepool-validation-webhook={{ if $webhookOn }}true{{ else }}false{{ end }}
+            {{- if $webhookOn }}
+            - --webhook-port
+            - {{ $webhookTargetPort | quote }}
+            {{- end }}
             {{- include "kai-resource-management.stringArgs" (dict
                 "nodepool-label-key"      $nodePoolLabelKey
                 "default-nodepool-name"   $defaultNodepoolName
@@ -60,7 +74,19 @@ spec:
             {{- if or $leaderElect (gt (int $replicas) 1) }}
             - --leader-elect
             {{- end }}
+          {{- if $webhookOn }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "900m" "memory" "1Gi") "requests" (dict "cpu" "450m" "memory" "512Mi"))) | nindent 12 }}
+      {{- if $webhookOn }}
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ $webhook.certSecretName | default "nodepool-controller-tls-secret" }}
+      {{- end }}
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
 {{- end }}
