@@ -6,7 +6,7 @@ templates:
   - templates/nodepool-controller/deployment.yaml
   - templates/project-controller/deployment.yaml
   - templates/pod-group-assigner/deployment.yaml
-  - templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+  - templates/pod-group-assigner/webhook.yaml
 release:
   name: rm
   namespace: kai
@@ -51,13 +51,74 @@ tests:
           content: --queue-label-key
         template: templates/nodepool-controller/deployment.yaml
 
-  - it: the webhook namespaceSelector key is pinned to the controllers' namespace-project label
-    # Not a chart value; must match the --namespace-project-label-key default in both controllers.
+  - it: the webhook namespaceSelector defaults to the controllers' namespace-project label
     asserts:
       - equal:
           path: webhooks[0].namespaceSelector.matchExpressions[0].key
           value: kai/project
-        template: templates/pod-group-assigner/mutatingwebhookconfiguration.yaml
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-group-mutation
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: kai/project
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-mutation
+
+  - it: commonArgs.namespaceProjectLabelKey moves the selector and the flag together
+    # The selector must name the label project-controller actually writes on project
+    # namespaces. If it lagged behind an override the webhooks would simply never match -
+    # silently, since a selector miss produces no admission error.
+    set:
+      commonArgs.namespaceProjectLabelKey: acme/project
+    asserts:
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: acme/project
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-group-mutation
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: acme/project
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-mutation
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme/project
+        template: templates/pod-group-assigner/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme/project
+        template: templates/project-controller/deployment.yaml
+
+  - it: podGroupAssigner.args.namespaceProjectLabelKey overrides commonArgs for both
+    # Precedence has to match the Deployment's, or the selector and the flag disagree.
+    set:
+      commonArgs.namespaceProjectLabelKey: acme/project
+      podGroupAssigner.args.namespaceProjectLabelKey: comp/wins
+    asserts:
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[0].key
+          value: comp/wins
+        template: templates/pod-group-assigner/webhook.yaml
+        documentSelector:
+          path: metadata.name
+          value: kai-pod-group-mutation
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: comp/wins
+        template: templates/pod-group-assigner/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: acme/project
+        template: templates/pod-group-assigner/deployment.yaml
 
   - it: commonArgs.schedulerName reaches nodepool-controller and pod-group-assigner, not project-controller
     # Both binaries must target the same scheduler: nodepool-controller stamps it on

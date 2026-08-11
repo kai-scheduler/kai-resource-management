@@ -9,6 +9,9 @@
 {{- $metricsPortName := $metrics.portName | default "metrics" }}
 {{- $features := $comp.features | default dict }}
 {{- $profiling := $comp.profiling | default dict }}
+{{- $webhook := $comp.webhook | default dict }}
+{{- $webhookOn := or $webhook.project $webhook.department }}
+{{- $webhookTargetPort := int ($webhook.targetPort | default 8443) }}
 {{- $a := $comp.args | default dict }}
 {{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "enforceSchedulerAnnotationKey" "finalizerDomain" "namespaceProjectLabelKey" "projectLabelKey") }}
 {{- $kai := index .Values "kai-scheduler" }}
@@ -43,6 +46,10 @@ spec:
           ports:
             - name: {{ $metricsPortName }}
               containerPort: {{ $metricsPort }}
+            {{- if $webhookOn }}
+            - name: webhook
+              containerPort: {{ $webhookTargetPort }}
+            {{- end }}
           args:
             # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
             # and queue label keys are shared vocabulary sourced from the kai-scheduler subchart.
@@ -58,8 +65,12 @@ spec:
             - {{ .Release.Namespace }}
             - --project-delete-blockers-namespace
             - {{ .Release.Namespace }}
-            - --enable-project-validation-webhook=false
-            - --enable-department-validation-webhook=false
+            - --enable-project-validation-webhook={{ if $webhook.project }}true{{ else }}false{{ end }}
+            - --enable-department-validation-webhook={{ if $webhook.department }}true{{ else }}false{{ end }}
+            {{- if $webhookOn }}
+            - --webhook-port
+            - {{ $webhookTargetPort | quote }}
+            {{- end }}
             - --install-namespace
             - {{ .Release.Namespace }}
             {{- include "kai-resource-management.stringArgs" (dict
@@ -99,7 +110,19 @@ spec:
             {{- if or $leaderElect (gt (int $replicas) 1) }}
             - --leader-elect
             {{- end }}
+          {{- if $webhookOn }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "300m" "memory" "2Gi") "requests" (dict "cpu" "150m" "memory" "1Gi"))) | nindent 12 }}
+      {{- if $webhookOn }}
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ $webhook.certSecretName | default "project-controller-tls-secret" }}
+      {{- end }}
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
 {{- end }}

@@ -36,6 +36,9 @@ spec:
           image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
           imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
           {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          ports:
+            - name: webhook
+              containerPort: {{ $webhookTargetPort }}
           args:
             # Flags render only when set (empty ⇒ the binary's own default applies). The node-pool
             # and queue label keys are shared vocabulary sourced from the kai-scheduler subchart.
@@ -54,22 +57,19 @@ spec:
             {{- if or $leaderElect (gt (int $replicas) 1) }}
             - --leader-elect
             {{- end }}
-          {{- if $webhook.enabled }}
+            - --enable-pod-webhook={{ if $webhook.pod }}true{{ else }}false{{ end }}
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
-          {{- end }}
           resources:
             {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "200m" "memory" "512Mi") "requests" (dict "cpu" "100m" "memory" "256Mi"))) | nindent 12 }}
-      {{- if $webhook.enabled }}
       volumes:
+        # Not optional: the chart renders this Secret itself (or, on OpenShift, the service-CA
+        # operator mints it). The binary always starts its TLS server, so a missing cert is a
+        # real failure and should surface as one rather than as a webhook that never answers.
         - name: webhook-certs
           secret:
-            # Cert Secret is provisioned separately. optional so the pod starts before the
-            # Secret exists; the webhook only serves once the cert is present.
             secretName: {{ $webhook.certSecretName | default "pod-group-assigner-tls-secret" }}
-            optional: true
-      {{- end }}
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
 {{- end }}

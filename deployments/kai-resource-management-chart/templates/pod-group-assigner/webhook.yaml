@@ -1,0 +1,104 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- /*
+Everything here except the pod mutation below is unconditional, unlike the other two
+controllers: pod-group-assigner registers /mutate-pod-group with no flag guarding it and
+always starts its TLS server. There is deliberately no value to switch pod-group mutation
+off - the binary would keep serving it, so the value could not honour its own name.
+*/ -}}
+{{- if .Values.podGroupAssigner.enabled }}
+{{- $webhook := .Values.podGroupAssigner.webhook | default dict }}
+{{- $secretName := $webhook.certSecretName | default "pod-group-assigner-tls-secret" }}
+{{- $webhookPort := int ($webhook.port | default 443) }}
+{{- $openshift := include "kai-resource-management.openshift" . }}
+{{- $a := merge (deepCopy (.Values.podGroupAssigner.args | default dict)) (pick (.Values.commonArgs | default dict) "namespaceProjectLabelKey") }}
+{{- $nsProjectLabelKey := $a.namespaceProjectLabelKey | default "kai/project" }}
+{{- $certs := dict }}
+{{- if not $openshift }}
+{{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName)) }}
+{{- include "kai-resource-management.webhookSecret" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName "certs" $certs) }}
+{{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: kai-pod-group-mutation
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if $openshift }}
+  annotations:
+    # The service-CA operator injects the CA matching the serving cert it minted into the
+    # Service's serving-cert Secret; the chart must not render a caBundle of its own.
+    service.beta.openshift.io/inject-cabundle: "true"
+  {{- end }}
+webhooks:
+  - name: pod-group-assigner.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    reinvocationPolicy: IfNeeded
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: {{ $nsProjectLabelKey | quote }}
+          operator: Exists
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: pod-group-assigner
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-pod-group
+        port: {{ $webhookPort }}
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["scheduling.run.ai"]
+        apiVersions: ["*"]
+        resources: ["podgroups"]
+        scope: Namespaced
+{{- if $webhook.pod }}
+---
+# Pod mutation is a separate configuration rather than a second entry above so that each
+# webhook can be enabled, disabled and rolled independently. Paired with --enable-pod-webhook
+# on the Deployment: the object and the served path must be turned on together.
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: kai-pod-mutation
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if $openshift }}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+  {{- end }}
+webhooks:
+  - name: pod-group-assigner-pod.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    reinvocationPolicy: IfNeeded
+    failurePolicy: Fail
+    # The mutator re-checks the namespace's enforce-scheduler annotation and allows the pod
+    # untouched when it is absent, so this selector is a load optimization, not the
+    # correctness boundary - it keeps every pod in the cluster from taking the round trip.
+    namespaceSelector:
+      matchExpressions:
+        - key: {{ $nsProjectLabelKey | quote }}
+          operator: Exists
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: pod-group-assigner
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-pod
+        port: {{ $webhookPort }}
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["*"]
+        resources: ["pods"]
+        scope: Namespaced
+{{- end }}
+{{- end }}

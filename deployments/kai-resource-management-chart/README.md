@@ -79,13 +79,74 @@ The main configuration groups are:
 | `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
-| `nodepoolController` | Node-pool controller deployment and arguments. |
-| `projectController` | Project controller deployment, features, and arguments. |
-| `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhook. |
+| `nodepoolController` | Node-pool controller deployment, arguments, and webhook. |
+| `projectController` | Project controller deployment, features, arguments, and webhooks. |
+| `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhooks. |
 
 `values.yaml` documents the supported public surface. `internal_values.yaml` is
 a developer reference for template defaults and is not included in packaged
 charts.
+
+## Admission webhooks
+
+All three controllers serve admission webhooks. The chart declares the webhook
+configurations and provisions their serving certificates.
+
+| Webhook object | Kind | Intercepts | Value |
+| --- | --- | --- | --- |
+| `kai-pod-group-mutation` | Mutating | `podgroups` on create | always on |
+| `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
+| `kai-nodepool-validation` | Validating | `nodepools` on create | `nodepoolController.webhook.nodepool` |
+| `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
+
+Every value defaults to `true`. Setting one to `false` removes that webhook
+configuration and passes the matching controller `--enable-…-webhook=false`, so
+the object and the handler are never out of step. Pod-group mutation has no value
+because the binary registers it unconditionally; a switch could not honour its own
+name.
+
+Project and department validation runs on create and update but never on delete.
+Deletion ordering is enforced by the controllers' finalizers instead.
+
+The webhook configurations are cluster-scoped and named without the release name,
+so only one release of this chart per cluster is supported.
+
+> Every webhook uses `failurePolicy: Fail`. If a controller is unreachable, the
+> API server rejects the resources it intercepts. Turn a webhook off through its
+> value rather than by scaling its controller to zero.
+
+### TLS certificates
+
+Off OpenShift the chart mints each controller a self-signed CA and serving
+certificate at render time, writing the key pair into a `kubernetes.io/tls` Secret
+(`<controller>-tls-secret`) and the CA into the webhook's `caBundle` from a single
+template invocation, so the two always agree.
+
+Certificates are sticky: an existing Secret is reused, so `helm upgrade` does not
+publish a new `caBundle` while a pod is still serving the old certificate. Two
+consequences:
+
+- The install needs `get` on Secrets in the release namespace — the reuse check is
+  a `lookup`, which runs with your credentials, not the controllers'.
+- `lookup` returns nothing when the chart is rendered offline, so `helm template`
+  and GitOps tools such as ArgoCD mint a fresh certificate on every render. The
+  pods must roll for it to take effect.
+
+Certificates are valid for ten years and are never renewed automatically — Helm
+cannot inspect an existing certificate's expiry. To rotate one, delete its Secret
+and upgrade; the chart mints a new pair and republishes the matching `caBundle` in
+the same release:
+
+```bash
+kubectl delete secret pod-group-assigner-tls-secret --namespace "${KRM_NAMESPACE}"
+helm upgrade kai-resource-management ... --namespace "${KRM_NAMESPACE}"
+```
+
+On OpenShift the platform owns the material instead: the chart renders no Secret
+and no `caBundle`, and annotates each Service with
+`service.beta.openshift.io/serving-cert-secret-name` and each webhook
+configuration with `service.beta.openshift.io/inject-cabundle`, leaving the
+service-CA operator to mint the certificate and inject the matching CA.
 
 ## OpenShift
 
@@ -120,6 +181,9 @@ leaves them behind (see below).
 
 With `rbac.create: false` the chart creates neither the SCC nor its `use` grant,
 and you are responsible for granting the ServiceAccounts an equivalent SCC.
+
+OpenShift mode also changes how webhook serving certificates are provisioned; see
+[TLS certificates](#tls-certificates).
 
 ## Upgrade
 

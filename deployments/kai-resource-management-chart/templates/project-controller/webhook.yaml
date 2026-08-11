@@ -1,0 +1,81 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- /*
+The cert covers both webhooks, so it is rendered when either is on - matching the binary,
+whose registerValidationWebhooks starts no TLS server at all when both flags are false.
+*/ -}}
+{{- $pcWebhook := .Values.projectController.webhook | default dict }}
+{{- if and .Values.projectController.enabled (or $pcWebhook.project $pcWebhook.department) }}
+{{- $webhook := $pcWebhook }}
+{{- $secretName := $webhook.certSecretName | default "project-controller-tls-secret" }}
+{{- $webhookPort := int ($webhook.port | default 443) }}
+{{- $openshift := include "kai-resource-management.openshift" . }}
+{{- $certs := dict }}
+{{- if not $openshift }}
+{{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "project-controller" "secretName" $secretName)) }}
+{{- include "kai-resource-management.webhookSecret" (dict "root" $ "service" "project-controller" "secretName" $secretName "certs" $certs) }}
+{{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kai-project-validation
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if $openshift }}
+  annotations:
+    # The service-CA operator injects the CA matching the serving cert it minted into the
+    # Service's serving-cert Secret; the chart must not render a caBundle of its own.
+    service.beta.openshift.io/inject-cabundle: "true"
+  {{- end }}
+webhooks:
+  {{- if $webhook.project }}
+  - name: project-controller-project.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: project-controller
+        namespace: {{ .Release.Namespace }}
+        path: /validate-project
+        port: {{ $webhookPort }}
+    rules:
+      # No DELETE. The handler only decodes request.object, which the API server leaves empty
+      # on delete, so a DELETE rule would fail every decode and - under failurePolicy Fail -
+      # block Project deletion outright. Deletion is guarded by the controller's finalizer
+      # and the delete-blockers ConfigMap instead, which can wait for dependents to drain.
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["kai.resources"]
+        apiVersions: ["v1alpha1"]
+        resources: ["projects"]
+        scope: Cluster
+  {{- end }}
+  {{- if $webhook.department }}
+  - name: project-controller-department.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: project-controller
+        namespace: {{ .Release.Namespace }}
+        # The binary serves departments on its own path, unlike runai's single
+        # /validate-project route, so the two are gateable independently.
+        path: /validate-department
+        port: {{ $webhookPort }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["kai.resources"]
+        apiVersions: ["v1alpha1"]
+        resources: ["departments"]
+        scope: Cluster
+  {{- end }}
+{{- end }}

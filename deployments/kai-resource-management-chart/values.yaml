@@ -120,6 +120,9 @@ nodepoolController:
   # Namespace of the DCGM exporter Service. Omitted by default so the binary's own default
   # applies; set to override.
   # dcgmExporterNamespace: ""
+  webhook:
+    # Validate NodePools on create: reject a missing or duplicate label key/value pair.
+    nodepool: true
 
 projectController:
   enabled: true
@@ -143,6 +146,11 @@ projectController:
   # Extra per-project RoleBindings to add to the rolebindings-plugin ConfigMap, as a map of
   # <key>: <RoleBinding YAML>. Use this to wire RoleBindings for components from other charts.
   extraProjectRoleBindings: {}
+  # Validate on create and update: the parent department and any referenced node pools must
+  # exist, and no two queues may claim the same node pool.
+  webhook:
+    project: true
+    department: true
 
 podGroupAssigner:
   enabled: true
@@ -151,9 +159,8 @@ podGroupAssigner:
   # replicas / resources: defaults in template
   args:
     debug: false
+  # PodGroup mutation is always on and has no value; only Pod mutation is optional.
   webhook:
-    # Create the PodGroup mutating webhook (Service + MutatingWebhookConfiguration + cert mount).
-    enabled: true
-    # TLS Secret providing tls.crt/tls.key at /etc/webhook/certs. Provisioned separately;
-    # until then the mount is optional and the caBundle is empty.
-    certSecretName: pod-group-assigner-tls-secret
+    # Mutate Pods on create in project namespaces: enforce the scheduler name, label the pod
+    # with its project, and apply the project's default node pools as node affinity.
+    pod: true
