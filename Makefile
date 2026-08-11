@@ -6,8 +6,16 @@ include build/makefile/index.mk
 ADDLICENSE_VERSION ?= v1.2.0
 CHANGIE_VERSION ?= v1.25.0
 
+# TEMPORARY: controller-gen is normally absent from this repository, which defines
+# no CRDs. It is here only to generate the KRMConfig deepcopy and manifest while
+# that type lives in pkg/operator/apis. The pin matches the API module's, so a
+# manifest does not depend on which repository generated it. Removed together with
+# gen-krmconfig when KRMConfig moves to the API module.
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
+
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 CHANGIE ?= $(LOCALBIN)/changie
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 
 # Space-separated list of services to build by default
 SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller krm-operator
@@ -18,6 +26,13 @@ API_MODULE := github.com/kai-scheduler/kai-resource-management-api
 API_CRD_DIR = $(shell $(GO) list -m -f '{{.Dir}}' $(API_MODULE))/config/crd
 CHART_CRD_DIR := deployments/kai-resource-management-chart/crds
 CRD_MANAGER_ROLE := deployments/kai-resource-management-chart/templates/rbac/crd-manager.yaml
+
+# TEMPORARY: KRMConfig is generated here rather than synced from the API module.
+# Its manifest goes under templates/, not $(CHART_CRD_DIR): sync-crds-check diffs
+# that whole directory against the pinned module, so an extra file there fails
+# validation. Removed once KRMConfig ships from the API module.
+KRMCONFIG_API_DIR := ./pkg/operator/apis
+KRMCONFIG_CRD_DIR := deployments/kai-resource-management-chart/templates/krm-operator
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
@@ -88,6 +103,20 @@ gen-license: addlicense ## Add missing Apache-2.0 headers to source and configur
 license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
 		$(LICENSE_IGNORES) .
+
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## TEMPORARY: install controller-gen locally.
+$(CONTROLLER_GEN): | $(LOCALBIN) $(GOCACHE) $(GOTMPDIR)
+	test -s $(CONTROLLER_GEN) || GOBIN=$(LOCALBIN) $(GO) install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: gen-krmconfig
+gen-krmconfig: $(CONTROLLER_GEN) ## TEMPORARY: generate the KRMConfig deepcopy and CRD manifest.
+	@# Deliberately not part of `validate`: this output is throwaway, and a drift
+	@# check on it would outlive its usefulness. Deleted with the type when
+	@# KRMConfig moves to the API module.
+	$(CONTROLLER_GEN) object:headerFile="./hack/boilerplate.go.txt" paths="$(KRMCONFIG_API_DIR)/..."
+	$(CONTROLLER_GEN) crd:allowDangerousTypes=true,generateEmbeddedObjectMeta=true,headerFile="./hack/boilerplate.yaml.txt" \
+		paths="$(KRMCONFIG_API_DIR)/..." output:crd:artifacts:config=$(KRMCONFIG_CRD_DIR)
 
 .PHONY: sync-crds
 sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
