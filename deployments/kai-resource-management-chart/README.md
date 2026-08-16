@@ -77,6 +77,7 @@ The main configuration groups are:
 | `rbac.create` | Creation of required roles and bindings. |
 | `openshift` | OpenShift mode: SecurityContextConstraints and uid handling. |
 | `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
+| `krmOperator` | KRM operator deployment and arguments. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodepoolController` | Node-pool controller deployment, arguments, and webhook. |
@@ -86,6 +87,58 @@ The main configuration groups are:
 `values.yaml` documents the supported public surface. `internal_values.yaml` is
 a developer reference for template defaults and is not included in packaged
 charts.
+
+## KRM operator
+
+The operator reconciles `KRMConfig`, a cluster-scoped singleton named
+`krm-config`, and installs the services it describes. It reports progress as
+status conditions on that resource:
+
+```bash
+kubectl get krmconfig krm-config -o jsonpath='{.status.conditions}' | jq
+```
+
+`Ready` summarises the rest; `Deployed`, `Available`, `DependenciesFulfilled`
+and `Reconciling` say which part is outstanding.
+
+**It currently installs nothing.** The three controllers are still deployed by
+this chart directly; each becomes an operand of the operator under its own
+change. Until then the operator runs, reconciles the resource and reports
+`Ready`, having created no objects.
+
+Nothing creates a `KRMConfig` yet either — the chart does not, so on a fresh
+install the operator idles until one is applied by hand:
+
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: kai.resources/v1alpha1
+kind: KRMConfig
+metadata:
+  name: krm-config
+spec:
+  namespace: kai
+EOF
+```
+
+A `krm-config-deployer` hook will seed it as part of a later change, with a
+toggle for installations that create the resource themselves.
+
+Three settings under `spec.global` — `schedulerName`, `queueLabelKey` and
+`nodePoolLabelKey` — must match the scheduler or workloads bind to the wrong
+queue or node pool. Set them at install and leave them alone: nothing
+reconciles them against the scheduler afterwards. Left empty, the operator
+reads them from the KAI Scheduler `Config` named by `spec.schedulerConfigRef`,
+so an installation alongside an existing scheduler inherits its settings. That
+`Config` is only ever read, never written.
+
+Its ClusterRole is maintained by hand rather than generated, and must be
+extended whenever the operator is taught to own a new kind.
+
+> **Temporary:** the `KRMConfig` CRD is rendered from `templates/krm-operator/`
+> rather than shipped in `crds/`, because the type still lives in this
+> repository instead of the API module. Unlike `crds/`, a templated CRD is
+> deleted by `helm uninstall`, taking any `KRMConfig` with it. This moves to
+> `crds/` when the type moves to the API module.
 
 ## Admission webhooks
 
