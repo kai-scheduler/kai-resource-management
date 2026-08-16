@@ -1,0 +1,47 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.postCleanup.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: krm-config-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "kai-resource-management.post-delete-hook-annotations" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: krm-config-cleanup
+    spec:
+      serviceAccountName: krm-config-cleanup
+      restartPolicy: Never
+      containers:
+        - name: cleanup
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.postCleanup.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.postCleanup.image) }}
+          {{- with .Values.postCleanup.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - |
+              set -euo pipefail
+              echo "Deleting operator-managed deployments..."
+              kubectl -n {{ .Release.Namespace }} delete deployment \
+                --selector=app.kubernetes.io/managed-by=krm-operator --ignore-not-found=true
+              {{- if .Values.krmConfigDeployer.enabled }}
+              # Only when this chart created it. In render mode the CR is a release
+              # resource Helm deletes before this hook runs; when both modes are off
+              # the CR belongs to somebody else.
+              echo "Deleting krm-config..."
+              kubectl delete krmconfig krm-config --ignore-not-found=true
+              {{- end }}
+              echo "Cleanup complete."
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

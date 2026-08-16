@@ -19,8 +19,16 @@ Notes:
     (scheduling.run.ai/podgroups,queues; kai.scheduler/schedulingshards,topologies). Its Config CR is
     applied by KAI's config-deployer hook.
 {{- if .Values.krmOperator.enabled }}
-  - No KRMConfig is created by this chart yet. Until one named "krm-config" is applied, the
-    operator has nothing to reconcile.
+{{- if .Values.krmConfigDeployer.enabled }}
+  - The KRMConfig "krm-config" is applied by a post-install hook, outside the Helm release,
+    so its UID survives upgrades. Check it with:
+      kubectl get krmconfig krm-config -o jsonpath='{.status.conditions[?(@.type=="Ready")]}'
+{{- else if (.Values.krmConfig | default dict).render }}
+  - The KRMConfig "krm-config" is rendered as a release resource (GitOps mode).
+{{- else }}
+  - No KRMConfig is created: both krmConfigDeployer.enabled and krmConfig.render are off.
+    The operator idles until one named "krm-config" is applied.
+{{- end }}
 {{- end }}
 {{- if .Values.podGroupAssigner.webhook.enabled }}
   - The pod-group-assigner webhook TLS cert is provisioned separately. Until the Secret

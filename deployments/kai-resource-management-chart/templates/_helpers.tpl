@@ -124,3 +124,139 @@ nodeSelector:
   {{- toYaml . | nindent 2 }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Annotations shared by the post-delete cleanup Job and its RBAC. The ArgoCD pair is
+required: without it ArgoCD treats Helm hook resources as ordinary sync-phase
+resources (needs ArgoCD >= 2.10).
+*/}}
+{{- define "kai-resource-management.post-delete-hook-annotations" -}}
+"helm.sh/hook": post-delete
+"helm.sh/hook-delete-policy": hook-succeeded
+argocd.argoproj.io/hook: PostDelete
+argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+{{- end -}}
+
+{{/*
+Renders the KRMConfig CR the operator reconciles. Used by the krm-config-deployer
+hook ConfigMap so the CR can be applied out-of-band of the Helm release, and
+rendered inline as a release resource when krmConfig.render=true (GitOps/ArgoCD).
+
+Every optional field is emitted only when set. The CR is server-side applied, so an
+emitted empty value would take ownership of that field and stop the operator's own
+default from applying. Pass the root context (.).
+*/}}
+{{- define "kai-resource-management.krm-config" -}}
+{{- $kai := index .Values "kai-scheduler" | default dict -}}
+{{- $commonArgs := .Values.commonArgs | default dict -}}
+{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey -}}
+{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey -}}
+apiVersion: kai.resources/v1alpha1
+kind: KRMConfig
+metadata:
+  name: krm-config
+  {{- if (.Values.krmConfig | default dict).render }}
+  annotations:
+    # SkipDryRunOnMissingResource: ArgoCD dry-runs sync-phase resources before the
+    # CRD is established on a fresh cluster.
+    # ServerSideApply: adopts a CR previously field-managed by krm-config-deployer.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,ServerSideApply=true
+  {{- end }}
+spec:
+  namespace: {{ .Release.Namespace }}
+  {{- $globalBody := include "kai-resource-management.krm-config-global" . }}
+  {{- if trim $globalBody }}
+  global:
+    {{- trim $globalBody | nindent 4 }}
+  {{- end }}
+  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "nodePoolController" "comp" .Values.nodepoolController) }}
+  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
+  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "podGroupAssigner" "comp" .Values.podGroupAssigner) }}
+{{- end -}}
+
+{{/*
+The spec.global body. Rendered separately so the `global:` key can be dropped
+entirely when nothing is set: an emitted empty value would be YAML null, and under
+server-side apply that takes ownership of the field and defeats the operator's own
+defaults.
+*/}}
+{{- define "kai-resource-management.krm-config-global" -}}
+{{- $commonArgs := .Values.commonArgs | default dict -}}
+{{- $kai := index .Values "kai-scheduler" | default dict -}}
+{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey -}}
+{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey -}}
+{{- if $commonArgs.schedulerName }}
+schedulerName: {{ $commonArgs.schedulerName | quote }}
+{{- end }}
+{{- if $queueLabelKey }}
+queueLabelKey: {{ $queueLabelKey | quote }}
+{{- end }}
+{{- if $nodePoolLabelKey }}
+nodePoolLabelKey: {{ $nodePoolLabelKey | quote }}
+{{- end }}
+{{- if $commonArgs.finalizerDomain }}
+finalizerDomain: {{ $commonArgs.finalizerDomain | quote }}
+{{- end }}
+{{- if $commonArgs.namespaceProjectLabelKey }}
+namespaceProjectLabelKey: {{ $commonArgs.namespaceProjectLabelKey | quote }}
+{{- end }}
+{{- if $commonArgs.projectLabelKey }}
+projectLabelKey: {{ $commonArgs.projectLabelKey | quote }}
+{{- end }}
+{{- if $commonArgs.enforceSchedulerAnnotationKey }}
+enforceSchedulerAnnotationKey: {{ $commonArgs.enforceSchedulerAnnotationKey | quote }}
+{{- end }}
+{{- if (include "kai-resource-management.openshift" .) }}
+openshift: true
+{{- end }}
+{{- if .Values.global.fips }}
+fips: true
+{{- end }}
+{{- with .Values.global.imagePullSecrets }}
+# The CR takes secret names; the chart's own value is a list of {name: ...}.
+imagePullSecrets:
+  {{- range . }}
+  - {{ .name | quote }}
+  {{- end }}
+{{- end }}
+{{- with .Values.global.nodeSelector }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.global.tolerations }}
+tolerations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.global.affinity }}
+affinity:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.global.securityContext }}
+securityContext:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+{{/*
+One service block of the KRMConfig, rendered from the same component values the
+chart's own Deployment uses - one source, two consumers. Usage:
+  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
+*/}}
+{{- define "kai-resource-management.krm-config-service" -}}
+{{- $comp := .comp | default dict }}
+  {{ .key }}:
+    service:
+      enabled: {{ $comp.enabled | default false }}
+      image:
+        name: {{ $comp.image.name | quote }}
+        repository: {{ ($comp.image.registry | default .root.Values.image.registry) | quote }}
+        tag: {{ include "kai-resource-management.imageTag" (dict "root" .root "tag" $comp.image.tag) | quote }}
+        pullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" .root "image" $comp.image) | quote }}
+      {{- with $comp.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- if $comp.replicas }}
+    replicas: {{ $comp.replicas }}
+    {{- end }}
+{{- end -}}

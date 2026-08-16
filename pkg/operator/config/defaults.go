@@ -15,6 +15,7 @@ import (
 	"github.com/kai-scheduler/api/constants"
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
 	corev1 "k8s.io/api/core/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
@@ -94,7 +95,8 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 func setNodePoolControllerDefaults(
 	nodePoolController *krmv1alpha1.NodePoolController, global *krmv1alpha1.GlobalConfig,
 ) {
-	nodePoolController.Service = setServiceDefaults(nodePoolController.Service, NodePoolControllerImageName)
+	nodePoolController.Service = setServiceDefaults(
+		nodePoolController.Service, NodePoolControllerImageName, nodePoolControllerResources())
 	nodePoolController.Replicas = kaicommon.SetDefault(nodePoolController.Replicas, global.ReplicaCount)
 	nodePoolController.VPA = kaicommon.SetDefault(nodePoolController.VPA, global.VPA)
 }
@@ -102,7 +104,8 @@ func setNodePoolControllerDefaults(
 func setProjectControllerDefaults(
 	projectController *krmv1alpha1.ProjectController, global *krmv1alpha1.GlobalConfig,
 ) {
-	projectController.Service = setServiceDefaults(projectController.Service, ProjectControllerImageName)
+	projectController.Service = setServiceDefaults(
+		projectController.Service, ProjectControllerImageName, projectControllerResources())
 	projectController.Replicas = kaicommon.SetDefault(projectController.Replicas, global.ReplicaCount)
 	projectController.VPA = kaicommon.SetDefault(projectController.VPA, global.VPA)
 }
@@ -110,13 +113,46 @@ func setProjectControllerDefaults(
 func setPodGroupAssignerDefaults(
 	podGroupAssigner *krmv1alpha1.PodGroupAssigner, global *krmv1alpha1.GlobalConfig,
 ) {
-	podGroupAssigner.Service = setServiceDefaults(podGroupAssigner.Service, PodGroupAssignerImageName)
+	podGroupAssigner.Service = setServiceDefaults(
+		podGroupAssigner.Service, PodGroupAssignerImageName, podGroupAssignerResources())
 	podGroupAssigner.Replicas = kaicommon.SetDefault(podGroupAssigner.Replicas, global.ReplicaCount)
 	podGroupAssigner.VPA = kaicommon.SetDefault(podGroupAssigner.VPA, global.VPA)
 }
 
-func setServiceDefaults(service *kaicommon.Service, imageName string) *kaicommon.Service {
+// Each service gets its own resource default rather than the generic one in
+// kai/v1/common, which is far smaller than these services need — project-controller
+// alone asks for four times its memory limit. Set before SetDefaultsWhereNeeded,
+// which only fills the keys that are still absent.
+func setServiceDefaults(
+	service *kaicommon.Service, imageName string, defaultResources *kaicommon.Resources,
+) *kaicommon.Service {
 	service = kaicommon.SetDefault(service, &kaicommon.Service{})
+	service.Resources = kaicommon.SetDefault(service.Resources, defaultResources)
 	service.SetDefaultsWhereNeeded(imageName)
 	return service
+}
+
+func nodePoolControllerResources() *kaicommon.Resources {
+	return resources("900m", "1Gi", "450m", "512Mi")
+}
+
+func projectControllerResources() *kaicommon.Resources {
+	return resources("300m", "2Gi", "150m", "1Gi")
+}
+
+func podGroupAssignerResources() *kaicommon.Resources {
+	return resources("200m", "512Mi", "100m", "256Mi")
+}
+
+func resources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) *kaicommon.Resources {
+	return &kaicommon.Resources{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    apiresource.MustParse(cpuLimit),
+			corev1.ResourceMemory: apiresource.MustParse(memoryLimit),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    apiresource.MustParse(cpuRequest),
+			corev1.ResourceMemory: apiresource.MustParse(memoryRequest),
+		},
+	}
 }

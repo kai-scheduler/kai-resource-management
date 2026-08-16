@@ -1,0 +1,89 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: post-delete cleanup hook
+templates:
+  - templates/hooks/post/krm-config-cleanup/job.yaml
+  - templates/hooks/post/krm-config-cleanup/rbac.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: renders by default
+    asserts:
+      - hasDocuments: {count: 1}
+        template: templates/hooks/post/krm-config-cleanup/job.yaml
+      - hasDocuments: {count: 3}
+        template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+
+  - it: renders nothing when disabled
+    set:
+      postCleanup.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-cleanup/job.yaml
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+
+  # Without the argocd pair, ArgoCD treats Helm hooks as ordinary sync-phase
+  # resources and the cleanup never runs on delete (needs ArgoCD >= 2.10).
+  - it: runs after the release is deleted, in Helm and in ArgoCD
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-delete
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: PostDelete
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: BeforeHookCreation,HookSucceeded
+
+  - it: removes the operand deployments and then the CR
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: kubectl delete krmconfig krm-config --ignore-not-found=true
+
+  # In render mode the CR is a tracked release resource Helm deletes itself; with
+  # both modes off it belongs to somebody else. Either way the chart must not.
+  - it: deletes the CR only when this chart created it
+    set:
+      krmConfigDeployer.enabled: false
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: delete krmconfig
+      # The operand deployments still have to go: the operator created them, not Helm.
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
+
+  # The only place in this chart granting delete on a krmconfig.
+  - it: is the only holder of delete on krmconfigs
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.resources"]
+            resources: ["krmconfigs"]
+            verbs: ["delete"]
+
+  - it: never restarts, so a failed cleanup does not loop
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never

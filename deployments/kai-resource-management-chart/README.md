@@ -76,8 +76,10 @@ The main configuration groups are:
 | `kai-scheduler` | Values passed to the bundled KAI Scheduler chart. |
 | `rbac.create` | Creation of required roles and bindings. |
 | `openshift` | OpenShift mode: SecurityContextConstraints and uid handling. |
-| `crdUpgrader` | Image and resources for the CRD install/upgrade hook. |
+| `crdUpgrader` | Resources for the CRD install/upgrade hook, and the shared `helm-hooks` image every hook uses. |
 | `krmOperator` | KRM operator deployment and arguments. |
+| `krmConfig`, `krmConfigDeployer` | How the `KRMConfig` CR is created, and the toggle to manage it yourself. |
+| `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodepoolController` | Node-pool controller deployment, arguments, and webhook. |
@@ -106,22 +108,35 @@ this chart directly; each becomes an operand of the operator under its own
 change. Until then the operator runs, reconciles the resource and reports
 `Ready`, having created no objects.
 
-Nothing creates a `KRMConfig` yet either — the chart does not, so on a fresh
-install the operator idles until one is applied by hand:
+### How the KRMConfig is created
 
-```bash
-kubectl apply -f - <<'EOF'
-apiVersion: kai.resources/v1alpha1
-kind: KRMConfig
-metadata:
-  name: krm-config
-spec:
-  namespace: kai
-EOF
-```
+The chart creates it in one of two ways, and can also leave it alone entirely.
 
-A `krm-config-deployer` hook will seed it as part of a later change, with a
-toggle for installations that create the resource themselves.
+| Mode | Values | The CR is |
+| --- | --- | --- |
+| Deployer (default) | `krmConfigDeployer.enabled=true` | applied by a post-install/post-upgrade hook Job, **outside** the Helm release |
+| GitOps | `krmConfigDeployer.enabled=false`, `krmConfig.render=true` | an ordinary release resource, tracked and drift-detected by ArgoCD |
+| External | both `false` | not created — for Run:ai, which creates the `KRMConfig` itself |
+
+Setting both fails the render: two managers of one singleton would fight, one
+recreating what the other prunes.
+
+The default keeps the CR out of the release deliberately. The operator hangs
+`ownerReferences` for every object it creates off this CR, so if the CR's UID
+ever changed, every one of those objects would be cascade-deleted. `kubectl apply
+--server-side` converges it forward and never recreates it. The same property is
+why a manual `kubectl edit` of the CR survives `helm upgrade` here, where a
+release-managed resource would be reverted.
+
+> **Switching modes on an existing install** needs a manual step: Helm refuses to
+> adopt a resource it does not own, so moving from deployer to GitOps mode fails
+> with an ownership error until the CR is deleted or labelled
+> `app.kubernetes.io/managed-by=Helm` with the matching `meta.helm.sh/release-*`
+> annotations.
+
+On uninstall, a post-delete hook (`postCleanup.enabled`) removes the objects the
+operator created and then the CR — the latter only in deployer mode, since in
+GitOps mode Helm deletes it and in external mode it was never ours.
 
 Three settings under `spec.global` — `schedulerName`, `queueLabelKey` and
 `nodePoolLabelKey` — must match the scheduler or workloads bind to the wrong
@@ -257,7 +272,7 @@ The hook runs as the `kai-resource-management-crd-manager` ServiceAccount, whose
 ClusterRole is restricted to this chart's own CRDs, and both are removed once the
 hook succeeds. It applies server-side with `--force-conflicts` to take field
 ownership of the CRDs from Helm. Because the CRDs are baked into the
-`crd-upgrader` image at build time, the image and the chart always carry the same
+`helm-hooks` image at build time, the image and the chart always carry the same
 CRD revision. Set `crdUpgrader.image.registry` to serve that image from a mirror
 in air-gapped installations.
 

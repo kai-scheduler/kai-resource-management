@@ -1,0 +1,16 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+{{- /*
+Empty by default: the KRMConfig CR is applied by the post-install/post-upgrade hook
+Job (hooks/post/krm-config-deployer/) with kubectl apply --server-side, so it is NOT
+a Helm release resource. With krmConfig.render=true it is rendered inline as an
+ordinary release resource instead, for GitOps installs where hook-applied resources
+are untracked: no drift detection, no selfHeal.
+*/ -}}
+{{- $krmConfig := .Values.krmConfig | default dict -}}
+{{- if and $krmConfig.render .Values.krmConfigDeployer.enabled -}}
+{{- fail "krmConfig.render and krmConfigDeployer.enabled are mutually exclusive: two managers of one singleton. For GitOps set krmConfigDeployer.enabled=false and krmConfig.render=true." -}}
+{{- end -}}
+{{- if $krmConfig.render }}
+{{ include "kai-resource-management.krm-config" . }}
+{{- end -}}

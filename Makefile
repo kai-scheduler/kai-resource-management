@@ -69,7 +69,7 @@ test: test-chart test-go ## Run Helm and all non-e2e Go tests.
 
 .PHONY: build
 build: $(SERVICE_NAMES) ## Build all configured service images.
-	$(MAKE) docker-build-crd-upgrader
+	$(MAKE) docker-build-helm-hooks
 
 .PHONY: $(SERVICE_NAMES)
 $(SERVICE_NAMES):
