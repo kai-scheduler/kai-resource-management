@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,6 +25,9 @@ import (
 const (
 	OperatorManagedByLabelKey   = "app.kubernetes.io/managed-by"
 	OperatorManagedByLabelValue = "krm-operator"
+
+	// serviceAccountTokenPath is what Prometheus authenticates a scrape with.
+	serviceAccountTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token" //nolint:gosec // a path, not a credential
 )
 
 var controllerTypes = []string{"Deployment"}
@@ -140,6 +144,42 @@ func ServiceForKRMConfig(
 	service.Spec.Ports = ports
 
 	return service, nil
+}
+
+// ServiceMonitorForKRMConfig scrapes the named port of the Service of the same
+// name. metricsPortName must name a port that Service publishes; Prometheus
+// resolves the endpoint by name, not by number.
+func ServiceMonitorForKRMConfig(
+	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
+	serviceName string, metricsPortName string,
+) (*monitoringv1.ServiceMonitor, error) {
+	serviceMonitorObj, err := ObjectForKRMConfig(
+		ctx, runtimeClient, &monitoringv1.ServiceMonitor{}, serviceName, krmConfig.Spec.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	serviceMonitor := serviceMonitorObj.(*monitoringv1.ServiceMonitor)
+	serviceMonitor.TypeMeta = metav1.TypeMeta{
+		Kind:       monitoringv1.ServiceMonitorsKind,
+		APIVersion: monitoringv1.SchemeGroupVersion.String(),
+	}
+
+	serviceMonitor.Spec = monitoringv1.ServiceMonitorSpec{
+		JobLabel:          serviceName,
+		NamespaceSelector: monitoringv1.NamespaceSelector{MatchNames: []string{krmConfig.Spec.Namespace}},
+		Selector:          metav1.LabelSelector{MatchLabels: map[string]string{"app": serviceName}},
+		Endpoints: []monitoringv1.Endpoint{
+			{
+				Port:            metricsPortName,
+				BearerTokenFile: serviceAccountTokenPath,
+				MetricRelabelConfigs: []monitoringv1.RelabelConfig{
+					{Action: "replace", TargetLabel: "type", Replacement: ptr.To("stats")},
+				},
+			},
+		},
+	}
+
+	return serviceMonitor, nil
 }
 
 func AllObjectsExists(

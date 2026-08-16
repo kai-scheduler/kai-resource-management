@@ -19,8 +19,6 @@ const (
 	projectControllerProfilerAPIPort = 8182
 )
 
-// These reproduce what the chart's project-controller templates rendered before the
-// operand took them over, so an upgrade does not change a running installation.
 func setProjectControllerDefaults(
 	projectController *krmv1alpha1.ProjectController, global *krmv1alpha1.GlobalConfig,
 ) {
@@ -52,10 +50,10 @@ func setProjectControllerDefaults(
 	projectController.Args = kaicommon.SetDefault(projectController.Args, &krmv1alpha1.ProjectControllerArgs{})
 }
 
-// Both webhooks are on by default, matching the chart, which also renders both
-// webhook configurations by default. The two must agree: a webhook served here but
-// not configured there is never called, and one configured there but not served
-// here fails closed and blocks the resource it guards.
+// Both webhooks are on by default, and must agree with the webhook configurations
+// the chart renders: one served here but not configured there is never called, and
+// one configured there but not served here fails closed and blocks the resource it
+// guards.
 func setProjectControllerWebhookDefaults(webhooks *krmv1alpha1.ProjectControllerWebhooks) {
 	webhooks.EnableProjectValidation = kaicommon.SetDefault(webhooks.EnableProjectValidation, ptr.To(true))
 	webhooks.EnableDepartmentValidation = kaicommon.SetDefault(webhooks.EnableDepartmentValidation, ptr.To(true))
@@ -63,8 +61,8 @@ func setProjectControllerWebhookDefaults(webhooks *krmv1alpha1.ProjectController
 		webhooks.CertSecretName, ptr.To(ProjectControllerCertSecretName))
 }
 
-// Every feature is on except limit ranges, which the chart leaves off because the
-// controller then owns a LimitRange in each project namespace.
+// Every feature is on except limit ranges, which stay off because enabling them
+// makes the controller own a LimitRange in every project namespace.
 func setProjectControllerFeatureDefaults(features *krmv1alpha1.ProjectControllerFeatures) {
 	features.CreateNamespaces = kaicommon.SetDefault(features.CreateNamespaces, ptr.To(true))
 	features.CreateRoleBindings = kaicommon.SetDefault(features.CreateRoleBindings, ptr.To(true))

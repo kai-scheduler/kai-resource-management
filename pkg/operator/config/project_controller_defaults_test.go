@@ -11,8 +11,8 @@ import (
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
 
-// These must equal what the chart's own project-controller templates rendered before
-// the operand took them over. A drift here changes a running installation on upgrade.
+// The defaults are the whole configuration of a stock installation, so each one is
+// pinned: a change here silently changes every installation that sets nothing.
 var _ = Describe("project-controller defaults", func() {
 	var projectController *krmv1alpha1.ProjectController
 
@@ -22,7 +22,7 @@ var _ = Describe("project-controller defaults", func() {
 		projectController = spec.ProjectController
 	})
 
-	It("publishes the metrics and webhook ports the chart published", func() {
+	It("publishes the metrics and webhook ports", func() {
 		metrics := projectController.ControllerService.Metrics
 		Expect(metrics.Name).To(Equal(ptr.To("metrics")))
 		Expect(metrics.Port).To(Equal(ptr.To(int32(9400))))

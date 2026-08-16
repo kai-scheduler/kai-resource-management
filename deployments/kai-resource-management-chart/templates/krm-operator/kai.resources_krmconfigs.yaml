@@ -3883,9 +3883,8 @@ spec:
                         blocks deleting that project. Blockers sharing a display name are grouped by the
                         controller into a single project condition.
 
-                        The field names are the wire contract with the project-controller, which parses
-                        this out of a ConfigMap. It is declared here rather than imported so the operator
-                        gains no build-time dependency on the controller it deploys.
+                        The field names are a wire contract: the project-controller parses this out of a
+                        ConfigMap.
                       properties:
                         displayName:
                           description: DisplayName is what the project's blocked condition
@@ -3962,13 +3961,34 @@ spec:
                       type: string
                     type: array
                   extraProjectRoleBindings:
-                    additionalProperties:
-                      type: string
                     description: |-
-                      ExtraProjectRoleBindings are additional entries for the rolebindings plugin,
-                      as a map of file name to RoleBinding YAML. Use it to replicate RoleBindings
-                      for components owned by other charts into every project namespace.
-                    type: object
+                      ExtraProjectRoleBindings are additional RoleBindings to replicate into every
+                      project namespace, for components this installation does not own.
+                    items:
+                      description: |-
+                        ProjectRoleBinding is a RoleBinding the project-controller replicates into every
+                        namespace it creates for a project.
+                      properties:
+                        clusterRoleName:
+                          description: |-
+                            ClusterRoleName is the ClusterRole to bind, which must already exist.
+                            Defaults to Name.
+                          type: string
+                        name:
+                          description: Name of the RoleBinding created in each project
+                            namespace.
+                          minLength: 1
+                          type: string
+                        serviceAccountName:
+                          description: ServiceAccountName is the subject, taken from
+                            the installation namespace.
+                          minLength: 1
+                          type: string
+                      required:
+                      - name
+                      - serviceAccountName
+                      type: object
+                    type: array
                   features:
                     description: |-
                       Features selects which per-project resources the controller manages. Each flag

@@ -48,11 +48,10 @@ type ProjectController struct {
 	// +optional
 	ExtraArgs []string `json:"extraArgs,omitempty"`
 
-	// ExtraProjectRoleBindings are additional entries for the rolebindings plugin,
-	// as a map of file name to RoleBinding YAML. Use it to replicate RoleBindings
-	// for components owned by other charts into every project namespace.
+	// ExtraProjectRoleBindings are additional RoleBindings to replicate into every
+	// project namespace, for components this installation does not own.
 	// +optional
-	ExtraProjectRoleBindings map[string]string `json:"extraProjectRoleBindings,omitempty"`
+	ExtraProjectRoleBindings []ProjectRoleBinding `json:"extraProjectRoleBindings,omitempty"`
 
 	// DeleteBlockers are the resources whose presence blocks deleting a project.
 	// Empty means nothing blocks deletion.
@@ -66,6 +65,23 @@ type ProjectController struct {
 	// VPA overrides global.vpa for this service.
 	// +optional
 	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
+}
+
+// ProjectRoleBinding is a RoleBinding the project-controller replicates into every
+// namespace it creates for a project.
+type ProjectRoleBinding struct {
+	// Name of the RoleBinding created in each project namespace.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// ClusterRoleName is the ClusterRole to bind, which must already exist.
+	// Defaults to Name.
+	// +optional
+	ClusterRoleName string `json:"clusterRoleName,omitempty"`
+
+	// ServiceAccountName is the subject, taken from the installation namespace.
+	// +kubebuilder:validation:MinLength=1
+	ServiceAccountName string `json:"serviceAccountName"`
 }
 
 // ProjectControllerService describes the project-controller's published ports.
@@ -163,9 +179,8 @@ type ProjectControllerArgs struct {
 // blocks deleting that project. Blockers sharing a display name are grouped by the
 // controller into a single project condition.
 //
-// The field names are the wire contract with the project-controller, which parses
-// this out of a ConfigMap. It is declared here rather than imported so the operator
-// gains no build-time dependency on the controller it deploys.
+// The field names are a wire contract: the project-controller parses this out of a
+// ConfigMap.
 type DeleteBlocker struct {
 	// DisplayName is what the project's blocked condition reports.
 	DisplayName string `json:"displayName"`

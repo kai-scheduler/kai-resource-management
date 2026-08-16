@@ -38,9 +38,8 @@ const (
 	DefaultNodePoolName = "default"
 )
 
-// Ports shared by every KRM service, each matching what that service's chart
-// template defaulted to. A service needing its own port defines it beside its own
-// defaults rather than changing these.
+// Ports shared by every KRM service. A service needing its own port defines it
+// beside its own defaults rather than changing these.
 const (
 	metricsPortName = "metrics"
 	metricsPort     = 9400
