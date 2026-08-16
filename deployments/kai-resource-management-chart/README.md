@@ -128,11 +128,21 @@ ever changed, every one of those objects would be cascade-deleted. `kubectl appl
 why a manual `kubectl edit` of the CR survives `helm upgrade` here, where a
 release-managed resource would be reverted.
 
-> **Switching modes on an existing install** needs a manual step: Helm refuses to
-> adopt a resource it does not own, so moving from deployer to GitOps mode fails
-> with an ownership error until the CR is deleted or labelled
-> `app.kubernetes.io/managed-by=Helm` with the matching `meta.helm.sh/release-*`
-> annotations.
+> **Switching modes on an existing install is disruptive in both directions.**
+>
+> Deployer to GitOps fails outright: Helm refuses to adopt a resource it does not
+> own, so the upgrade stops with an ownership error until the CR is deleted, or
+> labelled `app.kubernetes.io/managed-by=Helm` with the matching
+> `meta.helm.sh/release-*` annotations.
+>
+> GitOps back to deployer succeeds, but replaces the CR: turning `render` off
+> removes it from the manifest, so Helm prunes it and the hook then creates a new
+> one with a new UID. Everything the operator created is owned by that CR, so
+> deleting it cascades to all of it. Pick a mode at install time and stay on it.
+>
+> Switching back also leaves the `app.kubernetes.io/managed-by=Helm` label behind
+> on a CR that is no longer part of the release: server-side apply only manages the
+> fields it sets, so it neither removes nor refreshes that one.
 
 On uninstall, a post-delete hook (`postCleanup.enabled`) removes the objects the
 operator created and then the CR — the latter only in deployer mode, since in
