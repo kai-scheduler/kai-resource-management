@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
@@ -279,6 +280,27 @@ func MergeAffinities(localAffinity *corev1.Affinity,
 	affinity.PodAntiAffinity = podAntiAffinity
 
 	return affinity
+}
+
+func AddK8sClientConfigToArgs(k8sClientConfig *kaicommon.K8sClientConfig, args []string) []string {
+	if k8sClientConfig != nil {
+		if k8sClientConfig.QPS != nil {
+			args = append(args, "--qps", strconv.Itoa(*k8sClientConfig.QPS))
+		}
+		if k8sClientConfig.Burst != nil {
+			args = append(args, "--burst", strconv.Itoa(*k8sClientConfig.Burst))
+		}
+	}
+
+	return args
+}
+
+func AddControllerRuntimeJSONLogArg(jsonLog *bool, args []string) []string {
+	if jsonLog != nil && *jsonLog {
+		args = append(args, "--zap-devel=false")
+	}
+
+	return args
 }
 
 func GetGlobalImagePullSecrets(global *krmv1alpha1.GlobalConfig) []corev1.LocalObjectReference {

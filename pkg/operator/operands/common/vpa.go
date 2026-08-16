@@ -1,0 +1,55 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
+package common
+
+import (
+	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// BuildVPA creates a VerticalPodAutoscaler targeting the named resource of the given kind.
+// Returns nil if VPA is not enabled.
+func BuildVPA(vpaSpec *kaicommon.VPASpec, targetName, namespace, targetKind string) client.Object {
+	if vpaSpec == nil || vpaSpec.Enabled == nil || !*vpaSpec.Enabled {
+		return nil
+	}
+
+	return &vpav1.VerticalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling.k8s.io/v1",
+			Kind:       "VerticalPodAutoscaler",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      targetName,
+			Namespace: namespace,
+		},
+		Spec: vpav1.VerticalPodAutoscalerSpec{
+			TargetRef: &autoscalingv1.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       targetKind,
+				Name:       targetName,
+			},
+			UpdatePolicy:   vpaSpec.UpdatePolicy,
+			ResourcePolicy: vpaSpec.ResourcePolicy,
+		},
+	}
+}
+
+// BuildVPAFromObjects finds the first Deployment in objects and builds a VPA
+// targeting it. Returns nil if VPA is not enabled or no workload is found.
+func BuildVPAFromObjects(vpaSpec *kaicommon.VPASpec, objects []client.Object, namespace string) client.Object {
+	if vpaSpec == nil || vpaSpec.Enabled == nil || !*vpaSpec.Enabled {
+		return nil
+	}
+	for _, object := range objects {
+		if deployment, isDeployment := object.(*appsv1.Deployment); isDeployment {
+			return BuildVPA(vpaSpec, deployment.Name, namespace, "Deployment")
+		}
+	}
+	return nil
+}
