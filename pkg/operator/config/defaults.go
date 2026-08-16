@@ -32,6 +32,22 @@ const (
 	NodePoolControllerImageName = "nodepool-controller"
 	ProjectControllerImageName  = "project-controller"
 	PodGroupAssignerImageName   = "pod-group-assigner"
+
+	// DefaultNodePoolName matches the chart's defaultNodePool.name, which also names
+	// the NodePool the chart creates.
+	DefaultNodePoolName = "default"
+)
+
+// Ports shared by every KRM service, each matching what that service's chart
+// template defaulted to. A service needing its own port defines it beside its own
+// defaults rather than changing these.
+const (
+	metricsPortName = "metrics"
+	metricsPort     = 9400
+
+	webhookPortName   = "webhook"
+	webhookPort       = 443
+	webhookTargetPort = 8443
 )
 
 // SetDefaultsWhereNeeded runs on every reconcile against an in-memory copy and is
@@ -88,8 +104,12 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 		RunAsUser:                ptr.To(int64(10000)),
 		Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"all"}},
 	})
+	global.LeaderElection = kaicommon.SetDefault(global.LeaderElection, ptr.To(false))
+	global.DefaultNodePoolName = kaicommon.SetDefault(global.DefaultNodePoolName, ptr.To(DefaultNodePoolName))
 	global.VPA = kaicommon.SetDefault(global.VPA, &kaicommon.VPASpec{})
 	global.VPA.SetDefaultsWhereNeeded()
+	global.ServiceMonitor = kaicommon.SetDefault(global.ServiceMonitor, &krmv1alpha1.ServiceMonitorSpec{})
+	global.ServiceMonitor.Enabled = kaicommon.SetDefault(global.ServiceMonitor.Enabled, ptr.To(true))
 }
 
 func setNodePoolControllerDefaults(
@@ -101,13 +121,14 @@ func setNodePoolControllerDefaults(
 	nodePoolController.VPA = kaicommon.SetDefault(nodePoolController.VPA, global.VPA)
 }
 
-func setProjectControllerDefaults(
-	projectController *krmv1alpha1.ProjectController, global *krmv1alpha1.GlobalConfig,
-) {
-	projectController.Service = setServiceDefaults(
-		projectController.Service, ProjectControllerImageName, projectControllerResources())
-	projectController.Replicas = kaicommon.SetDefault(projectController.Replicas, global.ReplicaCount)
-	projectController.VPA = kaicommon.SetDefault(projectController.VPA, global.VPA)
+func setPortMappingDefaults(
+	portMapping *krmv1alpha1.PortMapping, name string, port, targetPort int32,
+) *krmv1alpha1.PortMapping {
+	portMapping = kaicommon.SetDefault(portMapping, &krmv1alpha1.PortMapping{})
+	portMapping.Name = kaicommon.SetDefault(portMapping.Name, ptr.To(name))
+	portMapping.Port = kaicommon.SetDefault(portMapping.Port, ptr.To(port))
+	portMapping.TargetPort = kaicommon.SetDefault(portMapping.TargetPort, ptr.To(targetPort))
+	return portMapping
 }
 
 func setPodGroupAssignerDefaults(

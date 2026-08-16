@@ -143,6 +143,10 @@ type GlobalConfig struct {
 	// +optional
 	NodePoolLabelKey *string `json:"nodePoolLabelKey,omitempty"`
 
+	// DefaultNodePoolName is the node pool a workload falls back to.
+	// +optional
+	DefaultNodePoolName *string `json:"defaultNodePoolName,omitempty"`
+
 	// FinalizerDomain is the domain prefix for finalizers the controllers set.
 	// +optional
 	FinalizerDomain *string `json:"finalizerDomain,omitempty"`
@@ -163,6 +167,11 @@ type GlobalConfig struct {
 	// ReplicaCount is the default replica count for services that do not set their own.
 	// +optional
 	ReplicaCount *int32 `json:"replicaCount,omitempty"`
+
+	// LeaderElection turns on leader election for every service. A replica count
+	// above one turns it on regardless.
+	// +optional
+	LeaderElection *bool `json:"leaderElection,omitempty"`
 
 	// ImagePullSecrets are added to every service pod.
 	// +optional
@@ -211,6 +220,45 @@ type GlobalConfig struct {
 	// not set their own.
 	// +optional
 	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
+
+	// ServiceMonitor configures Prometheus scraping of every service. Enabling it
+	// without the Prometheus operator installed is not an error: the operator skips
+	// the ServiceMonitor while its CRD is absent.
+	// +optional
+	ServiceMonitor *ServiceMonitorSpec `json:"serviceMonitor,omitempty"`
+}
+
+// ServiceMonitorSpec configures Prometheus scraping of the KRM services.
+type ServiceMonitorSpec struct {
+	// Enabled creates a ServiceMonitor for every service that exposes metrics.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// PortMapping is one named port, published on Port and served on TargetPort.
+type PortMapping struct {
+	// Port is the port the Service publishes.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// TargetPort is the port the container listens on.
+	// +optional
+	TargetPort *int32 `json:"targetPort,omitempty"`
+
+	// Name is the port name, which a ServiceMonitor endpoint refers to.
+	// +optional
+	Name *string `json:"name,omitempty"`
+}
+
+// Profiling exposes a service's profiler API.
+type Profiling struct {
+	// Enabled starts the profiler API server.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// APIPort is the port the profiler API listens on.
+	// +optional
+	APIPort *int32 `json:"apiPort,omitempty"`
 }
 
 // NodePoolController configures the nodepool-controller service.
@@ -218,23 +266,6 @@ type GlobalConfig struct {
 // The controller's own flag surface is added by RUN-42108, when it becomes an
 // operand. Until then this carries only what every service shares.
 type NodePoolController struct {
-	// Service is the common deployment configuration: enablement, image, resources.
-	// +optional
-	Service *kaicommon.Service `json:"service,omitempty"`
-
-	// Replicas overrides global.replicaCount for this service.
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
-
-	// VPA overrides global.vpa for this service.
-	// +optional
-	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
-}
-
-// ProjectController configures the project-controller service.
-//
-// The controller's own flag surface is added by RUN-42109.
-type ProjectController struct {
 	// Service is the common deployment configuration: enablement, image, resources.
 	// +optional
 	Service *kaicommon.Service `json:"service,omitempty"`

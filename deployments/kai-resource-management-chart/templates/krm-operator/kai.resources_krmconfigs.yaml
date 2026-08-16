@@ -973,6 +973,10 @@ spec:
                             x-kubernetes-list-type: atomic
                         type: object
                     type: object
+                  defaultNodePoolName:
+                    description: DefaultNodePoolName is the node pool a workload falls
+                      back to.
+                    type: string
                   enforceSchedulerAnnotationKey:
                     description: |-
                       EnforceSchedulerAnnotationKey is the annotation key that forces a workload
@@ -994,6 +998,11 @@ spec:
                   jsonLog:
                     description: JSONLog switches every service to structured JSON
                       logging.
+                    type: boolean
+                  leaderElection:
+                    description: |-
+                      LeaderElection turns on leader election for every service. A replica count
+                      above one turns it on regardless.
                     type: boolean
                   namespaceProjectLabelKey:
                     description: NamespaceProjectLabelKey is the label key linking
@@ -1240,6 +1249,17 @@ spec:
                               PodSecurityContext, the value specified in SecurityContext takes precedence.
                             type: string
                         type: object
+                    type: object
+                  serviceMonitor:
+                    description: |-
+                      ServiceMonitor configures Prometheus scraping of every service. Enabling it
+                      without the Prometheus operator installed is not an error: the operator skips
+                      the ServiceMonitor while its CRD is absent.
+                    properties:
+                      enabled:
+                        description: Enabled creates a ServiceMonitor for every service
+                          that exposes metrics.
+                        type: boolean
                     type: object
                   tolerations:
                     description: Tolerations are applied to every service pod.
@@ -3774,6 +3794,225 @@ spec:
               projectController:
                 description: ProjectController configures the project-controller service.
                 properties:
+                  args:
+                    description: |-
+                      Args holds the controller's own command line flags. An unset field means the
+                      flag is not passed at all and the binary's own default applies.
+                    properties:
+                      debug:
+                        description: Debug raises the controller's log verbosity.
+                        type: boolean
+                      leaderElect:
+                        description: |-
+                          LeaderElect overrides global.leaderElection for this service. Unset means
+                          leader election follows global.leaderElection, or a replica count above one.
+                        type: boolean
+                      limitRangeName:
+                        description: LimitRangeName is the name of the LimitRange
+                          managed in project namespaces.
+                        type: string
+                      namespaceVersionLabelKey:
+                        description: NamespaceVersionLabelKey is the label key carrying
+                          a project namespace's version.
+                        type: string
+                      projectIdLabelKey:
+                        description: ProjectIDLabelKey is the label key carrying a
+                          project's ID.
+                        type: string
+                      projectNamePrefix:
+                        description: ProjectNamePrefix prefixes the namespaces created
+                          for projects.
+                        type: string
+                      queueDepartmentNameLabelKey:
+                        description: QueueDepartmentNameLabelKey is the label key
+                          linking a queue to its department.
+                        type: string
+                      resourceManualOverrideLabelKey:
+                        description: |-
+                          ResourceManualOverrideLabelKey is the label key marking a resource as
+                          manually overridden, which stops the controller reconciling it.
+                        type: string
+                    type: object
+                  controllerService:
+                    description: |-
+                      ControllerService describes the ports the controller listens on and the
+                      Service publishes. Named to avoid colliding with Service above.
+                    properties:
+                      metrics:
+                        description: Metrics is the Prometheus metrics port.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                      webhook:
+                        description: Webhook is the admission webhook port.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                    type: object
+                  deleteBlockers:
+                    description: |-
+                      DeleteBlockers are the resources whose presence blocks deleting a project.
+                      Empty means nothing blocks deletion.
+                    items:
+                      description: |-
+                        DeleteBlocker is one resource kind whose presence in a project's namespaces
+                        blocks deleting that project. Blockers sharing a display name are grouped by the
+                        controller into a single project condition.
+
+                        The field names are the wire contract with the project-controller, which parses
+                        this out of a ConfigMap. It is declared here rather than imported so the operator
+                        gains no build-time dependency on the controller it deploys.
+                      properties:
+                        displayName:
+                          description: DisplayName is what the project's blocked condition
+                            reports.
+                          type: string
+                        group:
+                          description: Group of the blocking resource; empty for core.
+                          type: string
+                        kind:
+                          description: Kind of the blocking resource.
+                          type: string
+                        labelSelector:
+                          description: LabelSelector narrows which objects of that
+                            kind block deletion.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: |-
+                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: |-
+                                      operator represents a key's relationship to a set of values.
+                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: |-
+                                      values is an array of string values. If the operator is In or NotIn,
+                                      the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. This array is replaced during a strategic
+                                      merge patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                operator is "In", and the values array contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        version:
+                          description: Version of the blocking resource.
+                          type: string
+                      required:
+                      - displayName
+                      - kind
+                      - version
+                      type: object
+                    type: array
+                  extraArgs:
+                    description: |-
+                      ExtraArgs are appended verbatim after every other flag, so a flag repeated
+                      here overrides the one built above it. The escape hatch for a flag this API
+                      does not model yet.
+                    items:
+                      type: string
+                    type: array
+                  extraProjectRoleBindings:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      ExtraProjectRoleBindings are additional entries for the rolebindings plugin,
+                      as a map of file name to RoleBinding YAML. Use it to replicate RoleBindings
+                      for components owned by other charts into every project namespace.
+                    type: object
+                  features:
+                    description: |-
+                      Features selects which per-project resources the controller manages. Each flag
+                      also gates the matching chart ClusterRole and the RoleBinding replicated into
+                      project namespaces, so turning one on here without the chart's matching grant
+                      produces bindings to a ClusterRole that does not exist.
+                    properties:
+                      clusterWideConfigMap:
+                        description: ClusterWideConfigMap replicates cluster-wide
+                          ConfigMaps into project namespaces.
+                        type: boolean
+                      clusterWidePvc:
+                        description: ClusterWidePvc replicates cluster-wide PersistentVolumeClaims
+                          into project namespaces.
+                        type: boolean
+                      clusterWideSecret:
+                        description: ClusterWideSecret replicates cluster-wide Secrets
+                          into project namespaces.
+                        type: boolean
+                      createNamespaces:
+                        description: CreateNamespaces creates a namespace for every
+                          project.
+                        type: boolean
+                      createRoleBindings:
+                        description: CreateRoleBindings replicates the rolebindings
+                          plugin entries into project namespaces.
+                        type: boolean
+                      limitRange:
+                        description: LimitRange manages a LimitRange in every project
+                          namespace.
+                        type: boolean
+                    type: object
+                  profiling:
+                    description: Profiling exposes the controller's profiler API.
+                    properties:
+                      apiPort:
+                        description: APIPort is the port the profiler API listens
+                          on.
+                        format: int32
+                        type: integer
+                      enabled:
+                        description: Enabled starts the profiler API server.
+                        type: boolean
+                    type: object
                   replicas:
                     description: Replicas overrides global.replicaCount for this service.
                     format: int32
@@ -4944,6 +5183,27 @@ spec:
                             - Auto
                             type: string
                         type: object
+                    type: object
+                  webhooks:
+                    description: |-
+                      Webhooks configures the admission webhooks the controller serves. The webhook
+                      configurations themselves and their TLS certificates stay with the Helm chart;
+                      these toggles must agree with it, or the controller serves a webhook nothing
+                      calls, or mounts a certificate that was never minted.
+                    properties:
+                      certSecretName:
+                        description: |-
+                          CertSecretName is the TLS Secret the controller mounts. The Helm chart mints
+                          it, or on OpenShift the service-CA operator does.
+                        type: string
+                      enableDepartmentValidation:
+                        description: EnableDepartmentValidation serves the Department
+                          validating webhook.
+                        type: boolean
+                      enableProjectValidation:
+                        description: EnableProjectValidation serves the Project validating
+                          webhook.
+                        type: boolean
                     type: object
                 type: object
               schedulerConfigRef:
