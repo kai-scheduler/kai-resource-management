@@ -47,6 +47,32 @@ tests:
         template: templates/project-controller/webhook.yaml
         documentIndex: 0
 
+  # The Secret is the first document in each file, so it is the one that gets
+  # concatenated onto the licence header if the include trims the newline before
+  # it. That renders fine and passes every assertion on its content, but the API
+  # server rejects the document for having no apiVersion, and the whole chart
+  # fails to install.
+  - it: starts each TLS Secret as its own document
+    asserts:
+      - isAPIVersion: {of: v1}
+        template: templates/nodepool-controller/webhook.yaml
+        documentIndex: 0
+      - isKind: {of: Secret}
+        template: templates/nodepool-controller/webhook.yaml
+        documentIndex: 0
+      - isAPIVersion: {of: v1}
+        template: templates/project-controller/webhook.yaml
+        documentIndex: 0
+      - isKind: {of: Secret}
+        template: templates/project-controller/webhook.yaml
+        documentIndex: 0
+      - isAPIVersion: {of: v1}
+        template: templates/pod-group-assigner/webhook.yaml
+        documentIndex: 0
+      - isKind: {of: Secret}
+        template: templates/pod-group-assigner/webhook.yaml
+        documentIndex: 0
+
   - it: publishes a caBundle on every webhook off OpenShift
     asserts:
       - matchRegex:

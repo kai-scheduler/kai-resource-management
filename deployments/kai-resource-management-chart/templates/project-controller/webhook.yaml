@@ -14,7 +14,7 @@ whose registerValidationWebhooks starts no TLS server at all when both flags are
 {{- $certs := dict }}
 {{- if not $openshift }}
 {{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "project-controller" "secretName" $secretName)) }}
-{{- include "kai-resource-management.webhookSecret" (dict "root" $ "service" "project-controller" "secretName" $secretName "certs" $certs) }}
+{{ include "kai-resource-management.webhookSecret" (dict "root" $ "service" "project-controller" "secretName" $secretName "certs" $certs) }}
 {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
