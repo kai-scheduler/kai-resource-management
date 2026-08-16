@@ -1,6 +1,9 @@
 KAI Resource Management installed into namespace: {{ .Release.Namespace }}
 
 Components:
+{{- if .Values.krmOperator.enabled }}
+  ✓ krm-operator (reconciles KRMConfig; installs no services yet)
+{{- end }}
 {{- if .Values.nodepoolController.enabled }}
   ✓ nodepool-controller
 {{- end }}
@@ -15,6 +18,10 @@ Notes:
   - KAI-scheduler is bundled as a subchart, bringing its scheduler and CRDs
     (scheduling.run.ai/podgroups,queues; kai.scheduler/schedulingshards,topologies). Its Config CR is
     applied by KAI's config-deployer hook.
+{{- if .Values.krmOperator.enabled }}
+  - No KRMConfig is created by this chart yet. Until one named "krm-config" is applied, the
+    operator has nothing to reconcile.
+{{- end }}
 {{- if .Values.podGroupAssigner.webhook.enabled }}
   - The pod-group-assigner webhook TLS cert is provisioned separately. Until the Secret
     "{{ .Values.podGroupAssigner.webhook.certSecretName }}" exists with tls.crt/tls.key and the

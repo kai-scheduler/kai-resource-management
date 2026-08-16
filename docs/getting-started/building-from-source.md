@@ -79,21 +79,27 @@ containers resolve modules against their own `GOPATH` volume
 host's, so they must be able to fetch the module themselves. A macOS or Linux
 keychain credential helper cannot work inside the Linux container.
 
-The simplest approach is to reuse the module cache your host has already
-populated:
+Give the container its own credential: point `GIT_CONFIG_GLOBAL` at a git
+configuration file containing a token-based URL rewrite.
+`build/makefile/golang.mk` mounts that file into the container read-only. This
+is what CI does, and it works for every containerized target:
 
 ```bash
-go mod download
-make build GOPATH_HOST_DIR="$(go env GOPATH)"
-```
+mkdir -p "$HOME/.config"
+cat > "$HOME/.config/kai-module-gitconfig" <<'CONF'
+[url "https://x-access-token:<TOKEN>@github.com/kai-scheduler/kai-resource-management-api"]
+	insteadOf = https://github.com/kai-scheduler/kai-resource-management-api
+CONF
+chmod 0600 "$HOME/.config/kai-module-gitconfig"
 
-Alternatively, point `GIT_CONFIG_GLOBAL` at a git configuration file containing
-a token-based URL rewrite. `build/makefile/golang.mk` mounts that file into the
-container read-only:
-
-```bash
 make build GIT_CONFIG_GLOBAL="$HOME/.config/kai-module-gitconfig"
+make lint  GIT_CONFIG_GLOBAL="$HOME/.config/kai-module-gitconfig"
 ```
+
+`<TOKEN>` is a personal access token with read access to that one repository.
+Scope the rewrite to the exact module rather than `github.com/kai-scheduler/`,
+so the token is never offered to any other repository — the same reasoning that
+keeps `GOPRIVATE` narrow.
 
 The container reads `GIT_CONFIG_GLOBAL` rather than `~/.gitconfig` because it
 runs as a numeric uid with no passwd entry, so `HOME` is `/` and git would look
@@ -101,6 +107,13 @@ for `//.gitconfig`.
 
 **That file contains a credential.** Keep it outside this repository, and give
 it `0600` permissions.
+
+> **Do not point `GOPATH_HOST_DIR` at your host `GOPATH`** to share the module
+> cache instead. `build/makefile/golang.mk` mounts it at `/go`, which is also
+> where the `golangci-lint` image keeps its binary, so the mount replaces that
+> Linux binary with your host's and `make lint-go` fails with
+> `exec format error`. The variable exists to relocate the containers' own
+> cache directory, not to share yours.
 
 ### Continuous integration
 

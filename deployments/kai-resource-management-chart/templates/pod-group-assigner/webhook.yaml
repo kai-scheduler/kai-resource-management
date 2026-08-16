@@ -17,7 +17,7 @@ off - the binary would keep serving it, so the value could not honour its own na
 {{- $certs := dict }}
 {{- if not $openshift }}
 {{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName)) }}
-{{- include "kai-resource-management.webhookSecret" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName "certs" $certs) }}
+{{ include "kai-resource-management.webhookSecret" (dict "root" $ "service" "pod-group-assigner" "secretName" $secretName "certs" $certs) }}
 {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1

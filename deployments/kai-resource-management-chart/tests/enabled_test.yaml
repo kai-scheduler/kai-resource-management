@@ -6,11 +6,20 @@ templates:
   - templates/nodepool-controller/deployment.yaml
   - templates/project-controller/deployment.yaml
   - templates/pod-group-assigner/deployment.yaml
+  - templates/krm-operator/deployment.yaml
 release:
   name: rm
   namespace: kai
 tests:
-  - it: renders all three deployments by default
+  - it: renders the operator by default
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: templates/krm-operator/deployment.yaml
+
+  - it: renders all three controller deployments by default
     set:
       image.registry: reg.example.com/kai
     asserts:
@@ -53,3 +62,15 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/pod-group-assigner/deployment.yaml
+
+  - it: omits the operator when disabled
+    set:
+      image.registry: reg.example.com/kai
+      krmOperator.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/krm-operator/deployment.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/nodepool-controller/deployment.yaml

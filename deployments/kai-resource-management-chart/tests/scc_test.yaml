@@ -97,6 +97,9 @@ tests:
     asserts:
       - contains:
           path: users
+          content: system:serviceaccount:kai-resource-management:krm-operator
+      - contains:
+          path: users
           content: system:serviceaccount:kai-resource-management:nodepool-controller
       - contains:
           path: users
@@ -158,7 +161,13 @@ tests:
           value: kai-resource-management-scc
       - lengthEqual:
           path: subjects
-          count: 4
+          count: 5
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: krm-operator
+            namespace: kai-resource-management
       - contains:
           path: subjects
           content:
@@ -172,11 +181,12 @@ tests:
       openshift: true
       nodepoolController.enabled: false
       podGroupAssigner.enabled: false
+      krmOperator.enabled: false
     documentIndex: 2
     asserts:
       - lengthEqual:
           path: subjects
-          count: 4
+          count: 5
 
   - it: renders nothing when rbac.create is false
     set:

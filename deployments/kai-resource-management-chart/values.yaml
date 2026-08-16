@@ -103,6 +103,17 @@ commonArgs:
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
   schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
 
+# KRM operator. Reconciles the cluster-scoped, singleton KRMConfig and deploys the
+# services described by it. It currently deploys nothing: the three controllers are
+# installed by their own templates below until they become operands.
+krmOperator:
+  enabled: true
+  image:
+    name: krm-operator
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+  # replicas / resources / metricsPort / probePort: see internal_values.yaml
+  args: {}
+
 crdUpgrader:
   image:
     name: crd-upgrader
