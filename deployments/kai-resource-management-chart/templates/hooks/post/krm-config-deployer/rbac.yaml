@@ -1,0 +1,48 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.krmConfigDeployer.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: krm-config-deployer
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+---
+# Only what `kubectl apply --server-side` uses: one PATCH, which creates the object
+# when it is absent. No get, list or update, and no delete — the deployer cannot
+# destroy the singleton it manages. Removing it is the post-delete hook's job, and
+# only when this chart created it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kai-resource-management-config-deployer
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+rules:
+  - apiGroups: ["kai.resources"]
+    resources: ["krmconfigs"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kai-resource-management-config-deployer
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kai-resource-management-config-deployer
+subjects:
+  - kind: ServiceAccount
+    name: krm-config-deployer
+    namespace: {{ .Release.Namespace }}
+{{- end }}

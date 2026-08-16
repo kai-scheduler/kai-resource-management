@@ -114,9 +114,35 @@ krmOperator:
   # replicas / resources / metricsPort / probePort: see internal_values.yaml
   args: {}
 
+# The KRMConfig CR the operator reconciles. By default a post-install/post-upgrade
+# hook Job applies it with `kubectl apply --server-side`, so it is NOT a Helm release
+# resource: its UID survives every upgrade, which matters because the operator hangs
+# ownerReferences off it. Disable the deployer to manage the CR yourself — that is
+# what Run:ai does when it installs this chart and creates the KRMConfig itself.
+krmConfig:
+  # Render the CR inline as an ordinary release resource instead, so GitOps tools
+  # track, drift-detect and self-heal it. Mutually exclusive with the deployer below.
+  render: false
+
+krmConfigDeployer:
+  # Also governs uninstall: when this is off the post-delete hook leaves the CR
+  # alone, because the chart did not create it.
+  enabled: true
+  image:
+    name: helm-hooks
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+
+# Post-delete hook: removes the operator-managed deployments and, when this chart
+# created it, the KRMConfig.
+postCleanup:
+  enabled: true
+  image:
+    name: helm-hooks
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+
 crdUpgrader:
   image:
-    name: crd-upgrader
+    name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
 nodepoolController:

@@ -44,7 +44,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: reg.example.com/kai/crd-upgrader:2.26.0
+          value: reg.example.com/kai/helm-hooks:2.26.0
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: IfNotPresent
@@ -59,7 +59,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: mirror.example.com/x/crd-upgrader:pinned
+          value: mirror.example.com/x/helm-hooks:pinned
 
   - it: applies the hardened container securityContext by default
     templates:

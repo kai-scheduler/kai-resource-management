@@ -18,6 +18,7 @@ API_MODULE := github.com/kai-scheduler/kai-resource-management-api
 API_CRD_DIR = $(shell $(GO) list -m -f '{{.Dir}}' $(API_MODULE))/config/crd
 CHART_CRD_DIR := deployments/kai-resource-management-chart/crds
 CRD_MANAGER_ROLE := deployments/kai-resource-management-chart/templates/rbac/crd-manager.yaml
+CHART_DIR := deployments/kai-resource-management-chart
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
@@ -69,7 +70,7 @@ test: test-chart test-go ## Run Helm and all non-e2e Go tests.
 
 .PHONY: build
 build: $(SERVICE_NAMES) ## Build all configured service images.
-	$(MAKE) docker-build-crd-upgrader
+	$(MAKE) docker-build-helm-hooks
 
 .PHONY: $(SERVICE_NAMES)
 $(SERVICE_NAMES):
@@ -120,8 +121,12 @@ crd-rbac-check: ## Verify every chart CRD is named in the crd-manager ClusterRol
 	done; \
 	exit $$rc
 
+.PHONY: scc-check
+scc-check: ## Verify every ServiceAccount the chart renders is granted the OpenShift SCC.
+	bash hack/scc-check.sh $(CHART_DIR)
+
 .PHONY: validate
-validate: mod-check lint test license-check sync-crds-check crd-rbac-check ## Run all repository validation without changing tracked files.
+validate: mod-check lint test license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

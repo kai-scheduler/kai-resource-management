@@ -100,6 +100,12 @@ tests:
           content: system:serviceaccount:kai-resource-management:krm-operator
       - contains:
           path: users
+          content: system:serviceaccount:kai-resource-management:krm-config-deployer
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:krm-config-cleanup
+      - contains:
+          path: users
           content: system:serviceaccount:kai-resource-management:nodepool-controller
       - contains:
           path: users
@@ -161,12 +167,20 @@ tests:
           value: kai-resource-management-scc
       - lengthEqual:
           path: subjects
-          count: 5
+          count: 7
       - contains:
           path: subjects
           content:
             kind: ServiceAccount
             name: krm-operator
+            namespace: kai-resource-management
+      # Hook ServiceAccounts are the easy ones to forget: they live in a different
+      # file and nothing else references them. make scc-check guards this too.
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: krm-config-deployer
             namespace: kai-resource-management
       - contains:
           path: subjects
@@ -186,7 +200,7 @@ tests:
     asserts:
       - lengthEqual:
           path: subjects
-          count: 5
+          count: 7
 
   - it: renders nothing when rbac.create is false
     set:

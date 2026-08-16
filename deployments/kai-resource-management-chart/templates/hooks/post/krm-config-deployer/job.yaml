@@ -1,0 +1,50 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.krmConfigDeployer.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: krm-config-deployer
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    # After the ConfigMap and the RBAC it runs as.
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        app: krm-config-deployer
+    spec:
+      serviceAccountName: krm-config-deployer
+      restartPolicy: OnFailure
+      containers:
+        - name: deployer
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.krmConfigDeployer.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.krmConfigDeployer.image) }}
+          resources:
+            {{- toYaml (.Values.krmConfigDeployer.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 12 }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            # Server-side apply keeps the CR out of the Helm release, so its UID
+            # survives every upgrade. The operator hangs ownerReferences off it, so a
+            # recreated CR would cascade-delete every object it owns.
+            - |
+              set -euo pipefail
+              kubectl apply --server-side --force-conflicts \
+                --field-manager=krm-config-deployer \
+                -f /manifest/krm-config.yaml
+          volumeMounts:
+            - name: manifest
+              mountPath: /manifest
+      volumes:
+        - name: manifest
+          configMap:
+            name: krm-config-manifest
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

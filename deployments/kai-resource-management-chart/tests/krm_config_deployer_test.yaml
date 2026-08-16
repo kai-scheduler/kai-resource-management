@@ -1,0 +1,158 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: krm-config deployer hook and the rendered KRMConfig
+templates:
+  - templates/hooks/post/krm-config-deployer/configmap.yaml
+  - templates/hooks/post/krm-config-deployer/rbac.yaml
+  - templates/hooks/post/krm-config-deployer/job.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: renders the hook by default
+    asserts:
+      - hasDocuments: {count: 1}
+        template: templates/hooks/post/krm-config-deployer/configmap.yaml
+      - hasDocuments: {count: 3}
+        template: templates/hooks/post/krm-config-deployer/rbac.yaml
+      - hasDocuments: {count: 1}
+        template: templates/hooks/post/krm-config-deployer/job.yaml
+
+  - it: renders nothing when the deployer is disabled
+    set:
+      krmConfigDeployer.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-deployer/configmap.yaml
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-deployer/rbac.yaml
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-deployer/job.yaml
+
+  # The manifest and the identity the Job runs as must exist before the Job starts.
+  - it: runs after the ConfigMap and the RBAC
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "0"
+        template: templates/hooks/post/krm-config-deployer/configmap.yaml
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "1"
+        template: templates/hooks/post/krm-config-deployer/job.yaml
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+        template: templates/hooks/post/krm-config-deployer/job.yaml
+
+  # Server-side apply keeps the CR's UID stable across upgrades; the operator hangs
+  # ownerReferences off it, so a recreated CR would cascade-delete everything it owns.
+  - it: applies the CR server-side under its own field manager
+    template: templates/hooks/post/krm-config-deployer/job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: kubectl apply --server-side --force-conflicts
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: --field-manager=krm-config-deployer
+
+  # Only what server-side apply uses, and never delete: the deployer must not be able
+  # to destroy the singleton it manages.
+  - it: is granted only what it applies with
+    template: templates/hooks/post/krm-config-deployer/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.resources"]
+            resources: ["krmconfigs"]
+            verbs: ["create", "patch"]
+
+  # The ArgoCD annotation belongs only to render mode; the hook-applied copy is
+  # not a tracked resource and must not carry it.
+  - it: keeps ArgoCD annotations out of the hook-applied manifest
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["krm-config.yaml"]
+          pattern: argocd\.argoproj\.io
+
+  - it: names the singleton the operator reconciles
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "kind: KRMConfig"
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "name: krm-config"
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "namespace: kai"
+
+  # An emitted empty value would be YAML null, and under server-side apply that takes
+  # ownership of the field and defeats the operator's own defaults.
+  - it: omits global entirely when nothing under it is set
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "global:"
+
+  - it: carries the scheduler settings when they are set
+    set:
+      commonArgs.schedulerName: my-scheduler
+      kai-scheduler.global.nodePoolLabelKey: my.io/node-pool
+      kai-scheduler.podgrouper.queueLabelKey: my.io/queue
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'schedulerName: "my-scheduler"'
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'nodePoolLabelKey: "my.io/node-pool"'
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'queueLabelKey: "my.io/queue"'
+
+  # The CR takes secret names; the chart's own value is a list of {name: ...}.
+  - it: converts imagePullSecrets to bare names
+    set:
+      global.imagePullSecrets:
+        - name: regcred
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: '- "regcred"'
+
+  # One source, two consumers: the same values the chart's own Deployments use.
+  - it: describes each service from its component values
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'name: "project-controller"'
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'repository: "reg.example.com/kai"'
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'tag: "0.0.0"'
+
+  - it: disables a service the chart is not installing
+    set:
+      projectController.enabled: false
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "enabled: false"

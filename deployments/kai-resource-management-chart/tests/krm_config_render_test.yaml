@@ -1,0 +1,56 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: krmConfig.render inline rendering
+templates:
+  - templates/krm-config.yaml
+release:
+  name: krm
+  namespace: kai
+tests:
+  - it: renders nothing by default, the deployer hook owning the CR
+    asserts:
+      - hasDocuments: {count: 0}
+
+  - it: renders the CR as a tracked release resource in GitOps mode
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+    asserts:
+      - hasDocuments: {count: 1}
+      - isKind: {of: KRMConfig}
+      # Guards the bug fixed in #21: a left-trimmed include glues apiVersion onto
+      # the licence header and the document is rejected for having none.
+      - isAPIVersion: {of: kai.resources/v1alpha1}
+      - equal: {path: metadata.name, value: krm-config}
+      - equal: {path: spec.namespace, value: kai}
+
+  # SkipDryRunOnMissingResource: ArgoCD dry-runs sync-phase resources before the CRD
+  # is established. ServerSideApply: adopts a CR the deployer previously managed.
+  - it: carries the ArgoCD sync options only in render mode
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-options"]
+          value: SkipDryRunOnMissingResource=true,ServerSideApply=true
+      # In GitOps mode the CR should be pruned with the release, not kept.
+      - notExists:
+          path: metadata.annotations["helm.sh/resource-policy"]
+
+  - it: renders nothing when the CR is managed outside the chart
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: false
+    asserts:
+      - hasDocuments: {count: 0}
+
+  # Two managers of one singleton: the hook would recreate what GitOps prunes.
+  - it: refuses to run both mechanisms at once
+    set:
+      krmConfigDeployer.enabled: true
+      krmConfig.render: true
+    asserts:
+      - failedTemplate:
+          errorPattern: mutually exclusive

@@ -21,10 +21,8 @@ spec:
       - name: upgrader
         image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.crdUpgrader.image) }}
         imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.crdUpgrader.image) }}
-        {{- with .Values.crdUpgrader.resources }}
         resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
+          {{- toYaml (.Values.crdUpgrader.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 10 }}
         {{- include "kai-resource-management.securityContext" . | nindent 8 }}
       restartPolicy: OnFailure
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}

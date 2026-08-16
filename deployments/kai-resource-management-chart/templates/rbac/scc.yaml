@@ -36,14 +36,19 @@ seLinuxContext:
   type: MustRunAs
 supplementalGroups:
   type: RunAsAny
-# Listed unconditionally: entries naming a ServiceAccount that does not exist, because a
-# component is disabled or the hook SA was deleted, are legal and inert.
+# EVERY ServiceAccount this chart creates must appear here and in the binding below,
+# including the hook ones: the containers pin runAsUser 10000, which restricted-v2
+# rejects, so an unlisted SA means its pods never start on OpenShift. `make scc-check`
+# enforces it. Listed unconditionally: entries naming a ServiceAccount that does not
+# exist, because a component is disabled or a hook SA was reaped, are legal and inert.
 users:
 - system:serviceaccount:{{ .Release.Namespace }}:krm-operator
 - system:serviceaccount:{{ .Release.Namespace }}:nodepool-controller
 - system:serviceaccount:{{ .Release.Namespace }}:project-controller
 - system:serviceaccount:{{ .Release.Namespace }}:pod-group-assigner
 - system:serviceaccount:{{ .Release.Namespace }}:kai-resource-management-crd-manager
+- system:serviceaccount:{{ .Release.Namespace }}:krm-config-deployer
+- system:serviceaccount:{{ .Release.Namespace }}:krm-config-cleanup
 volumes:
 - awsElasticBlockStore
 - azureDisk
@@ -119,5 +124,11 @@ subjects:
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: kai-resource-management-crd-manager
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: krm-config-deployer
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: krm-config-cleanup
     namespace: {{ .Release.Namespace }}
 {{- end }}

@@ -1,0 +1,160 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: post-delete cleanup hook
+templates:
+  - templates/hooks/post/krm-config-cleanup/job.yaml
+  - templates/hooks/post/krm-config-cleanup/rbac.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: renders by default
+    asserts:
+      - hasDocuments: {count: 1}
+        template: templates/hooks/post/krm-config-cleanup/job.yaml
+      # SA + Role + RoleBinding + ClusterRole + ClusterRoleBinding
+      - hasDocuments: {count: 5}
+        template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+
+  - it: renders nothing when disabled
+    set:
+      postCleanup.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-cleanup/job.yaml
+      - hasDocuments: {count: 0}
+        template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+
+  # Without the argocd pair, ArgoCD treats Helm hooks as ordinary sync-phase
+  # resources and the cleanup never runs on delete (needs ArgoCD >= 2.10).
+  - it: runs after the release is deleted, in Helm and in ArgoCD
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-delete
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: PostDelete
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: BeforeHookCreation,HookSucceeded
+
+  - it: removes the operand deployments and then the CR
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      # Scoped to the release namespace and to what the operator made. A regression
+      # dropping either turns this into a namespace-wide, or cluster-wide, wipe.
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'kubectl -n kai delete deployment'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'delete deployments? --all'
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '--all-namespaces|-A '
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: kubectl delete krmconfig krm-config --ignore-not-found=true
+
+  # Helm deletes release resources before post-delete hooks, so while the CRD is a
+  # chart template the resource type can already be gone. --ignore-not-found covers
+  # a missing object, not a missing type: kubectl errors, and under set -e the whole
+  # script aborts, leaving a retrying Job and orphaned RBAC behind.
+  - it: does not assume the resource type still exists
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'if kubectl get crd krmconfigs\.kai\.resources'
+
+  - it: can read the CRD it checks for, or the check fails closed
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apiextensions.k8s.io"]
+            resources: ["customresourcedefinitions"]
+            resourceNames: ["krmconfigs.kai.resources"]
+            verbs: ["get"]
+
+  # In render mode the CR is a tracked release resource Helm deletes itself; with
+  # both modes off it belongs to somebody else. Either way the chart must not.
+  - it: deletes the CR only when this chart created it
+    set:
+      krmConfigDeployer.enabled: false
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: delete krmconfig
+      # The operand deployments still have to go: the operator created them, not Helm.
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
+
+  # The only place in this chart granting delete on a krmconfig, and only on the one
+  # the chart created.
+  - it: is the only holder of delete on krmconfigs
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.resources"]
+            resources: ["krmconfigs"]
+            resourceNames: ["krm-config"]
+            verbs: ["delete"]
+
+  # Deployments are namespaced and only ever deleted in the release namespace, so the
+  # grant is namespaced too. A ClusterRole here would let a compromised hook token
+  # delete Deployments anywhere in the cluster.
+  - it: can delete deployments only in the release namespace
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: Role
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: kai
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["delete", "get", "list", "watch"]
+
+  - it: grants nothing cluster-wide on deployments
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["delete", "get", "list", "watch"]
+
+  - it: never restarts, so a failed cleanup does not loop
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never

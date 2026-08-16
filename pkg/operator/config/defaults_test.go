@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
@@ -125,6 +126,36 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 		Expect(spec.Global.SchedulerName).To(BeNil())
 		Expect(spec.Global.QueueLabelKey).To(BeNil())
 		Expect(spec.Global.NodePoolLabelKey).To(BeNil())
+	})
+
+	// The generic kai/v1/common default is 100m/512Mi, which would quarter
+	// project-controller's memory limit relative to what the chart deploys today.
+	It("gives each service its own resource default", func() {
+		spec := &krmv1alpha1.KRMConfigSpec{}
+
+		SetDefaultsWhereNeeded(spec)
+
+		Expect(spec.ProjectController.Service.Resources.Limits.Memory().String()).To(Equal("2Gi"))
+		Expect(spec.ProjectController.Service.Resources.Limits.Cpu().String()).To(Equal("300m"))
+		Expect(spec.NodePoolController.Service.Resources.Limits.Memory().String()).To(Equal("1Gi"))
+		Expect(spec.NodePoolController.Service.Resources.Limits.Cpu().String()).To(Equal("900m"))
+		Expect(spec.PodGroupAssigner.Service.Resources.Limits.Memory().String()).To(Equal("512Mi"))
+	})
+
+	It("keeps resources that were set", func() {
+		spec := &krmv1alpha1.KRMConfigSpec{
+			ProjectController: &krmv1alpha1.ProjectController{
+				Service: &kaicommon.Service{
+					Resources: &kaicommon.Resources{
+						Limits: corev1.ResourceList{corev1.ResourceMemory: apiresource.MustParse("4Gi")},
+					},
+				},
+			},
+		}
+
+		SetDefaultsWhereNeeded(spec)
+
+		Expect(spec.ProjectController.Service.Resources.Limits.Memory().String()).To(Equal("4Gi"))
 	})
 
 	It("is idempotent", func() {

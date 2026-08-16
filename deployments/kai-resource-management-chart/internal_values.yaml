@@ -28,6 +28,16 @@ crdUpgrader:
     limits: { cpu: 500m, memory: 256Mi }
     requests: { cpu: 100m, memory: 128Mi }
 
+krmConfigDeployer:
+  resources:
+    limits: { cpu: 500m, memory: 256Mi }
+    requests: { cpu: 100m, memory: 128Mi }
+
+postCleanup:
+  resources:
+    limits: { cpu: 500m, memory: 256Mi }
+    requests: { cpu: 100m, memory: 128Mi }
+
 krmOperator:
   replicas: 1
   metricsPort: 8080          # --metrics-bind-address
