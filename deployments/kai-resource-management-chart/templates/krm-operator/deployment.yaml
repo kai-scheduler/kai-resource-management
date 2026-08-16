@@ -1,0 +1,72 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if .Values.krmOperator.enabled }}
+{{- $comp := .Values.krmOperator }}
+{{- $a := $comp.args | default dict }}
+{{- $replicas := $comp.replicas | default 1 }}
+{{- $metricsPort := int ($comp.metricsPort | default 8080) }}
+{{- $probePort := int ($comp.probePort | default 8081) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: krm-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: krm-operator
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: krm-operator
+  template:
+    metadata:
+      labels:
+        app: krm-operator
+    spec:
+      serviceAccountName: krm-operator
+      containers:
+        - name: krm-operator
+          image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
+          imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
+          {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          env:
+            # The operand images default to the operator's own registry and tag.
+            # kai/v1/common.Image reads these two names specifically.
+            - name: MS_REPOSITORY
+              value: {{ .Values.image.registry | quote }}
+            - name: MS_TAG
+              value: {{ include "kai-resource-management.imageTag" (dict "root" $ "tag" $comp.image.tag) | quote }}
+          ports:
+            - name: metrics
+              containerPort: {{ $metricsPort }}
+            - name: probe
+              containerPort: {{ $probePort }}
+          args:
+            - --metrics-bind-address
+            - {{ printf ":%d" $metricsPort | quote }}
+            - --health-probe-bind-address
+            - {{ printf ":%d" $probePort | quote }}
+            {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
+            {{- $leaderElect := .Values.global.leaderElection }}
+            {{- if hasKey $a "leaderElect" }}{{- $leaderElect = $a.leaderElect }}{{- end }}
+            {{- if or $leaderElect (gt (int $replicas) 1) }}
+            - --leader-elect
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ $probePort }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ $probePort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml ($comp.resources | default (dict "limits" (dict "cpu" "500m" "memory" "512Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 12 }}
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

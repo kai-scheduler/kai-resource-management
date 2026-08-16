@@ -1,0 +1,60 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+{{- if and .Values.krmOperator.enabled .Values.rbac.create }}
+# Maintained by hand: this repository does not run controller-gen over the operator,
+# so these rules are not generated from kubebuilder markers and must be kept in step
+# with the kinds registered in pkg/operator/operands/known-types.
+#
+# The operator lists every registered kind on each reconcile to find what it owns,
+# so the read verbs are needed even while it deploys nothing.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kai-krm-operator
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["kai.resources"]
+    resources: ["krmconfigs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["kai.resources"]
+    resources: ["krmconfigs/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "services", "configmaps"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  # Optional CRDs: the operator skips these when absent, but cannot ask for the
+  # permission conditionally.
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  # Leader election, and the Events an operand reports failures through.
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kai-krm-operator
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kai-krm-operator
+subjects:
+  - kind: ServiceAccount
+    name: krm-operator
+    namespace: {{ .Release.Namespace }}
+{{- end }}

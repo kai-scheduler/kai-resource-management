@@ -39,6 +39,7 @@ supplementalGroups:
 # Listed unconditionally: entries naming a ServiceAccount that does not exist, because a
 # component is disabled or the hook SA was deleted, are legal and inert.
 users:
+- system:serviceaccount:{{ .Release.Namespace }}:krm-operator
 - system:serviceaccount:{{ .Release.Namespace }}:nodepool-controller
 - system:serviceaccount:{{ .Release.Namespace }}:project-controller
 - system:serviceaccount:{{ .Release.Namespace }}:pod-group-assigner
@@ -104,6 +105,9 @@ roleRef:
   kind: ClusterRole
   name: kai-resource-management-scc
 subjects:
+  - kind: ServiceAccount
+    name: krm-operator
+    namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: nodepool-controller
     namespace: {{ .Release.Namespace }}

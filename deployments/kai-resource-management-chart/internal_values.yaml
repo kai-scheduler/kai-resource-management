@@ -28,6 +28,17 @@ crdUpgrader:
     limits: { cpu: 500m, memory: 256Mi }
     requests: { cpu: 100m, memory: 128Mi }
 
+krmOperator:
+  replicas: 1
+  metricsPort: 8080          # --metrics-bind-address
+  probePort: 8081            # --health-probe-bind-address, and the liveness/readiness port
+  resources:
+    limits: { cpu: 500m, memory: 512Mi }
+    requests: { cpu: 100m, memory: 128Mi }
+  args:
+    qps: ""                  # --qps (default 50)
+    burst: ""                # --burst (default 300)
+
 nodepoolController:
   replicas: 1
   metrics:
