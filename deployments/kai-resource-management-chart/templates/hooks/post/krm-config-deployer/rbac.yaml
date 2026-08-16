@@ -12,8 +12,10 @@ metadata:
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 ---
-# No delete verb: the deployer cannot destroy the singleton it manages. Removing it
-# is the post-delete hook's job, and only when this chart created it.
+# Only what `kubectl apply --server-side` uses: one PATCH, which creates the object
+# when it is absent. No get, list or update, and no delete — the deployer cannot
+# destroy the singleton it manages. Removing it is the post-delete hook's job, and
+# only when this chart created it.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -25,7 +27,7 @@ metadata:
 rules:
   - apiGroups: ["kai.resources"]
     resources: ["krmconfigs"]
-    verbs: ["get", "list", "create", "update", "patch"]
+    verbs: ["create", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

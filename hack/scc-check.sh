@@ -20,7 +20,9 @@ set -euo pipefail
 CHART_DIR="${1:-deployments/kai-resource-management-chart}"
 SCC_TEMPLATE="${CHART_DIR}/templates/rbac/scc.yaml"
 
-rendered="$(helm template scc-check "${CHART_DIR}" --set openshift=true)"
+# rbac.create gates the SCC itself, so force it on: this checks SCC coverage, not
+# whether an installation happens to create RBAC.
+rendered="$(helm template scc-check "${CHART_DIR}" --set openshift=true --set rbac.create=true)"
 
 # Only this chart's own ServiceAccounts: the kai-scheduler subchart grants its own
 # through its own SCC, and its objects are rendered from charts/ rather than templates/.
@@ -32,7 +34,7 @@ accounts="$(
 
 granted="$(
   awk '/^# Source: /{ mine = ($0 ~ /scc\.yaml$/) } mine' <<<"${rendered}" |
-    grep -oE 'system:serviceaccount:[^:]+:[a-z0-9-]+' | sed 's/.*://' | sort -u
+    grep -oE 'system:serviceaccount:[^:]+:[a-z0-9-]+' | sed 's/.*://' | sort -u || true
 )"
 
 status=0

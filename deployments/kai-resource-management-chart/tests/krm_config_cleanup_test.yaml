@@ -15,7 +15,8 @@ tests:
     asserts:
       - hasDocuments: {count: 1}
         template: templates/hooks/post/krm-config-cleanup/job.yaml
-      - hasDocuments: {count: 3}
+      # SA + Role + RoleBinding + ClusterRole + ClusterRoleBinding
+      - hasDocuments: {count: 5}
         template: templates/hooks/post/krm-config-cleanup/rbac.yaml
 
   - it: renders nothing when disabled
@@ -103,7 +104,8 @@ tests:
           path: spec.template.spec.containers[0].args[0]
           pattern: --selector=app.kubernetes.io/managed-by=krm-operator
 
-  # The only place in this chart granting delete on a krmconfig.
+  # The only place in this chart granting delete on a krmconfig, and only on the one
+  # the chart created.
   - it: is the only holder of delete on krmconfigs
     template: templates/hooks/post/krm-config-cleanup/rbac.yaml
     documentSelector:
@@ -115,7 +117,40 @@ tests:
           content:
             apiGroups: ["kai.resources"]
             resources: ["krmconfigs"]
+            resourceNames: ["krm-config"]
             verbs: ["delete"]
+
+  # Deployments are namespaced and only ever deleted in the release namespace, so the
+  # grant is namespaced too. A ClusterRole here would let a compromised hook token
+  # delete Deployments anywhere in the cluster.
+  - it: can delete deployments only in the release namespace
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: Role
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: kai
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["delete", "get", "list", "watch"]
+
+  - it: grants nothing cluster-wide on deployments
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["delete", "get", "list", "watch"]
 
   - it: never restarts, so a failed cleanup does not loop
     template: templates/hooks/post/krm-config-cleanup/job.yaml

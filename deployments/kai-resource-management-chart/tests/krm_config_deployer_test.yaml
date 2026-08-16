@@ -60,8 +60,9 @@ tests:
           path: spec.template.spec.containers[0].args[0]
           pattern: --field-manager=krm-config-deployer
 
-  # The deployer must not be able to destroy the singleton it manages.
-  - it: is granted no delete on krmconfigs
+  # Only what server-side apply uses, and never delete: the deployer must not be able
+  # to destroy the singleton it manages.
+  - it: is granted only what it applies with
     template: templates/hooks/post/krm-config-deployer/rbac.yaml
     documentSelector:
       path: kind
@@ -72,7 +73,7 @@ tests:
           content:
             apiGroups: ["kai.resources"]
             resources: ["krmconfigs"]
-            verbs: ["get", "list", "create", "update", "patch"]
+            verbs: ["create", "patch"]
 
   # The ArgoCD annotation belongs only to render mode; the hook-applied copy is
   # not a tracked resource and must not carry it.

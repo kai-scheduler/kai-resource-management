@@ -10,7 +10,39 @@ metadata:
   annotations:
     {{- include "kai-resource-management.post-delete-hook-annotations" . | nindent 4 }}
 ---
-# The only place in this chart granting delete on a krmconfig.
+# Deployments are namespaced and the Job only ever deletes them in the release
+# namespace, so this is a Role rather than a ClusterRole: a cluster-wide grant would
+# let a compromised hook token delete Deployments anywhere in the cluster.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kai-resource-management-config-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "kai-resource-management.post-delete-hook-annotations" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["delete", "get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kai-resource-management-config-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "kai-resource-management.post-delete-hook-annotations" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kai-resource-management-config-cleanup
+subjects:
+  - kind: ServiceAccount
+    name: krm-config-cleanup
+    namespace: {{ .Release.Namespace }}
+---
+# Only the cluster-scoped kinds need a ClusterRole. This is the one place in the
+# chart granting delete on a krmconfig.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -18,11 +50,9 @@ metadata:
   annotations:
     {{- include "kai-resource-management.post-delete-hook-annotations" . | nindent 4 }}
 rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["delete", "get", "list", "watch"]
   - apiGroups: ["kai.resources"]
     resources: ["krmconfigs"]
+    resourceNames: ["krm-config"]
     verbs: ["delete"]
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
