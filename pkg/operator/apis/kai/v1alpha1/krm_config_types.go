@@ -79,7 +79,7 @@ type KRMConfigList struct {
 // for an absent field.
 type KRMConfigSpec struct {
 	// Namespace is where the operator deploys the KRM services. Defaults to the
-	// namespace the operator itself runs in.
+	// namespace the operator itself runs in, which is the Helm release namespace.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 

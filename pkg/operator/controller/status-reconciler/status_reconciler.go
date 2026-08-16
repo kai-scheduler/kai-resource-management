@@ -48,24 +48,28 @@ func (r *StatusReconciler) UpdateStartReconcileStatus(
 }
 
 func (r *StatusReconciler) ReconcileStatus(ctx context.Context, krmConfig *krmv1alpha1.KRMConfig) error {
-	if err := r.reconcileCondition(
-		ctx, krmConfig, r.getDeployedCondition(ctx, krmConfig.GetGeneration())); err != nil {
-		return err
+	generation := krmConfig.GetGeneration()
+
+	// Computed once and passed to the Ready condition, which is derived from them
+	// rather than asking the operands a second time.
+	deployed := r.getDeployedCondition(ctx, generation)
+	available := r.getAvailableCondition(ctx, generation)
+	dependenciesFulfilled := r.getDependenciesFulfilledCondition(ctx, krmConfig)
+
+	conditions := []metav1.Condition{
+		deployed,
+		available,
+		dependenciesFulfilled,
+		readyCondition(generation, deployed, available, dependenciesFulfilled),
+		r.getReconcilingCondition(generation, false),
 	}
-	if err := r.reconcileCondition(
-		ctx, krmConfig, r.getAvailableCondition(ctx, krmConfig.GetGeneration())); err != nil {
-		return err
+
+	for _, condition := range conditions {
+		if err := r.reconcileCondition(ctx, krmConfig, condition); err != nil {
+			return err
+		}
 	}
-	if err := r.reconcileCondition(
-		ctx, krmConfig, r.getDependenciesFulfilledCondition(ctx, krmConfig)); err != nil {
-		return err
-	}
-	if err := r.reconcileCondition(
-		ctx, krmConfig, r.getReadyCondition(ctx, krmConfig.GetGeneration())); err != nil {
-		return err
-	}
-	return r.reconcileCondition(
-		ctx, krmConfig, r.getReconcilingCondition(krmConfig.GetGeneration(), false))
+	return nil
 }
 
 func (r *StatusReconciler) hasReconcilingConditionForGeneration(krmConfig *krmv1alpha1.KRMConfig) bool {
@@ -88,6 +92,7 @@ func (r *StatusReconciler) reconcileCondition(
 		if existingCondition.Type == condition.Type {
 			if existingCondition.ObservedGeneration == condition.ObservedGeneration &&
 				existingCondition.Status == condition.Status &&
+				existingCondition.Reason == condition.Reason &&
 				existingCondition.Message == condition.Message {
 				return nil
 			}
@@ -160,17 +165,19 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 		krmv1alpha1.ReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
 }
 
-func (r *StatusReconciler) getReadyCondition(ctx context.Context, generation int64) metav1.Condition {
-	condition := r.getAvailableCondition(ctx, generation)
-	condition.Type = string(krmv1alpha1.ConditionTypeReady)
-	if condition.Status == metav1.ConditionTrue {
-		condition.Reason = string(krmv1alpha1.ReasonReady)
-		condition.Message = "System is ready"
-	} else {
-		condition.Reason = string(krmv1alpha1.ReasonNotReady)
-		condition.Message = "System not ready"
+// readyCondition summarises the others, so a consumer watching only Ready — Helm
+// --wait, kstatus — is not told the installation is ready while a dependency is
+// missing. It reports the first unmet condition's message rather than a generic
+// one, since that is the part that needs attention.
+func readyCondition(generation int64, conditions ...metav1.Condition) metav1.Condition {
+	for _, condition := range conditions {
+		if condition.Status != metav1.ConditionTrue {
+			return newCondition(krmv1alpha1.ConditionTypeReady, false,
+				krmv1alpha1.ReasonNotReady, condition.Message, generation)
+		}
 	}
-	return condition
+	return newCondition(krmv1alpha1.ConditionTypeReady, true,
+		krmv1alpha1.ReasonReady, "System is ready", generation)
 }
 
 func newCondition(

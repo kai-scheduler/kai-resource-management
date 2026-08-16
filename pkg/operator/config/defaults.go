@@ -10,6 +10,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/kai-scheduler/api/constants"
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +21,12 @@ import (
 )
 
 const (
-	DefaultNamespace = "kai-resource-management"
+	// podNamespaceEnvVar is set on the operator Deployment from the downward API.
+	podNamespaceEnvVar = "POD_NAMESPACE"
+
+	// FallbackNamespace applies only when the operator runs outside a cluster,
+	// such as in tests, where the downward API env var is absent.
+	FallbackNamespace = "kai-resource-management"
 
 	NodePoolControllerImageName = "nodepool-controller"
 	ProjectControllerImageName  = "project-controller"
@@ -30,7 +37,7 @@ const (
 // never written back, so the stored KRMConfig keeps showing only what was set.
 func SetDefaultsWhereNeeded(spec *krmv1alpha1.KRMConfigSpec) {
 	if len(spec.Namespace) == 0 {
-		spec.Namespace = DefaultNamespace
+		spec.Namespace = OperatorNamespace()
 	}
 
 	spec.Global = kaicommon.SetDefault(spec.Global, &krmv1alpha1.GlobalConfig{})
@@ -47,6 +54,17 @@ func SetDefaultsWhereNeeded(spec *krmv1alpha1.KRMConfigSpec) {
 
 	spec.PodGroupAssigner = kaicommon.SetDefault(spec.PodGroupAssigner, &krmv1alpha1.PodGroupAssigner{})
 	setPodGroupAssignerDefaults(spec.PodGroupAssigner, spec.Global)
+}
+
+// OperatorNamespace reports the namespace the operator is running in, which is
+// the Helm release namespace. Reading it from the pod is what keeps the services
+// beside the operator whichever namespace the chart was installed into; a
+// hard-coded default would send them somewhere that need not even exist.
+func OperatorNamespace() string {
+	if namespace := os.Getenv(podNamespaceEnvVar); namespace != "" {
+		return namespace
+	}
+	return FallbackNamespace
 }
 
 func setSchedulerConfigRefDefaults(ref *krmv1alpha1.SchedulerConfigRef) {

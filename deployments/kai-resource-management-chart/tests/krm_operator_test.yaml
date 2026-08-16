@@ -196,3 +196,16 @@ tests:
       - equal:
           path: spec.names.kind
           value: KRMConfig
+
+  # The services are deployed beside the operator, and only the pod knows which
+  # namespace the chart was installed into.
+  - it: tells the operator which namespace it is running in
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace

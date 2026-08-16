@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -166,9 +167,9 @@ func (d *DeployableOperands) getDesiredState(
 		for _, obj := range objects {
 			groupVersionKind := obj.GetObjectKind().GroupVersionKind()
 			if groupVersionKind.Empty() {
-				// Without a GVK the obj cannot be matched against current
+				// Without a GVK the object cannot be matched against current
 				// state, and would be recreated on every reconcile.
-				return nil, fmt.Errorf("%s: obj %s/%s has no GroupVersionKind set",
+				return nil, fmt.Errorf("%s: object %s/%s has no GroupVersionKind set",
 					operand.Name(), obj.GetNamespace(), obj.GetName())
 			}
 			desiredState[knowntypes.GetKey(groupVersionKind, obj.GetNamespace(), obj.GetName())] = obj
@@ -264,23 +265,31 @@ func createObjectForKRMConfig(
 	obj client.Object) error {
 	obj.SetOwnerReferences([]metav1.OwnerReference{reconcilerAsOwnerReference})
 
-	if err := runtimeClient.Create(ctx, obj); err != nil {
-		logger := log.FromContext(ctx)
-		logger.Info("Failed to create obj, trying to update to take ownership",
-			"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(), "Name", obj.GetName(), "Error", err)
-
-		if updateErr := runtimeClient.Update(ctx, obj); updateErr != nil {
-			logger.Error(updateErr, "failed taking ownership on obj",
-				"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(),
-				"Name", obj.GetName(), "Namespace", obj.GetNamespace())
-
-			return fmt.Errorf("failed creating %s %s/%s: %w", obj.GetObjectKind().GroupVersionKind(),
-				obj.GetNamespace(), obj.GetName(), err)
-		}
-
-		logger.Info("Took ownership on obj",
-			"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(), "Name", obj.GetName())
+	err := runtimeClient.Create(ctx, obj)
+	if err == nil {
+		return nil
 	}
+
+	if !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed creating %s %s/%s: %w", obj.GetObjectKind().GroupVersionKind(),
+			obj.GetNamespace(), obj.GetName(), err)
+	}
+
+	logger := log.FromContext(ctx)
+	logger.Info("Object already exists, updating to take ownership",
+		"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(), "Name", obj.GetName())
+
+	if updateErr := runtimeClient.Update(ctx, obj); updateErr != nil {
+		logger.Error(updateErr, "failed taking ownership on object",
+			"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(),
+			"Name", obj.GetName(), "Namespace", obj.GetNamespace())
+
+		return fmt.Errorf("failed taking ownership on %s %s/%s: %w",
+			obj.GetObjectKind().GroupVersionKind(), obj.GetNamespace(), obj.GetName(), updateErr)
+	}
+
+	logger.Info("Took ownership on obj",
+		"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(), "Name", obj.GetName())
 	return nil
 }
 

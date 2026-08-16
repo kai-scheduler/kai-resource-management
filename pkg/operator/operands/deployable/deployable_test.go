@@ -5,6 +5,7 @@ package deployable
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -12,14 +13,17 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
@@ -105,11 +109,15 @@ func newScheme() *runtime.Scheme {
 // newClient registers the same field indexes the manager does, so Collect exercises
 // the real lookup rather than a simplified one.
 func newClient(scheme *runtime.Scheme, objects ...client.Object) client.Client {
-	clientBuilder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...)
+	return newClientBuilder(scheme).WithObjects(objects...).Build()
+}
+
+func newClientBuilder(scheme *runtime.Scheme) *fake.ClientBuilder {
+	clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 	for _, collectable := range knowntypes.KRMConfigOwned {
 		collectable.InitWithFakeClientBuilder(clientBuilder)
 	}
-	return clientBuilder.Build()
+	return clientBuilder
 }
 
 var _ = Describe("DeployableOperands", func() {
@@ -160,6 +168,63 @@ var _ = Describe("DeployableOperands", func() {
 			}}
 
 			Expect(deploy()).To(MatchError(ContainSubstring("no GroupVersionKind set")))
+		})
+	})
+
+	Context("failing to create", func() {
+		// Anything other than an existing object would fail the update the same
+		// way, and retrying hides the real error behind a second one.
+		It("does not try to take ownership when the create was refused", func() {
+			updateAttempted := false
+			runtimeClient = newClientBuilder(scheme).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Create: func(
+						_ context.Context, _ client.WithWatch, _ client.Object, _ ...client.CreateOption,
+					) error {
+						return apierrors.NewForbidden(
+							schema.GroupResource{Resource: "configmaps"}, "settings", errors.New("denied"))
+					},
+					Update: func(
+						_ context.Context, _ client.WithWatch, _ client.Object, _ ...client.UpdateOption,
+					) error {
+						updateAttempted = true
+						return nil
+					},
+				}).
+				Build()
+			operand.configMaps = map[string]map[string]string{"settings": nil}
+
+			err := engine.Deploy(ctx, runtimeClient, krmConfig, krmConfig)
+
+			Expect(err).To(MatchError(ContainSubstring("forbidden")))
+			Expect(updateAttempted).To(BeFalse())
+		})
+
+		It("reports the update failure when taking ownership fails", func() {
+			runtimeClient = newClientBuilder(scheme).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Create: func(
+						_ context.Context, _ client.WithWatch, obj client.Object, _ ...client.CreateOption,
+					) error {
+						return apierrors.NewAlreadyExists(
+							schema.GroupResource{Resource: "configmaps"}, obj.GetName())
+					},
+					Update: func(
+						_ context.Context, _ client.WithWatch, _ client.Object, _ ...client.UpdateOption,
+					) error {
+						return apierrors.NewConflict(
+							schema.GroupResource{Resource: "configmaps"}, "settings", errors.New("stale"))
+					},
+				}).
+				Build()
+			operand.configMaps = map[string]map[string]string{"settings": nil}
+
+			err := engine.Deploy(ctx, runtimeClient, krmConfig, krmConfig)
+
+			// The conflict is the real failure; "already exists" is not.
+			Expect(err).To(MatchError(ContainSubstring("failed taking ownership")))
+			Expect(err).To(MatchError(ContainSubstring("stale")))
+			Expect(err).ToNot(MatchError(ContainSubstring("already exists")))
 		})
 	})
 

@@ -27,12 +27,22 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 
 		SetDefaultsWhereNeeded(spec)
 
-		Expect(spec.Namespace).To(Equal(DefaultNamespace))
+		Expect(spec.Namespace).To(Equal(OperatorNamespace()))
 		Expect(spec.SchedulerConfigRef.Name).To(Equal(constants.DefaultKAIConfigSingeltonInstanceName))
 		Expect(spec.Global.ReplicaCount).To(Equal(ptr.To(int32(1))))
 		Expect(spec.NodePoolController.Service.Image.Name).To(Equal(ptr.To(NodePoolControllerImageName)))
 		Expect(spec.ProjectController.Service.Image.Name).To(Equal(ptr.To(ProjectControllerImageName)))
 		Expect(spec.PodGroupAssigner.Service.Image.Name).To(Equal(ptr.To(PodGroupAssignerImageName)))
+	})
+
+	// The services belong beside the operator, wherever the chart was installed.
+	It("deploys into the namespace the operator runs in", func() {
+		GinkgoT().Setenv(podNamespaceEnvVar, "somewhere-else")
+		spec := &krmv1alpha1.KRMConfigSpec{}
+
+		SetDefaultsWhereNeeded(spec)
+
+		Expect(spec.Namespace).To(Equal("somewhere-else"))
 	})
 
 	It("keeps every value that was set", func() {

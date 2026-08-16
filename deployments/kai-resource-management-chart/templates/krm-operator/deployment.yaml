@@ -32,6 +32,12 @@ spec:
           imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
           {{- include "kai-resource-management.securityContext" . | nindent 10 }}
           env:
+            # Where the services are deployed when the KRMConfig does not say.
+            # They belong beside the operator, and only the pod knows where that is.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             # The operand images default to the operator's own registry and tag.
             # kai/v1/common.Image reads these two names specifically.
             - name: MS_REPOSITORY

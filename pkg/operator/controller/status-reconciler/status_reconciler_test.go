@@ -153,6 +153,27 @@ var _ = Describe("StatusReconciler", func() {
 			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Reason).To(Equal(string(krmv1alpha1.ReasonNotReady)))
 		})
 
+		// Ready is what Helm --wait and kstatus watch, so it must not claim the
+		// installation is ready while a dependency is missing.
+		It("is not ready while a dependency is missing", func() {
+			deployable.missing = "FakeOperand is missing the prometheus operator"
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			Expect(conditionOf(krmv1alpha1.ConditionTypeAvailable).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Message).To(
+				Equal("FakeOperand is missing the prometheus operator"))
+		})
+
+		It("is not ready while nothing is deployed", func() {
+			deployable.deployed = false
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
+		})
+
 		It("names what is missing rather than only logging it", func() {
 			deployable.missing = "FakeOperand is missing the prometheus operator"
 
