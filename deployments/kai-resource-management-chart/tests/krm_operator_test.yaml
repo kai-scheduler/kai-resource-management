@@ -1,0 +1,198 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+suite: krm-operator deployment, RBAC and CRD
+templates:
+  - templates/krm-operator/deployment.yaml
+  - templates/krm-operator/serviceaccount.yaml
+  - templates/krm-operator/clusterrole.yaml
+  - templates/krm-operator/kai.resources_krmconfigs.yaml
+release:
+  name: rm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: resolves the operator image like every other component
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: reg.example.com/kai/krm-operator:0.0.0
+
+  # kai/v1/common reads these two names to default an operand's image, so an
+  # operand inherits the operator's registry and tag without being told them.
+  - it: passes its own registry and tag to the operands
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MS_REPOSITORY
+            value: reg.example.com/kai
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MS_TAG
+            value: "0.0.0"
+
+  - it: serves health probes on the port it is told to bind
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 8081
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /readyz
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --health-probe-bind-address
+
+  - it: runs without leader election by default
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+
+  - it: elects a leader when asked
+    set:
+      global.leaderElection: true
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+
+  # More than one replica without leader election would mean two operators
+  # reconciling the same KRMConfig.
+  - it: elects a leader whenever it is scaled past one replica
+    set:
+      krmOperator.replicas: 2
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+
+  # Proves any operator flag is settable from values without a template edit.
+  - it: renders any flag set under args
+    set:
+      krmOperator.args.qps: "100"
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --qps
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "100"
+
+  - it: runs as its own ServiceAccount
+    template: templates/krm-operator/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: krm-operator
+
+  - it: creates that ServiceAccount in the release namespace
+    template: templates/krm-operator/serviceaccount.yaml
+    asserts:
+      - isKind:
+          of: ServiceAccount
+      - equal:
+          path: metadata.name
+          value: krm-operator
+      - equal:
+          path: metadata.namespace
+          value: kai
+
+  - it: prefixes its cluster-scoped RBAC with kai-
+    template: templates/krm-operator/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - equal:
+          path: metadata.name
+          value: kai-krm-operator
+
+  # The operator lists every kind it can own on each reconcile to find what is
+  # already there, so these reads are needed even with no operands.
+  - it: can read the kinds it owns
+    template: templates/krm-operator/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.resources"]
+            resources: ["krmconfigs"]
+            verbs: ["get", "list", "watch"]
+
+  # KRM consumes the scheduler's config; writing it is not ours to do.
+  - it: is granted nothing on the scheduler's own API group
+    template: templates/krm-operator/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups: ["kai.scheduler"]
+            resources: ["configs"]
+            verbs: ["update", "patch"]
+
+  - it: binds the ClusterRole to the operator ServiceAccount
+    template: templates/krm-operator/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRoleBinding
+    asserts:
+      - equal:
+          path: roleRef.name
+          value: kai-krm-operator
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: krm-operator
+            namespace: kai
+
+  - it: creates no RBAC when rbac.create is false
+    set:
+      rbac.create: false
+    template: templates/krm-operator/clusterrole.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # TEMPORARY: the CRD is chart-templated only while KRMConfig lives in this
+  # repository. It moves to crds/ when it ships from the API module.
+  - it: installs the KRMConfig CRD as a cluster-scoped singleton kind
+    template: templates/krm-operator/kai.resources_krmconfigs.yaml
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition
+      - equal:
+          path: metadata.name
+          value: krmconfigs.kai.resources
+      - equal:
+          path: spec.scope
+          value: Cluster
+      - equal:
+          path: spec.names.kind
+          value: KRMConfig
