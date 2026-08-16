@@ -147,10 +147,6 @@ emitted empty value would take ownership of that field and stop the operator's o
 default from applying. Pass the root context (.).
 */}}
 {{- define "kai-resource-management.krm-config" -}}
-{{- $kai := index .Values "kai-scheduler" | default dict -}}
-{{- $commonArgs := .Values.commonArgs | default dict -}}
-{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey -}}
-{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey -}}
 apiVersion: kai.resources/v1alpha1
 kind: KRMConfig
 metadata:

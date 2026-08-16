@@ -125,6 +125,8 @@ krmConfig:
   render: false
 
 krmConfigDeployer:
+  # Also governs uninstall: when this is off the post-delete hook leaves the CR
+  # alone, because the chart did not create it.
   enabled: true
   image:
     name: helm-hooks

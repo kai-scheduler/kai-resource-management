@@ -21,10 +21,8 @@ spec:
         - name: cleanup
           image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.postCleanup.image) }}
           imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.postCleanup.image) }}
-          {{- with .Values.postCleanup.resources }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- toYaml (.Values.postCleanup.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 12 }}
           {{- include "kai-resource-management.securityContext" . | nindent 10 }}
           command:
             - /bin/bash
@@ -39,8 +37,10 @@ spec:
               # Only when this chart created it. In render mode the CR is a release
               # resource Helm deletes before this hook runs; when both modes are off
               # the CR belongs to somebody else.
-              echo "Deleting krm-config..."
-              kubectl delete krmconfig krm-config --ignore-not-found=true
+              if kubectl get crd krmconfigs.kai.resources >/dev/null 2>&1; then
+                echo "Deleting krm-config..."
+                kubectl delete krmconfig krm-config --ignore-not-found=true
+              fi
               {{- end }}
               echo "Cleanup complete."
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
