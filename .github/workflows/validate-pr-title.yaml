@@ -28,6 +28,7 @@ jobs:
             nodepool-controller
             project-controller
             pod-group-assigner
+            krm-operator
             chart
             api
             ci
