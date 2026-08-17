@@ -106,8 +106,15 @@ func (r *StatusReconciler) reconcileCondition(
 		updatedConditions = append(updatedConditions, condition)
 	}
 
-	krmConfig.Status.Conditions = updatedConditions
-	return r.Status().Patch(ctx, krmConfig, patch)
+	updated := krmConfig.DeepCopy()
+	updated.Status.Conditions = updatedConditions
+	if err := r.Status().Patch(ctx, updated, patch); err != nil {
+		return err
+	}
+
+	krmConfig.Status = updated.Status
+	krmConfig.ResourceVersion = updated.ResourceVersion
+	return nil
 }
 
 func (r *StatusReconciler) getDeployedCondition(ctx context.Context, generation int64) metav1.Condition {

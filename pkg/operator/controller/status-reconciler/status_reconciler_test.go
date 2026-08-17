@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -117,6 +118,27 @@ var _ = Describe("StatusReconciler", func() {
 			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
 
 			Expect(conditionOf(krmv1alpha1.ConditionTypeDeployed).Status).To(Equal(metav1.ConditionFalse))
+		})
+
+		It("leaves the caller's spec alone", func() {
+			krmConfig.Spec.Namespace = "defaulted-in-memory"
+			krmConfig.Spec.Global = &krmv1alpha1.GlobalConfig{SchedulerName: ptr.To("defaulted")}
+
+			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			Expect(krmConfig.Spec.Namespace).To(Equal("defaulted-in-memory"))
+			Expect(krmConfig.Spec.Global).ToNot(BeNil())
+			Expect(krmConfig.Spec.Global.SchedulerName).To(Equal(ptr.To("defaulted")))
+		})
+
+		// The patch response carries the new resourceVersion; without it the next
+		// patch in the same reconcile is rejected as a conflict.
+		It("keeps the resource version current for the next patch", func() {
+			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			stored := &krmv1alpha1.KRMConfig{}
+			Expect(runtimeClient.Get(ctx, types.NamespacedName{Name: krmConfig.Name}, stored)).To(Succeed())
+			Expect(krmConfig.ResourceVersion).To(Equal(stored.ResourceVersion))
 		})
 
 		// Otherwise the status patch triggers the reconcile that writes it again.

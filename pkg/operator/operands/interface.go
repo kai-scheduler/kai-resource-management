@@ -11,6 +11,13 @@ import (
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
 
+// ResourceFunc builds one object of an operand's desired state. Returning a nil
+// object means the configuration does not want it, which is how an operand skips
+// a resource without special-casing its builder loop.
+type ResourceFunc func(
+	ctx context.Context, reader client.Reader, config *krmv1alpha1.KRMConfig,
+) (client.Object, error)
+
 // Operand is one installable service. Implementations record what DesiredState
 // returned; the report methods answer from it rather than recomputing.
 type Operand interface {

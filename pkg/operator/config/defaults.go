@@ -32,6 +32,25 @@ const (
 	NodePoolControllerImageName = "nodepool-controller"
 	ProjectControllerImageName  = "project-controller"
 	PodGroupAssignerImageName   = "pod-group-assigner"
+
+	// DefaultNodePoolName matches the chart's defaultNodePool.name, which also names
+	// the NodePool the chart creates.
+	DefaultNodePoolName = "default"
+
+	// The values each service's own --qps/--burst flags default to.
+	DefaultClientQPS   = 50
+	DefaultClientBurst = 300
+)
+
+// Ports shared by every KRM service. A service needing its own port defines it
+// beside its own defaults rather than changing these.
+const (
+	metricsPortName = "metrics"
+	metricsPort     = 9400
+
+	webhookPortName   = "webhook"
+	webhookPort       = 443
+	webhookTargetPort = 8443
 )
 
 // SetDefaultsWhereNeeded runs on every reconcile against an in-memory copy and is
@@ -88,8 +107,12 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 		RunAsUser:                ptr.To(int64(10000)),
 		Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"all"}},
 	})
+	global.LeaderElection = kaicommon.SetDefault(global.LeaderElection, ptr.To(false))
+	global.DefaultNodePoolName = kaicommon.SetDefault(global.DefaultNodePoolName, ptr.To(DefaultNodePoolName))
 	global.VPA = kaicommon.SetDefault(global.VPA, &kaicommon.VPASpec{})
 	global.VPA.SetDefaultsWhereNeeded()
+	global.ServiceMonitor = kaicommon.SetDefault(global.ServiceMonitor, &krmv1alpha1.ServiceMonitorSpec{})
+	global.ServiceMonitor.Enabled = kaicommon.SetDefault(global.ServiceMonitor.Enabled, ptr.To(true))
 }
 
 func setNodePoolControllerDefaults(
@@ -101,13 +124,14 @@ func setNodePoolControllerDefaults(
 	nodePoolController.VPA = kaicommon.SetDefault(nodePoolController.VPA, global.VPA)
 }
 
-func setProjectControllerDefaults(
-	projectController *krmv1alpha1.ProjectController, global *krmv1alpha1.GlobalConfig,
-) {
-	projectController.Service = setServiceDefaults(
-		projectController.Service, ProjectControllerImageName, projectControllerResources())
-	projectController.Replicas = kaicommon.SetDefault(projectController.Replicas, global.ReplicaCount)
-	projectController.VPA = kaicommon.SetDefault(projectController.VPA, global.VPA)
+func setPortMappingDefaults(
+	portMapping *krmv1alpha1.PortMapping, name string, port, targetPort int32,
+) *krmv1alpha1.PortMapping {
+	portMapping = kaicommon.SetDefault(portMapping, &krmv1alpha1.PortMapping{})
+	portMapping.Name = kaicommon.SetDefault(portMapping.Name, ptr.To(name))
+	portMapping.Port = kaicommon.SetDefault(portMapping.Port, ptr.To(port))
+	portMapping.TargetPort = kaicommon.SetDefault(portMapping.TargetPort, ptr.To(targetPort))
+	return portMapping
 }
 
 func setPodGroupAssignerDefaults(
@@ -119,15 +143,15 @@ func setPodGroupAssignerDefaults(
 	podGroupAssigner.VPA = kaicommon.SetDefault(podGroupAssigner.VPA, global.VPA)
 }
 
-// Each service gets its own resource default rather than the generic one in
-// kai/v1/common, which is far smaller than these services need — project-controller
-// alone asks for four times its memory limit. Set before SetDefaultsWhereNeeded,
-// which only fills the keys that are still absent.
+// Set before SetDefaultsWhereNeeded, which only fills keys that are still absent.
 func setServiceDefaults(
 	service *kaicommon.Service, imageName string, defaultResources *kaicommon.Resources,
 ) *kaicommon.Service {
 	service = kaicommon.SetDefault(service, &kaicommon.Service{})
 	service.Resources = kaicommon.SetDefault(service.Resources, defaultResources)
+	service.K8sClientConfig = kaicommon.SetDefault(service.K8sClientConfig, &kaicommon.K8sClientConfig{})
+	service.K8sClientConfig.QPS = kaicommon.SetDefault(service.K8sClientConfig.QPS, ptr.To(DefaultClientQPS))
+	service.K8sClientConfig.Burst = kaicommon.SetDefault(service.K8sClientConfig.Burst, ptr.To(DefaultClientBurst))
 	service.SetDefaultsWhereNeeded(imageName)
 	return service
 }

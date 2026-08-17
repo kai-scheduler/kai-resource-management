@@ -142,6 +142,38 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 		Expect(spec.PodGroupAssigner.Service.Resources.Limits.Memory().String()).To(Equal("512Mi"))
 	})
 
+	// The rate each binary asks for itself. kai/v1/common defaults to 20/100, which
+	// would throttle every controller to a fraction of what it expects.
+	It("gives each service the client rate its binary defaults to", func() {
+		spec := &krmv1alpha1.KRMConfigSpec{}
+
+		SetDefaultsWhereNeeded(spec)
+
+		for _, clientConfig := range []*kaicommon.K8sClientConfig{
+			spec.NodePoolController.Service.K8sClientConfig,
+			spec.ProjectController.Service.K8sClientConfig,
+			spec.PodGroupAssigner.Service.K8sClientConfig,
+		} {
+			Expect(clientConfig.QPS).To(Equal(ptr.To(DefaultClientQPS)))
+			Expect(clientConfig.Burst).To(Equal(ptr.To(DefaultClientBurst)))
+		}
+	})
+
+	It("keeps a client rate that was set", func() {
+		spec := &krmv1alpha1.KRMConfigSpec{
+			ProjectController: &krmv1alpha1.ProjectController{
+				Service: &kaicommon.Service{
+					K8sClientConfig: &kaicommon.K8sClientConfig{QPS: ptr.To(5)},
+				},
+			},
+		}
+
+		SetDefaultsWhereNeeded(spec)
+
+		Expect(spec.ProjectController.Service.K8sClientConfig.QPS).To(Equal(ptr.To(5)))
+		Expect(spec.ProjectController.Service.K8sClientConfig.Burst).To(Equal(ptr.To(DefaultClientBurst)))
+	})
+
 	It("keeps resources that were set", func() {
 		spec := &krmv1alpha1.KRMConfigSpec{
 			ProjectController: &krmv1alpha1.ProjectController{

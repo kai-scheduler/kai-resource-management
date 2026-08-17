@@ -83,7 +83,7 @@ The main configuration groups are:
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodepoolController` | Node-pool controller deployment, arguments, and webhook. |
-| `projectController` | Project controller deployment, features, arguments, and webhooks. |
+| `projectController` | Project controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhooks this chart still renders. |
 | `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhooks. |
 
 `values.yaml` documents the supported public surface. `internal_values.yaml` is
@@ -103,10 +103,22 @@ kubectl get krmconfig krm-config -o jsonpath='{.status.conditions}' | jq
 `Ready` summarises the rest; `Deployed`, `Available`, `DependenciesFulfilled`
 and `Reconciling` say which part is outstanding.
 
-**It currently installs nothing.** The three controllers are still deployed by
-this chart directly; each becomes an operand of the operator under its own
-change. Until then the operator runs, reconciles the resource and reports
-`Ready`, having created no objects.
+**It installs project-controller.** nodepool-controller and pod-group-assigner
+are still deployed by this chart directly; each becomes an operand under its own
+change.
+
+For project-controller the operator creates the Deployment, its ServiceAccount and
+Service, the two ConfigMaps the controller reads, and its ServiceMonitor. This
+chart still renders that controller's RBAC, its `ValidatingWebhookConfiguration`
+and the TLS Secret it serves with.
+
+That split has one consequence worth knowing. The Deployment mounts a Secret this
+chart owns, and the operator's webhook toggles come from
+`projectController.webhook.*` — the same values that decide whether this chart
+renders the webhook configuration at all. Setting the CR's toggles directly,
+rather than through the chart, can leave the two disagreeing: a webhook that is
+served but never called, or a controller waiting on a certificate that was never
+minted.
 
 ### How the KRMConfig is created
 

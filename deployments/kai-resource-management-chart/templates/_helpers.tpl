@@ -167,6 +167,7 @@ spec:
   {{- end }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "nodePoolController" "comp" .Values.nodepoolController) }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
+  {{- include "kai-resource-management.krm-config-project-controller" $ }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "podGroupAssigner" "comp" .Values.podGroupAssigner) }}
 {{- end -}}
 
@@ -201,6 +202,16 @@ projectLabelKey: {{ $commonArgs.projectLabelKey | quote }}
 {{- end }}
 {{- if $commonArgs.enforceSchedulerAnnotationKey }}
 enforceSchedulerAnnotationKey: {{ $commonArgs.enforceSchedulerAnnotationKey | quote }}
+{{- end }}
+{{- with (.Values.defaultNodePool | default dict).name }}
+defaultNodePoolName: {{ . | quote }}
+{{- end }}
+{{- if .Values.global.leaderElection }}
+leaderElection: true
+{{- end }}
+{{- if not .Values.serviceMonitor.create }}
+serviceMonitor:
+  enabled: false
 {{- end }}
 {{- if (include "kai-resource-management.openshift" .) }}
 openshift: true
@@ -252,7 +263,113 @@ chart's own Deployment uses - one source, two consumers. Usage:
       resources:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- $args := $comp.args | default dict }}
+      {{- if or $args.qps $args.burst }}
+      k8sClientConfig:
+        {{- with $args.qps }}
+        qps: {{ . | int }}
+        {{- end }}
+        {{- with $args.burst }}
+        burst: {{ . | int }}
+        {{- end }}
+      {{- end }}
     {{- if $comp.replicas }}
     replicas: {{ $comp.replicas }}
     {{- end }}
+{{- end -}}
+
+{{/*
+The project-controller keys the generic service block does not cover, emitted as
+siblings of it. Values are read from the same projectController.* keys the chart's
+own RBAC and webhook templates use, so a setting has one home and two readers.
+*/}}
+{{- define "kai-resource-management.krm-config-project-controller" -}}
+{{- $comp := .Values.projectController | default dict -}}
+{{- $webhook := $comp.webhook | default dict -}}
+{{- $features := $comp.features | default dict -}}
+{{- $profiling := $comp.profiling | default dict -}}
+{{- $args := $comp.args | default dict -}}
+{{- $svc := $comp.service | default dict -}}
+{{- $metrics := $svc.metrics | default dict -}}
+    {{- if or $metrics $webhook.port $webhook.targetPort }}
+    controllerService:
+      {{- with $metrics }}
+      metrics:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or $webhook.port $webhook.targetPort }}
+      webhook:
+        {{- with $webhook.port }}
+        port: {{ . | int }}
+        {{- end }}
+        {{- with $webhook.targetPort }}
+        targetPort: {{ . | int }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if or (hasKey $webhook "project") (hasKey $webhook "department") $webhook.certSecretName }}
+    webhooks:
+      {{- if hasKey $webhook "project" }}
+      enableProjectValidation: {{ $webhook.project }}
+      {{- end }}
+      {{- if hasKey $webhook "department" }}
+      enableDepartmentValidation: {{ $webhook.department }}
+      {{- end }}
+      {{- with $webhook.certSecretName }}
+      certSecretName: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $features }}
+    features:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if or (hasKey $profiling "enabled") $profiling.apiPort }}
+    profiling:
+      {{- if hasKey $profiling "enabled" }}
+      enabled: {{ $profiling.enabled }}
+      {{- end }}
+      {{- with $profiling.apiPort }}
+      apiPort: {{ . | int }}
+      {{- end }}
+    {{- end }}
+    {{- $argsBody := include "kai-resource-management.krm-config-project-controller-args" $args }}
+    {{- if trim $argsBody }}
+    args:
+      {{- trim $argsBody | nindent 6 }}
+    {{- end }}
+    {{- with $comp.extraArgs }}
+    extraArgs:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $comp.extraProjectRoleBindings }}
+    extraProjectRoleBindings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $comp.roleBindingsConfigMapName }}
+    roleBindingsConfigMapName: {{ . | quote }}
+    {{- end }}
+    {{- with $comp.deleteBlockers }}
+    deleteBlockers:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end -}}
+
+{{/*
+The typed args of the KRMConfig, taken from projectController.args. Only these keys
+are modelled; anything else set there is ignored, and belongs in extraArgs.
+qps and burst are deliberately absent: they live on service.k8sClientConfig.
+*/}}
+{{- define "kai-resource-management.krm-config-project-controller-args" -}}
+{{- $args := . -}}
+{{- range $key := list "debug" "leaderElect" "projectNamePrefix" "projectIdLabelKey"
+    "queueDepartmentNameLabelKey" "namespaceVersionLabelKey" "resourceManualOverrideLabelKey" "limitRangeName" }}
+{{- if hasKey $args $key }}
+{{- $value := index $args $key }}
+{{- if kindIs "bool" $value }}
+{{ $key }}: {{ $value }}
+{{- else if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+{{ $key }}: {{ toString $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end -}}

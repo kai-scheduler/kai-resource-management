@@ -5,7 +5,7 @@
 {{- $comp := .Values.nodepoolController }}
 {{- $svc := $comp.service | default dict }}
 {{- $metricsPort := int (($comp.metrics | default dict).port | default 9400) }}
-{{- $metricsPortName := ($comp.metrics | default dict).portName | default "metrics" }}
+{{- $metricsPortName := ($comp.metrics | default dict).name | default "metrics" }}
 {{- $svcPort := int ($svc.port | default 8080) }}
 {{- $svcTargetPort := int ($svc.targetPort | default 8080) }}
 {{- $webhook := $comp.webhook | default dict }}

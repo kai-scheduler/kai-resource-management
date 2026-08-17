@@ -19,11 +19,15 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"
+	projectcontroller "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/project-controller"
 )
 
-// KRMConfigReconcilerOperands is empty on purpose: this operator installs nothing
-// yet. The three controllers are added as operands by their own tickets.
-var KRMConfigReconcilerOperands = []operands.Operand{}
+// KRMConfigReconcilerOperands is the ordered set of services this operator
+// installs. nodepool-controller and pod-group-assigner are added by their own
+// tickets; until then the chart still deploys them directly.
+var KRMConfigReconcilerOperands = []operands.Operand{
+	&projectcontroller.ProjectController{},
+}
 
 type KRMConfigReconciler struct {
 	client.Client

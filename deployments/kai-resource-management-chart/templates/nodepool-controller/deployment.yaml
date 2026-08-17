@@ -11,7 +11,7 @@
 {{- $metrics := $comp.metrics | default dict }}
 {{- $replicas := $comp.replicas | default 1 }}
 {{- $metricsPort := int ($metrics.port | default 9400) }}
-{{- $metricsPortName := $metrics.portName | default "metrics" }}
+{{- $metricsPortName := $metrics.name | default "metrics" }}
 {{- $webhook := $comp.webhook | default dict }}
 {{- $webhookOn := $webhook.nodepool }}
 {{- $webhookTargetPort := int ($webhook.targetPort | default 8443) }}

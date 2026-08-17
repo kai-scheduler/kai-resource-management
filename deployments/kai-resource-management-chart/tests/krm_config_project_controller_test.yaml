@@ -1,0 +1,134 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# project-controller is installed by the operator, so its chart values reach it
+# through the KRMConfig rather than through a Deployment this chart renders.
+suite: projectController values reach the KRMConfig
+templates:
+  - templates/krm-config.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
+  image.registry: reg.example.com/kai
+tests:
+  - it: carries the feature flags, including the ones that are off
+    asserts:
+      - equal: {path: spec.projectController.features.createNamespaces, value: true}
+      - equal: {path: spec.projectController.features.clusterWideSecret, value: true}
+      - equal: {path: spec.projectController.features.limitRange, value: false}
+
+  - it: follows a feature that is turned off
+    set:
+      projectController.features.clusterWideSecret: false
+    asserts:
+      - equal: {path: spec.projectController.features.clusterWideSecret, value: false}
+
+  # The chart renders the webhook configurations and mints their certificates, so
+  # these must agree with it or the controller serves a webhook nothing calls.
+  - it: carries the webhook toggles
+    asserts:
+      - equal: {path: spec.projectController.webhooks.enableProjectValidation, value: true}
+      - equal: {path: spec.projectController.webhooks.enableDepartmentValidation, value: true}
+
+  - it: follows a webhook that is turned off
+    set:
+      projectController.webhook.department: false
+    asserts:
+      - equal: {path: spec.projectController.webhooks.enableDepartmentValidation, value: false}
+
+  # Every key here is copied straight through, so a name the CR does not have would
+  # be pruned by the API server and the setting silently lost.
+  - it: carries the metrics port under the names the CR uses
+    set:
+      projectController.service.metrics.name: custom
+      projectController.service.metrics.port: 9999
+      projectController.service.metrics.targetPort: 9998
+    asserts:
+      - equal: {path: spec.projectController.controllerService.metrics.name, value: custom}
+      - equal: {path: spec.projectController.controllerService.metrics.port, value: 9999}
+      - equal: {path: spec.projectController.controllerService.metrics.targetPort, value: 9998}
+
+  - it: carries the webhook ports
+    set:
+      projectController.webhook.port: 8443
+      projectController.webhook.targetPort: 9443
+    asserts:
+      - equal: {path: spec.projectController.controllerService.webhook.port, value: 8443}
+      - equal: {path: spec.projectController.controllerService.webhook.targetPort, value: 9443}
+
+  - it: carries the profiler switch
+    set:
+      projectController.profiling.enabled: true
+    asserts:
+      - equal: {path: spec.projectController.profiling.enabled, value: true}
+
+  - it: carries the controller's own flags
+    set:
+      projectController.args.projectNamePrefix: acme
+      projectController.args.debug: true
+    asserts:
+      - equal: {path: spec.projectController.args.projectNamePrefix, value: acme}
+      - equal: {path: spec.projectController.args.debug, value: true}
+
+  # Only modelled keys are mapped; anything else belongs in extraArgs.
+  - it: leaves an unmodelled args key out of the CR
+    set:
+      projectController.args.somethingElse: value
+    asserts:
+      - notExists: {path: spec.projectController.args.somethingElse}
+
+  - it: omits an args key that is set to empty
+    asserts:
+      - notExists: {path: spec.projectController.args.projectNamePrefix}
+
+  - it: passes extraArgs through
+    set:
+      projectController.extraArgs: ["--qps", "500"]
+    asserts:
+      - equal: {path: "spec.projectController.extraArgs[0]", value: "--qps"}
+      - equal: {path: "spec.projectController.extraArgs[1]", value: "500"}
+
+  - it: passes extra project RoleBindings through
+    set:
+      projectController.extraProjectRoleBindings:
+        - name: acme-widget-project
+          serviceAccountName: acme-widget
+    asserts:
+      - equal: {path: "spec.projectController.extraProjectRoleBindings[0].name", value: acme-widget-project}
+      - equal:
+          path: spec.projectController.extraProjectRoleBindings[0].serviceAccountName
+          value: acme-widget
+
+  - it: passes delete blockers through
+    set:
+      projectController.deleteBlockers:
+        - displayName: Pvcs
+          version: v1
+          kind: PersistentVolumeClaim
+    asserts:
+      - equal: {path: "spec.projectController.deleteBlockers[0].displayName", value: Pvcs}
+      - equal: {path: "spec.projectController.deleteBlockers[0].kind", value: PersistentVolumeClaim}
+
+  - it: carries the rolebindings ConfigMap name
+    set:
+      projectController.roleBindingsConfigMapName: runai-rolebindings-plugin
+    asserts:
+      - equal:
+          path: spec.projectController.roleBindingsConfigMapName
+          value: runai-rolebindings-plugin
+
+  - it: omits the lists that are empty
+    asserts:
+      - notExists: {path: spec.projectController.extraArgs}
+      - notExists: {path: spec.projectController.extraProjectRoleBindings}
+      - notExists: {path: spec.projectController.deleteBlockers}
+      - notExists: {path: spec.projectController.roleBindingsConfigMapName}
+
+  - it: disables the service rather than removing it when the component is off
+    set:
+      projectController.enabled: false
+    asserts:
+      - equal: {path: spec.projectController.service.enabled, value: false}

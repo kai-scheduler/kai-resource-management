@@ -2,13 +2,13 @@ KAI Resource Management installed into namespace: {{ .Release.Namespace }}
 
 Components:
 {{- if .Values.krmOperator.enabled }}
-  ✓ krm-operator (reconciles KRMConfig; installs no services yet)
+  ✓ krm-operator (reconciles KRMConfig)
 {{- end }}
 {{- if .Values.nodepoolController.enabled }}
   ✓ nodepool-controller
 {{- end }}
 {{- if .Values.projectController.enabled }}
-  ✓ project-controller
+  ✓ project-controller (installed by krm-operator)
 {{- end }}
 {{- if .Values.podGroupAssigner.enabled }}
   ✓ pod-group-assigner{{ if .Values.podGroupAssigner.webhook.enabled }} (with PodGroup mutating webhook){{ end }}

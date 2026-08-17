@@ -161,11 +161,13 @@ nodepoolController:
     # Validate NodePools on create: reject a missing or duplicate label key/value pair.
     nodepool: true
 
+# The krm-operator installs this controller; these values reach it through the KRMConfig.
+# Its RBAC and admission webhooks are still rendered by this chart.
 projectController:
   enabled: true
   image:
     name: project-controller
-  # replicas / resources: defaults in template
+  # replicas / resources: the operator's defaults apply when unset.
   args:
     debug: false
     projectNamePrefix: ""   # --project-name-prefix; prefix for managed project namespaces (default "kai")
@@ -180,9 +182,24 @@ projectController:
     clusterWideConfigMap: true
     clusterWidePvc: true
     limitRange: false
-  # Extra per-project RoleBindings to add to the rolebindings-plugin ConfigMap, as a map of
-  # <key>: <RoleBinding YAML>. Use this to wire RoleBindings for components from other charts.
-  extraProjectRoleBindings: {}
+  # Extra per-project RoleBindings, for components owned by other charts. The ClusterRole
+  # must already exist; clusterRoleName defaults to name. For example:
+  #   extraProjectRoleBindings:
+  #     - name: acme-widget-project
+  #       serviceAccountName: acme-widget
+  extraProjectRoleBindings: []
+  # Name of the ConfigMap the operator builds those RoleBindings into.
+  # Empty uses project-controller-rolebindings-plugin.
+  roleBindingsConfigMapName: ""
+  # Resources whose presence blocks deleting a project. Empty means nothing blocks it.
+  # For example:
+  #   deleteBlockers:
+  #     - displayName: Pvcs
+  #       version: v1
+  #       kind: PersistentVolumeClaim
+  deleteBlockers: []
+  # Flags the KRMConfig does not model, appended after every other argument.
+  extraArgs: []
   # Validate on create and update: the parent department and any referenced node pools must
   # exist, and no two queues may claim the same node pool.
   webhook:
