@@ -188,6 +188,9 @@ projectController:
   #     - name: acme-widget-project
   #       serviceAccountName: acme-widget
   extraProjectRoleBindings: []
+  # Name of the ConfigMap the operator builds those RoleBindings into.
+  # Empty uses project-controller-rolebindings-plugin.
+  roleBindingsConfigMapName: ""
   # Resources whose presence blocks deleting a project. Empty means nothing blocks it.
   # For example:
   #   deleteBlockers:

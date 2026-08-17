@@ -170,7 +170,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	args := []string{
 		"--metrics-port", strconv.Itoa(int(*config.ControllerService.Metrics.TargetPort)),
 		"--profiler-api-port", strconv.Itoa(int(*config.Profiling.APIPort)),
-		"--rolebindings-configmap-name", roleBindingsConfigMapName,
+		"--rolebindings-configmap-name", roleBindingsConfigMapNameFor(config),
 		"--rolebindings-configmap-namespace", namespace,
 		"--project-delete-blockers-namespace", namespace,
 		"--install-namespace", namespace,

@@ -112,11 +112,20 @@ tests:
       - equal: {path: "spec.projectController.deleteBlockers[0].displayName", value: Pvcs}
       - equal: {path: "spec.projectController.deleteBlockers[0].kind", value: PersistentVolumeClaim}
 
+  - it: carries the rolebindings ConfigMap name
+    set:
+      projectController.roleBindingsConfigMapName: runai-rolebindings-plugin
+    asserts:
+      - equal:
+          path: spec.projectController.roleBindingsConfigMapName
+          value: runai-rolebindings-plugin
+
   - it: omits the lists that are empty
     asserts:
       - notExists: {path: spec.projectController.extraArgs}
       - notExists: {path: spec.projectController.extraProjectRoleBindings}
       - notExists: {path: spec.projectController.deleteBlockers}
+      - notExists: {path: spec.projectController.roleBindingsConfigMapName}
 
   - it: disables the service rather than removing it when the component is off
     set:

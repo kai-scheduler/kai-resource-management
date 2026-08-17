@@ -345,6 +345,9 @@ own RBAC and webhook templates use, so a setting has one home and two readers.
     extraProjectRoleBindings:
       {{- toYaml . | nindent 6 }}
     {{- end }}
+    {{- with $comp.roleBindingsConfigMapName }}
+    roleBindingsConfigMapName: {{ . | quote }}
+    {{- end }}
     {{- with $comp.deleteBlockers }}
     deleteBlockers:
       {{- toYaml . | nindent 6 }}

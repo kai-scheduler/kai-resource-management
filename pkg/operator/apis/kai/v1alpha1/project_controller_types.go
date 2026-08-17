@@ -53,6 +53,11 @@ type ProjectController struct {
 	// +optional
 	ExtraProjectRoleBindings []ProjectRoleBinding `json:"extraProjectRoleBindings,omitempty"`
 
+	// RoleBindingsConfigMapName names the ConfigMap this operator builds the
+	// per-project RoleBindings into, and points the controller at.
+	// +optional
+	RoleBindingsConfigMapName *string `json:"roleBindingsConfigMapName,omitempty"`
+
 	// DeleteBlockers are the resources whose presence blocks deleting a project.
 	// Empty means nothing blocks deletion.
 	// +optional

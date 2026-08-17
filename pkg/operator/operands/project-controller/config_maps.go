@@ -72,15 +72,24 @@ var builtinRoleBindings = []builtinRoleBinding{
 	},
 }
 
+func roleBindingsConfigMapNameFor(config *krmv1alpha1.ProjectController) string {
+	if config.RoleBindingsConfigMapName != nil && *config.RoleBindingsConfigMapName != "" {
+		return *config.RoleBindingsConfigMapName
+	}
+	return roleBindingsConfigMapName
+}
+
 func (p *ProjectController) roleBindingsConfigMapForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (client.Object, error) {
-	configMap, err := p.configMapForKRMConfig(ctx, runtimeClient, krmConfig, roleBindingsConfigMapName)
+	config := krmConfig.Spec.ProjectController
+
+	configMap, err := p.configMapForKRMConfig(
+		ctx, runtimeClient, krmConfig, roleBindingsConfigMapNameFor(config))
 	if err != nil {
 		return nil, err
 	}
 
-	config := krmConfig.Spec.ProjectController
 	namespace := krmConfig.Spec.Namespace
 	data := map[string]string{}
 

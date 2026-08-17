@@ -4037,6 +4037,11 @@ spec:
                     description: Replicas overrides global.replicaCount for this service.
                     format: int32
                     type: integer
+                  roleBindingsConfigMapName:
+                    description: |-
+                      RoleBindingsConfigMapName names the ConfigMap this operator builds the
+                      per-project RoleBindings into, and points the controller at.
+                    type: string
                   service:
                     description: 'Service is the common deployment configuration:
                       enablement, image, resources.'

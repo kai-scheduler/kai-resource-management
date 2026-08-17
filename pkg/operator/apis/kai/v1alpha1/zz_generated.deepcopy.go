@@ -442,6 +442,11 @@ func (in *ProjectController) DeepCopyInto(out *ProjectController) {
 		*out = make([]ProjectRoleBinding, len(*in))
 		copy(*out, *in)
 	}
+	if in.RoleBindingsConfigMapName != nil {
+		in, out := &in.RoleBindingsConfigMapName, &out.RoleBindingsConfigMapName
+		*out = new(string)
+		**out = **in
+	}
 	if in.DeleteBlockers != nil {
 		in, out := &in.DeleteBlockers, &out.DeleteBlockers
 		*out = make([]DeleteBlocker, len(*in))

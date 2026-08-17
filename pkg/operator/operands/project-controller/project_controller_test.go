@@ -143,6 +143,35 @@ var _ = Describe("DesiredState", func() {
 		}
 	})
 
+	It("builds the rolebindings ConfigMap under the name it is given", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.RoleBindingsConfigMapName = ptr.To("runai-rolebindings-plugin")
+
+		names := []string{}
+		for _, object := range desiredState(krmConfig) {
+			names = append(names, object.GetName())
+		}
+
+		Expect(names).To(ContainElement("runai-rolebindings-plugin"))
+		Expect(names).ToNot(ContainElement(roleBindingsConfigMapName))
+		Expect(buildArgsList(krmConfig)).To(
+			ContainElements("--rolebindings-configmap-name", "runai-rolebindings-plugin"))
+	})
+
+	It("still fills that ConfigMap with the bindings it owns", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.RoleBindingsConfigMapName = ptr.To("runai-rolebindings-plugin")
+
+		for _, object := range desiredState(krmConfig) {
+			if configMap, isConfigMap := object.(*corev1.ConfigMap); isConfigMap &&
+				configMap.Name == "runai-rolebindings-plugin" {
+				Expect(configMap.Data).To(HaveKey("project-secret.yaml"))
+				return
+			}
+		}
+		Fail("the renamed ConfigMap was not built")
+	})
+
 	It("creates no ServiceMonitor when monitoring is off", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.Global.ServiceMonitor.Enabled = ptr.To(false)
