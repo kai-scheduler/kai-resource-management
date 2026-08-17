@@ -25,9 +25,14 @@ references cannot drift apart.
 A version tag publishes to GitHub Container Registry under
 `ghcr.io/kai-scheduler/kai-resource-management`:
 
-- `nodepool-controller`, `project-controller` and `pod-group-assigner` images,
-  built for `linux/amd64` and `linux/arm64`.
-- The `kai-resource-management` Helm chart, pushed as an OCI artifact.
+- `nodepool-controller`, `project-controller`, `pod-group-assigner`,
+  `krm-operator` and `helm-hooks` images, built for `linux/amd64` and
+  `linux/arm64`.
+- A `<version>-fips` variant of each of those images, built against the
+  validated Go cryptographic module and selected by `global.fipsMode`. See
+  [FIPS 140-3](fips.md).
+- The `kai-resource-management` Helm chart, pushed as an OCI artifact. One chart
+  serves both image variants.
 
 The packaged chart is also attached to the GitHub Release as an asset.
 

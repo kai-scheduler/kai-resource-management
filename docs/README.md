@@ -10,6 +10,7 @@ The initial documentation structure is intentionally small:
 
 - `getting-started/` — local setup, first installation, and first successful use.
 - `designs/` — architecture decisions and implementation designs.
+- `fips.md` — FIPS 140-3 images and run-time modes.
 - `releasing.md` — the maintainer release process.
 - `updating-the-api-module.md` — releasing a `kai.resources` CRD change and
   consuming it here.

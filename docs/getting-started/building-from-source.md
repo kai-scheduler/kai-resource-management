@@ -117,9 +117,10 @@ it `0600` permissions.
 
 ### Continuous integration
 
-CI needs no manual setup. The `validate-and-test`, `build` and `build-and-push`
-jobs mint a short-lived installation token from the `kai-module-reader` GitHub
-App and configure `GOPRIVATE` and a git URL rewrite before any Go command runs.
+CI needs no manual setup. The `validate-and-test`, `build`, `build-and-push` and
+`build-and-push-fips` jobs mint a short-lived installation token from the
+`kai-module-reader` GitHub App and configure `GOPRIVATE` and a git URL rewrite
+before any Go command runs.
 The repository secrets `KAI_MODULE_READER_APP_ID` and
 `KAI_MODULE_READER_PRIVATE_KEY` back this. The default `GITHUB_TOKEN` cannot be
 used: it is scoped to this repository alone.
@@ -134,7 +135,7 @@ grep -rn "private API module access" .
 ```
 
 That covers `.github/workflows/on-pr.yaml` (two jobs),
-`.github/workflows/push-artifacts.yaml`, `build/makefile/golang.mk`, this
+`.github/workflows/push-artifacts.yaml` (two jobs), `build/makefile/golang.mk`, this
 section, and the note in `AGENTS.md`. Then revoke the `kai-module-reader` App
 installation and delete the two repository secrets.
 
@@ -178,6 +179,13 @@ make build-go SERVICE_NAME=<name>
 
 `make build` cross-compiles every service for `linux/amd64` and `linux/arm64` in
 the pinned builder image and builds its container image.
+
+Add `FIPS=1` to build against the validated Go cryptographic module and tag the
+images `<version>-fips`. See [FIPS 140-3](../fips.md).
+
+```bash
+make build FIPS=1
+```
 
 Go and Docker build mechanics are kept under `build/makefile/`; the root
 Makefile remains the public development interface.
