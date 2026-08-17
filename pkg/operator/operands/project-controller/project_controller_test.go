@@ -97,6 +97,19 @@ var _ = Describe("DesiredState", func() {
 
 	// Every object is keyed by GVK in the diff, so a blank TypeMeta would make the
 	// operator fail to match what it already created and recreate it every reconcile.
+	// The operand rewrites the container's args, ports and mounts after the shared
+	// builder has filled it in, so this pins that the FIPS mode survives that pass.
+	It("keeps the FIPS mode the shared builder put on the container", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.Global.FipsMode = ptr.To(krmv1alpha1.FipsModeOnly)
+
+		objects := desiredState(krmConfig)
+
+		deployment := findType[*appsv1.Deployment](objects)
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(
+			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only"}))
+	})
+
 	It("stamps the group, version and kind on every object", func() {
 		for _, object := range desiredState(newKRMConfig()) {
 			Expect(object.GetObjectKind().GroupVersionKind().Kind).ToNot(BeEmpty(),

@@ -1,0 +1,166 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# FIPS has two halves that fail independently: the "-fips" image tag selects a
+# binary built against the validated module, and GODEBUG=fips140 selects how
+# strictly that binary uses it. Either one silently missing produces an install
+# that reports FIPS and is not, so both are asserted for every mode.
+suite: global.fipsMode image tags and GODEBUG
+release:
+  name: krm
+  namespace: kai
+tests:
+  - it: defaults to off, leaving tags unsuffixed
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+      - templates/pod-group-assigner/deployment.yaml
+      - templates/krm-operator/deployment.yaml
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: -fips$
+      # Emitted even when disabled: a FIPS-built image defaults to fips140=on, so
+      # only an explicit "off" can turn it back off without changing the image.
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GODEBUG, value: fips140=off}
+
+  - it: suffixes every component image when enabled
+    set:
+      global.fipsMode: "on"
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+      - templates/pod-group-assigner/deployment.yaml
+      - templates/krm-operator/deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: :0\.0\.0-fips$
+
+  # The hook image is an upstream kubectl, not a binary this repo builds. It
+  # still takes the -fips tag (the tag scheme is uniform and the FIPS build
+  # publishes it), but must never claim a FIPS runtime mode.
+  - it: tags the hook Jobs -fips but gives them no GODEBUG
+    set:
+      global.fipsMode: only
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+      - templates/hooks/post/krm-config-deployer/job.yaml
+      - templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: -fips$
+      # Keyed on the name alone: any GODEBUG value here would be a claim the
+      # upstream kubectl binary cannot honour, not just this mode's.
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GODEBUG}
+          any: true
+
+  - it: carries the mode to each service as GODEBUG
+    set:
+      global.fipsMode: only
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+      - templates/pod-group-assigner/deployment.yaml
+      - templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GODEBUG, value: fips140=only}
+
+  # The operator builds its operands from MS_TAG, so the suffix has to survive
+  # the trip: this is what makes project-controller a FIPS image too.
+  - it: hands the operator a FIPS operand tag without losing its other env
+    set:
+      global.fipsMode: "on"
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/krm-operator/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MS_TAG, value: "0.0.0-fips"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MS_REPOSITORY, value: registry/local/kai-resource-management}
+
+  - it: suffixes an explicitly pinned tag rather than replacing it
+    set:
+      global.fipsMode: "on"
+      kai-scheduler.global.fips: true
+      image.tag: "1.2.3"
+      nodepoolController.image.tag: "4.5.6"
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: :4\.5\.6-fips$
+
+  - it: reaches the KRMConfig the deployer applies
+    set:
+      global.fipsMode: only
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'fipsMode: "only"'
+
+  # Off is the CR's own default, so emitting it would defeat the "the CR shows
+  # only what was set" contract that krm_config_deployer_test.yaml pins.
+  - it: omits fipsMode from the KRMConfig when disabled
+    templates:
+      - templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["krm-config.yaml"]
+          pattern: fipsMode
+
+  - it: accepts a bool for the common on/off case
+    set:
+      global.fipsMode: true
+      kai-scheduler.global.fips: true
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GODEBUG, value: fips140=on}
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: -fips$
+
+  # A typo that renders successfully is the worst outcome available here: the
+  # install looks FIPS-enabled and every image is the ordinary one. Note "On"
+  # would be a poor case to assert on - YAML reads it as a bool, which the
+  # helper deliberately coerces to "on" (see the bool case above).
+  # Helm aborts at the first template to force the helper and attributes the
+  # error there, so this names the deployer Job rather than the template whose
+  # behaviour is under test. If a new template sorts ahead of it this test fails
+  # rather than silently stops checking - retarget it then.
+  - it: refuses an unrecognised mode
+    set:
+      global.fipsMode: "Only"
+    templates:
+      - templates/hooks/post/krm-config-deployer/job.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "must be one of: off, on, only"
+
+  # Helm shares global.* into subcharts verbatim, so the pinned KAI Scheduler
+  # never sees fipsMode. Rendering half a FIPS stack is worse than refusing.
+  - it: refuses to enable FIPS without the bundled scheduler following
+    set:
+      global.fipsMode: "on"
+    templates:
+      - templates/krm-config.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: kai-scheduler.global.fips
