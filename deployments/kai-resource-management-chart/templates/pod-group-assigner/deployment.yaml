@@ -36,6 +36,8 @@ spec:
           image: {{ include "kai-resource-management.image" (dict "root" $ "image" $comp.image) }}
           imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" $comp.image) }}
           {{- include "kai-resource-management.securityContext" . | nindent 10 }}
+          env:
+            {{- include "kai-resource-management.godebug" . | nindent 12 }}
           ports:
             - name: webhook
               containerPort: {{ $webhookTargetPort }}

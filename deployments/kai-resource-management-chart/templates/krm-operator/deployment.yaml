@@ -44,6 +44,7 @@ spec:
               value: {{ .Values.image.registry | quote }}
             - name: MS_TAG
               value: {{ include "kai-resource-management.imageTag" (dict "root" $ "tag" $comp.image.tag) | quote }}
+            {{- include "kai-resource-management.godebug" . | nindent 12 }}
           ports:
             - name: metrics
               containerPort: {{ $metricsPort }}
