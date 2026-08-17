@@ -4,7 +4,6 @@
 suite: install namespace is the single source of truth
 templates:
   - templates/nodepool-controller/deployment.yaml
-  - templates/project-controller/deployment.yaml
 release:
   name: krm
   namespace: my-ns
@@ -20,15 +19,3 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].args
           content: --nodepool-label-key
-
-  - it: project-controller points its configmap/blocker namespace flags at the release namespace
-    set:
-      image.registry: reg.example.com/kai
-    template: templates/project-controller/deployment.yaml
-    asserts:
-      - equal:
-          path: metadata.namespace
-          value: my-ns
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: my-ns

@@ -3,7 +3,7 @@
 
 {{- if and .Values.nodepoolController.enabled .Values.serviceMonitor.create }}
 {{- $comp := .Values.nodepoolController }}
-{{- $metricsPortName := ($comp.metrics | default dict).portName | default "metrics" }}
+{{- $metricsPortName := ($comp.metrics | default dict).name | default "metrics" }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

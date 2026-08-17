@@ -4,7 +4,6 @@
 suite: controller args exposed as chart values
 templates:
   - templates/nodepool-controller/deployment.yaml
-  - templates/project-controller/deployment.yaml
   - templates/pod-group-assigner/deployment.yaml
   - templates/pod-group-assigner/webhook.yaml
 release:
@@ -28,20 +27,12 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].args
           content: --nodepool-label-key
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --nodepool-label-key
         template: templates/pod-group-assigner/deployment.yaml
 
   - it: kai-scheduler.podgrouper.queueLabelKey cascades --queue-label-key to project + pod-group-assigner, not nodepool
     set:
       kai-scheduler.podgrouper.queueLabelKey: custom/queue
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --queue-label-key
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: --queue-label-key
@@ -93,11 +84,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: acme/project
         template: templates/pod-group-assigner/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: acme/project
-        template: templates/project-controller/deployment.yaml
-
   - it: podGroupAssigner.args.namespaceProjectLabelKey overrides commonArgs for both
     # Precedence has to match the Deployment's, or the selector and the flag disagree.
     set:
@@ -143,11 +129,6 @@ tests:
           content: my-scheduler
         template: templates/pod-group-assigner/deployment.yaml
       # project-controller's binary has no such flag
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-name
-        template: templates/project-controller/deployment.yaml
-
   - it: nodepoolController.args.schedulerName overrides the shared value
     set:
       commonArgs.schedulerName: my-scheduler
@@ -177,44 +158,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: kai
 
-  - it: project-controller renders --install-namespace, not --scheduler-namespace
-    template: templates/project-controller/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --install-namespace
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-namespace
-
-  - it: projectController.args.projectNamePrefix renders --project-name-prefix
-    set:
-      projectController.args.projectNamePrefix: acme
-    template: templates/project-controller/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --project-name-prefix
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: acme
-
-  - it: per-controller args.qps / args.burst render
-    set:
-      projectController.args.qps: 100
-      projectController.args.burst: 200
-    template: templates/project-controller/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --qps
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: "100"
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --burst
-
   - it: per-controller args.leaderElect true overrides a global-off default
     set:
       podGroupAssigner.args.leaderElect: true
@@ -235,10 +178,6 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].args
           content: --leader-elect
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
         template: templates/pod-group-assigner/deployment.yaml
 
   - it: explicit args.leaderElect false overrides a global-on setting (issue 1 regression)
@@ -252,10 +191,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --leader-elect
         template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/project-controller/deployment.yaml
       - notContains:
           path: spec.template.spec.containers[0].args
           content: --leader-elect
@@ -307,14 +242,6 @@ tests:
         template: templates/nodepool-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --project-label-key
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --namespace-project-label-key
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
           content: --annotation-nodepools-key
         template: templates/pod-group-assigner/deployment.yaml
 
@@ -330,10 +257,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: my-default
         template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: my-default
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: my-default
@@ -359,15 +282,6 @@ tests:
           content: --finalizer-domain
         template: templates/pod-group-assigner/deployment.yaml
       # per-controller override wins over the shared value
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: proj-override
-        template: templates/project-controller/deployment.yaml
-      # project-label-key: project + pod-group-assigner, NOT nodepool
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --project-label-key
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: --project-label-key
@@ -397,14 +311,6 @@ tests:
         template: templates/pod-group-assigner/deployment.yaml
       - notContains:
           path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/project-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --enforce-scheduler-annotation-key
-        template: templates/project-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
           content: --enforce-scheduler-annotation-key
         template: templates/pod-group-assigner/deployment.yaml
       - notContains:
@@ -418,14 +324,6 @@ tests:
     set:
       commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enforce-scheduler-annotation-key
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: acme/enforce-scheduler-name
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: --enforce-scheduler-annotation-key

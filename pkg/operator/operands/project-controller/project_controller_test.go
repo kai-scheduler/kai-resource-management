@@ -134,6 +134,15 @@ var _ = Describe("DesiredState", func() {
 		Expect(desiredState(krmConfig)).To(HaveLen(7))
 	})
 
+	// One app label across every object, so a single selector finds them all — the
+	// ConfigMaps are not named after the service, so they do not get it for free.
+	It("labels every object with the service name", func() {
+		for _, object := range desiredState(newKRMConfig()) {
+			Expect(object.GetLabels()).To(HaveKeyWithValue("app", defaultResourceName),
+				"wrong app label on %s", object.GetName())
+		}
+	})
+
 	It("creates no ServiceMonitor when monitoring is off", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.Global.ServiceMonitor.Enabled = ptr.To(false)
@@ -246,6 +255,46 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 
 		Expect(data).ToNot(HaveKey("project-secret.yaml"))
 		Expect(data).To(HaveKey("limit-range.yaml"))
+	})
+
+	// Each entry is gated by exactly its own feature and no other.
+	It("gates every entry on its own feature", func() {
+		for _, builtin := range builtinRoleBindings {
+			krmConfig := newKRMConfig()
+			features := krmConfig.Spec.ProjectController.Features
+			for _, other := range builtinRoleBindings {
+				*other.enabledBy(features) = other.key == builtin.key
+			}
+
+			data := dataOf(krmConfig)
+
+			Expect(data).To(HaveKey(builtin.key))
+			Expect(data).To(HaveLen(1), "%s brought other entries with it", builtin.key)
+		}
+	})
+
+	// Each names a ClusterRole the chart creates under the same feature flag; a
+	// binding whose ClusterRole does not exist grants nothing.
+	It("binds every entry to a ClusterRole in this installation's namespace", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Features.LimitRange = ptr.To(true)
+
+		data := dataOf(krmConfig)
+		Expect(data).To(HaveLen(len(builtinRoleBindings)))
+
+		for _, builtin := range builtinRoleBindings {
+			roleBinding := &rbacRoleBinding{}
+			Expect(yaml.Unmarshal([]byte(data[builtin.key]), roleBinding)).To(Succeed())
+
+			Expect(roleBinding.Kind).To(Equal("RoleBinding"))
+			Expect(roleBinding.Metadata.Name).To(Equal(builtin.name))
+			Expect(roleBinding.Metadata.Namespace).To(BeEmpty())
+			Expect(roleBinding.RoleRef.Kind).To(Equal("ClusterRole"))
+			Expect(roleBinding.RoleRef.Name).To(Equal(builtin.name))
+			Expect(roleBinding.Subjects).To(HaveLen(1))
+			Expect(roleBinding.Subjects[0].Name).To(Equal(defaultResourceName))
+			Expect(roleBinding.Subjects[0].Namespace).To(Equal(testNamespace))
+		}
 	})
 
 	// Each entry binds a ClusterRole the chart creates under the same flag, to this

@@ -14,6 +14,9 @@
 # against another, so it can catch an edit to the SCC but not a ServiceAccount added
 # somewhere else.
 #
+# Only accounts this chart renders. An operand creates its own, which no rendering can
+# discover; each operand package asserts its own coverage against this same file.
+#
 # Usage: hack/scc-check.sh [chart-directory]
 set -euo pipefail
 

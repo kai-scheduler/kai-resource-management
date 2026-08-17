@@ -142,6 +142,9 @@ func ServiceForKRMConfig(
 
 	service.Spec.Selector = map[string]string{"app": serviceName}
 	service.Spec.Ports = ports
+	// Set rather than left to the API server, so the field has an owner under
+	// server-side apply and a foreign controller cannot claim it.
+	service.Spec.Type = corev1.ServiceTypeClusterIP
 
 	return service, nil
 }

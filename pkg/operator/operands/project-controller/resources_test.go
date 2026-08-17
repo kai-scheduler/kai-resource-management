@@ -72,6 +72,35 @@ var _ = Describe("buildArgsList", func() {
 		Expect(buildArgsList(krmConfig)).ToNot(ContainElement("--scheduler-name"))
 	})
 
+	// The controller takes --install-namespace; --scheduler-namespace is another
+	// service's flag and this binary would reject it.
+	It("names its own namespace flag, not the scheduler's", func() {
+		args := buildArgsList(newKRMConfig())
+
+		Expect(args).To(ContainElements("--install-namespace", testNamespace))
+		Expect(args).ToNot(ContainElement("--scheduler-namespace"))
+	})
+
+	// The controller reads both ConfigMaps out of the namespace it is installed in.
+	It("points the ConfigMap flags at the install namespace", func() {
+		args := buildArgsList(newKRMConfig())
+
+		Expect(args).To(ContainElements("--rolebindings-configmap-namespace", testNamespace))
+		Expect(args).To(ContainElements("--project-delete-blockers-namespace", testNamespace))
+		Expect(args).To(ContainElements("--rolebindings-configmap-name", roleBindingsConfigMapName))
+	})
+
+	It("passes qps and burst from the client config", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Service.K8sClientConfig.QPS = ptr.To(100)
+		krmConfig.Spec.ProjectController.Service.K8sClientConfig.Burst = ptr.To(200)
+
+		args := buildArgsList(krmConfig)
+
+		Expect(args).To(ContainElements("--qps", "100"))
+		Expect(args).To(ContainElements("--burst", "200"))
+	})
+
 	It("drops the feature flags that are turned off", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(false)
@@ -114,12 +143,18 @@ var _ = Describe("buildArgsList", func() {
 		Expect(args).To(ContainElements("--profiler-api-port", "8182"))
 	})
 
-	It("passes --debug only when asked", func() {
+	// Verbosity is a switch, not a level: --log-level is not a flag this binary has.
+	It("passes --debug only when asked, and never --log-level", func() {
 		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--debug"))
+		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--log-level"))
 
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.Args.Debug = ptr.To(true)
-		Expect(buildArgsList(krmConfig)).To(ContainElement("--debug"))
+
+		args := buildArgsList(krmConfig)
+
+		Expect(args).To(ContainElement("--debug"))
+		Expect(args).ToNot(ContainElement("--log-level"))
 	})
 
 	It("passes the controller's own label keys", func() {

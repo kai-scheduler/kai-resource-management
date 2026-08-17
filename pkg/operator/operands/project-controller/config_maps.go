@@ -75,7 +75,7 @@ var builtinRoleBindings = []builtinRoleBinding{
 func (p *ProjectController) roleBindingsConfigMapForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (client.Object, error) {
-	configMap, err := configMapForKRMConfig(ctx, runtimeClient, krmConfig, roleBindingsConfigMapName)
+	configMap, err := p.configMapForKRMConfig(ctx, runtimeClient, krmConfig, roleBindingsConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func roleBindingFor(binding krmv1alpha1.ProjectRoleBinding, namespace string) *r
 func (p *ProjectController) deleteBlockersConfigMapForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (client.Object, error) {
-	configMap, err := configMapForKRMConfig(ctx, runtimeClient, krmConfig, deleteBlockersConfigMapName)
+	configMap, err := p.configMapForKRMConfig(ctx, runtimeClient, krmConfig, deleteBlockersConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (p *ProjectController) deleteBlockersConfigMapForKRMConfig(
 	return configMap, nil
 }
 
-func configMapForKRMConfig(
+func (p *ProjectController) configMapForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig, name string,
 ) (*corev1.ConfigMap, error) {
 	object, err := common.ObjectForKRMConfig(
@@ -176,5 +176,9 @@ func configMapForKRMConfig(
 
 	configMap := object.(*corev1.ConfigMap)
 	configMap.TypeMeta = metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"}
+	// ObjectForKRMConfig labels an object after itself, which is right for the ones
+	// named after the service. These are not, and the label groups every object of
+	// this controller under one selector.
+	configMap.Labels["app"] = p.BaseResourceName
 	return configMap, nil
 }

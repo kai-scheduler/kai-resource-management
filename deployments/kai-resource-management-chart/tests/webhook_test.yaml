@@ -14,8 +14,6 @@ templates:
   - templates/nodepool-controller/deployment.yaml
   - templates/nodepool-controller/service.yaml
   - templates/project-controller/webhook.yaml
-  - templates/project-controller/deployment.yaml
-  - templates/project-controller/service.yaml
 release:
   name: rm
   namespace: kai
@@ -152,31 +150,15 @@ tests:
           path: spec.template.spec.volumes[?(@.name=="webhook-certs")].secret.secretName
           value: nodepool-controller-tls-secret
         template: templates/nodepool-controller/deployment.yaml
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[?(@.name=="webhook-certs")].mountPath
-          value: /etc/webhook/certs
-        template: templates/project-controller/deployment.yaml
       - contains: {path: "spec.template.spec.containers[0].args", content: "8443"}
         template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.ports
-          content: {name: webhook, protocol: TCP, port: 443, targetPort: 8443}
-        template: templates/project-controller/service.yaml
 
-  - it: passes each controller the flag that registers its handler
+  - it: passes each chart-deployed controller the flag that registers its handler
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
           content: --enable-nodepool-validation-webhook=true
         template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-project-validation-webhook=true
-        template: templates/project-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-department-validation-webhook=true
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: --enable-pod-webhook=true
@@ -194,10 +176,6 @@ tests:
       - notExists: {path: "webhooks[1]"}
         template: templates/project-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-project-validation}
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-department-validation-webhook=false
-        template: templates/project-controller/deployment.yaml
       # Pod mutation gone; pod-group mutation and the Secret remain (2 documents, not 3).
       - hasDocuments: {count: 2}
         template: templates/pod-group-assigner/webhook.yaml
@@ -226,9 +204,6 @@ tests:
         template: templates/project-controller/webhook.yaml
       - notExists: {path: spec.template.spec.volumes}
         template: templates/nodepool-controller/deployment.yaml
-      - notExists:
-          path: spec.template.spec.containers[0].volumeMounts
-        template: templates/project-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
           content: --enable-nodepool-validation-webhook=false
@@ -256,7 +231,3 @@ tests:
       - notExists: {path: "webhooks[0].clientConfig.caBundle"}
         template: templates/project-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-project-validation}
-      - equal:
-          path: metadata.annotations["service.beta.openshift.io/serving-cert-secret-name"]
-          value: project-controller-tls-secret
-        template: templates/project-controller/service.yaml

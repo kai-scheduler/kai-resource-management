@@ -3,14 +3,16 @@
 
 suite: unified --debug flag
 templates:
-  - templates/project-controller/deployment.yaml
+  - templates/nodepool-controller/deployment.yaml
+  - templates/pod-group-assigner/deployment.yaml
 release:
   name: krm
   namespace: kai-resource-management
 tests:
-  - it: project-controller emits --debug (never --log-level) when args.debug is true
+  - it: emits --debug, never --log-level, when args.debug is true
     set:
-      projectController.args.debug: true
+      nodepoolController.args.debug: true
+      podGroupAssigner.args.debug: true
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
@@ -19,7 +21,7 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --log-level
 
-  - it: project-controller emits no debug flag by default
+  - it: emits no debug flag by default
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].args
