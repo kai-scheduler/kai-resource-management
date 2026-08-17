@@ -66,6 +66,19 @@ func desiredState(krmConfig *krmv1alpha1.KRMConfig, existing ...client.Object) [
 	return objects
 }
 
+func newClientWithoutPrometheus() client.Client {
+	scheme := runtime.NewScheme()
+	Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+	return fake.NewClientBuilder().WithScheme(scheme).Build()
+}
+
+func desiredStateWithoutPrometheus() []client.Object {
+	objects, err := (&ProjectController{}).DesiredState(
+		context.Background(), newClientWithoutPrometheus(), newKRMConfig())
+	Expect(err).ToNot(HaveOccurred())
+	return objects
+}
+
 var _ = Describe("DesiredState", func() {
 	It("builds the whole service", func() {
 		objects := desiredState(newKRMConfig())
@@ -165,7 +178,7 @@ var _ = Describe("DesiredState", func() {
 		for _, object := range desiredState(krmConfig) {
 			if configMap, isConfigMap := object.(*corev1.ConfigMap); isConfigMap &&
 				configMap.Name == "runai-rolebindings-plugin" {
-				Expect(configMap.Data).To(HaveKey("project-secret.yaml"))
+				Expect(configMap.Data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
 				return
 			}
 		}
@@ -177,6 +190,23 @@ var _ = Describe("DesiredState", func() {
 		krmConfig.Spec.Global.ServiceMonitor.Enabled = ptr.To(false)
 
 		Expect(findType[*monitoringv1.ServiceMonitor](desiredState(krmConfig))).To(BeNil())
+	})
+
+	It("deploys the service on a cluster with no Prometheus operator", func() {
+		objects, err := (&ProjectController{}).DesiredState(
+			context.Background(), newClientWithoutPrometheus(), newKRMConfig())
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(objects).To(HaveLen(5))
+		Expect(findType[*appsv1.Deployment](objects)).ToNot(BeNil())
+		Expect(findType[*monitoringv1.ServiceMonitor](objects)).To(BeNil())
+	})
+
+	It("returns no object at all when there is no ServiceMonitor to build", func() {
+		for _, object := range desiredStateWithoutPrometheus() {
+			Expect(object).ToNot(BeNil())
+			Expect(object.GetName()).ToNot(BeEmpty())
+		}
 	})
 
 	// The endpoint refers to the Service port by name, and both come from the same
@@ -260,11 +290,11 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 	It("carries an entry per enabled feature", func() {
 		data := dataOf(newKRMConfig())
 
-		Expect(data).To(HaveKey("project-secret.yaml"))
-		Expect(data).To(HaveKey("project-configmap.yaml"))
-		Expect(data).To(HaveKey("project-pvc.yaml"))
+		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
+		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-configmap-per-project")))
+		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-pvc-per-project")))
 		// Limit ranges are off by default.
-		Expect(data).ToNot(HaveKey("limit-range.yaml"))
+		Expect(data).ToNot(HaveKey(roleBindingKey("kai-project-controller-limit-range-per-project")))
 	})
 
 	// The controller's own ClusterRole is bound cluster-wide by the chart, so a
@@ -282,8 +312,8 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 
 		data := dataOf(krmConfig)
 
-		Expect(data).ToNot(HaveKey("project-secret.yaml"))
-		Expect(data).To(HaveKey("limit-range.yaml"))
+		Expect(data).ToNot(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
+		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-limit-range-per-project")))
 	})
 
 	// Each entry is gated by exactly its own feature and no other.
@@ -292,13 +322,13 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 			krmConfig := newKRMConfig()
 			features := krmConfig.Spec.ProjectController.Features
 			for _, other := range builtinRoleBindings {
-				*other.enabledBy(features) = other.key == builtin.key
+				*other.enabledBy(features) = other.name == builtin.name
 			}
 
 			data := dataOf(krmConfig)
 
-			Expect(data).To(HaveKey(builtin.key))
-			Expect(data).To(HaveLen(1), "%s brought other entries with it", builtin.key)
+			Expect(data).To(HaveKey(roleBindingKey(builtin.name)))
+			Expect(data).To(HaveLen(1), "%s brought other entries with it", builtin.name)
 		}
 	})
 
@@ -313,7 +343,7 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 
 		for _, builtin := range builtinRoleBindings {
 			roleBinding := &rbacRoleBinding{}
-			Expect(yaml.Unmarshal([]byte(data[builtin.key]), roleBinding)).To(Succeed())
+			Expect(yaml.Unmarshal([]byte(data[roleBindingKey(builtin.name)]), roleBinding)).To(Succeed())
 
 			Expect(roleBinding.Kind).To(Equal("RoleBinding"))
 			Expect(roleBinding.Metadata.Name).To(Equal(builtin.name))
@@ -331,7 +361,8 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 	It("binds a chart ClusterRole to the controller's ServiceAccount", func() {
 		roleBinding := &rbacRoleBinding{}
 		Expect(yaml.Unmarshal(
-			[]byte(dataOf(newKRMConfig())["project-secret.yaml"]), roleBinding)).To(Succeed())
+			[]byte(dataOf(newKRMConfig())[roleBindingKey("kai-project-controller-cluster-secret-per-project")]),
+			roleBinding)).To(Succeed())
 
 		Expect(roleBinding.Kind).To(Equal("RoleBinding"))
 		Expect(roleBinding.Metadata.Name).To(Equal("kai-project-controller-cluster-secret-per-project"))
@@ -372,8 +403,7 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 		Expect(roleBinding.RoleRef.Name).To(Equal("acme-shared"))
 	})
 
-	// Named after a shipped entry, an extra replaces it rather than adding a second.
-	It("lets an extra override a shipped entry", func() {
+	It("ignores an extra that reuses a shipped binding name", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{
 			{Name: "kai-project-controller-cluster-secret-per-project", ServiceAccountName: "someone-else"},
@@ -381,9 +411,26 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 
 		data := dataOf(krmConfig)
 
-		Expect(data).To(HaveKey("kai-project-controller-cluster-secret-per-project.yaml"))
-		Expect(data["project-secret.yaml"]).To(ContainSubstring(defaultResourceName))
+		Expect(data).To(HaveLen(3), "the extra must not add a second entry")
+		Expect(data[roleBindingKey("kai-project-controller-cluster-secret-per-project")]).
+			To(ContainSubstring(defaultResourceName))
+		Expect(data[roleBindingKey("kai-project-controller-cluster-secret-per-project")]).
+			ToNot(ContainSubstring("someone-else"))
 	})
+
+	It("accepts that name once the feature that ships it is off", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(false)
+		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{
+			{Name: "kai-project-controller-cluster-secret-per-project", ServiceAccountName: "someone-else"},
+		}
+
+		data := dataOf(krmConfig)
+
+		Expect(data[roleBindingKey("kai-project-controller-cluster-secret-per-project")]).
+			To(ContainSubstring("someone-else"))
+	})
+
 })
 
 // rbacRoleBinding decodes only what the assertions read, so a test failure points

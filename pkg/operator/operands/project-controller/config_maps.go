@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
@@ -32,10 +33,7 @@ const (
 // namespace. The ClusterRole comes from the Helm chart under the same feature flag;
 // a binding whose ClusterRole does not exist grants nothing.
 type builtinRoleBinding struct {
-	// key is the ConfigMap data key.
-	key string
-
-	// name is both the RoleBinding's name and the ClusterRole it binds.
+	// name is the RoleBinding, the ClusterRole it binds, and its data key.
 	name string
 
 	enabledBy func(*krmv1alpha1.ProjectControllerFeatures) *bool
@@ -43,34 +41,32 @@ type builtinRoleBinding struct {
 
 var builtinRoleBindings = []builtinRoleBinding{
 	{
-		key:  "project-secret.yaml",
 		name: "kai-project-controller-cluster-secret-per-project",
 		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
 			return features.ClusterWideSecret
 		},
 	},
 	{
-		key:  "project-configmap.yaml",
 		name: "kai-project-controller-cluster-configmap-per-project",
 		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
 			return features.ClusterWideConfigMap
 		},
 	},
 	{
-		key:  "project-pvc.yaml",
 		name: "kai-project-controller-cluster-pvc-per-project",
 		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
 			return features.ClusterWidePvc
 		},
 	},
 	{
-		key:  "limit-range.yaml",
 		name: "kai-project-controller-limit-range-per-project",
 		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
 			return features.LimitRange
 		},
 	},
 }
+
+func roleBindingKey(name string) string { return name + ".yaml" }
 
 func roleBindingsConfigMapNameFor(config *krmv1alpha1.ProjectController) string {
 	if config.RoleBindingsConfigMapName != nil && *config.RoleBindingsConfigMapName != "" {
@@ -102,11 +98,13 @@ func (p *ProjectController) roleBindingsConfigMapForKRMConfig(
 		return nil
 	}
 
+	shipped := map[string]bool{}
 	for _, builtin := range builtinRoleBindings {
 		if !ptr.Deref(builtin.enabledBy(config.Features), false) {
 			continue
 		}
-		if err = add(builtin.key, krmv1alpha1.ProjectRoleBinding{
+		shipped[builtin.name] = true
+		if err = add(roleBindingKey(builtin.name), krmv1alpha1.ProjectRoleBinding{
 			Name:               builtin.name,
 			ServiceAccountName: p.BaseResourceName,
 		}); err != nil {
@@ -114,9 +112,13 @@ func (p *ProjectController) roleBindingsConfigMapForKRMConfig(
 		}
 	}
 
-	// Last, so an entry shipped above can be deliberately overridden by naming it.
 	for _, extra := range config.ExtraProjectRoleBindings {
-		if err = add(extra.Name+".yaml", extra); err != nil {
+		if shipped[extra.Name] {
+			log.FromContext(ctx).Info("ignoring an extra project RoleBinding that this operator already ships",
+				"name", extra.Name, "configMap", configMap.Name)
+			continue
+		}
+		if err = add(roleBindingKey(extra.Name), extra); err != nil {
 			return nil, err
 		}
 	}

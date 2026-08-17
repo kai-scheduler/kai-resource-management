@@ -15,7 +15,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -152,6 +154,9 @@ func ServiceForKRMConfig(
 // ServiceMonitorForKRMConfig scrapes the named port of the Service of the same
 // name. metricsPortName must name a port that Service publishes; Prometheus
 // resolves the endpoint by name, not by number.
+//
+// Returns nil when the Prometheus operator is not installed, so a service can be
+// deployed on a cluster that has nothing to scrape it with.
 func ServiceMonitorForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 	serviceName string, metricsPortName string,
@@ -159,6 +164,9 @@ func ServiceMonitorForKRMConfig(
 	serviceMonitorObj, err := ObjectForKRMConfig(
 		ctx, runtimeClient, &monitoringv1.ServiceMonitor{}, serviceName, krmConfig.Spec.Namespace)
 	if err != nil {
+		if meta.IsNoMatchError(err) || runtime.IsNotRegisteredError(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	serviceMonitor := serviceMonitorObj.(*monitoringv1.ServiceMonitor)

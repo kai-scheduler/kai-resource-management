@@ -106,8 +106,13 @@ func (p *ProjectController) serviceMonitorForKRMConfig(
 		return nil, nil
 	}
 
-	return common.ServiceMonitorForKRMConfig(ctx, runtimeClient, krmConfig, p.BaseResourceName,
+	monitor, err := common.ServiceMonitorForKRMConfig(ctx, runtimeClient, krmConfig, p.BaseResourceName,
 		*krmConfig.Spec.ProjectController.ControllerService.Metrics.Name)
+	// A typed nil would reach the caller as a non-nil client.Object.
+	if err != nil || monitor == nil {
+		return nil, err
+	}
+	return monitor, nil
 }
 
 // The container listens on the target ports; the Service publishes the others.
