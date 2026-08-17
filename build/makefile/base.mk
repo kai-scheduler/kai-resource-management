@@ -17,6 +17,15 @@ HELM_HOOKS_DOCKERFILE_PATH = ./deployments/helm-hooks/Dockerfile
 DOCKER_TAG ?= 0.0.0
 VERSION ?= $(DOCKER_TAG)
 
+# FIPS images are published alongside the regular ones under the same version,
+# distinguished only by this suffix. Overrides rather than defaults VERSION so
+# the suffix survives an explicit VERSION= on the command line, which is how CI
+# passes the release tag. Must stay above DOCKER_IMAGE_NAME.
+FIPS ?= 0
+ifeq ($(FIPS), 1)
+override VERSION := $(VERSION)-fips
+endif
+
 DOCKER_REPO_BASE ?= registry/local/kai-resource-management
 DOCKER_REPO_FULL ?= $(DOCKER_REPO_BASE)/$(SERVICE_NAME)
 DOCKER_IMAGE_NAME ?= $(DOCKER_REPO_FULL):$(VERSION)

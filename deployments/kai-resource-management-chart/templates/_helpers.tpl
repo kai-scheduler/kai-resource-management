@@ -11,15 +11,43 @@ true
 {{- end -}}
 
 {{/*
+Resolves and validates global.fipsMode, returning "off", "on" or "only". Bools are
+coerced so `--set global.fipsMode=true` behaves. An unrecognised value fails the
+render: silently ignoring a typo installs something that looks FIPS-enabled and is
+not. Pass the root context (.).
+*/}}
+{{- define "kai-resource-management.fipsMode" -}}
+{{- $mode := .Values.global.fipsMode | default "off" -}}
+{{- if kindIs "bool" $mode -}}{{- $mode = ternary "on" "off" $mode -}}{{- end -}}
+{{- if not (has $mode (list "off" "on" "only")) -}}
+{{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" $mode) -}}
+{{- end -}}
+{{- $mode -}}
+{{- end -}}
+
+{{/*
 Resolves a component image tag: explicit per-component tag, then .Values.image.tag, then
-the chart appVersion. When global.fips is set, appends "-fips" so the FIPS image
-variants are used. Usage:
+the chart appVersion. Any global.fipsMode but "off" appends "-fips": both enabled modes
+need the FIPS-built binary and differ only in run-time strictness. Usage:
   {{ include "kai-resource-management.imageTag" (dict "root" $ "tag" .Values.<comp>.image.tag) }}
 */}}
 {{- define "kai-resource-management.imageTag" -}}
 {{- $tag := .tag | default .root.Values.image.tag | default .root.Chart.AppVersion -}}
-{{- if .root.Values.global.fips -}}{{- $tag = printf "%s-fips" $tag -}}{{- end -}}
+{{- if ne (include "kai-resource-management.fipsMode" .root) "off" -}}
+{{- $tag = printf "%s-fips" $tag -}}
+{{- end -}}
 {{- $tag -}}
+{{- end -}}
+
+{{/*
+The GODEBUG env entry putting a Go binary into the requested FIPS mode. A FIPS image
+already defaults to fips140=on, so this is what reaches "only" and what turns FIPS off
+without changing the image. Our Go services only, never the kubectl hook Jobs.
+Pass the root context (.); emit under a container's `env:`.
+*/}}
+{{- define "kai-resource-management.godebug" -}}
+- name: GODEBUG
+  value: {{ printf "fips140=%s" (include "kai-resource-management.fipsMode" .) | quote }}
 {{- end -}}
 
 {{/*
@@ -216,8 +244,9 @@ serviceMonitor:
 {{- if (include "kai-resource-management.openshift" .) }}
 openshift: true
 {{- end }}
-{{- if .Values.global.fips }}
-fips: true
+{{- $fipsMode := include "kai-resource-management.fipsMode" . }}
+{{- if ne $fipsMode "off" }}
+fipsMode: {{ $fipsMode | quote }}
 {{- end }}
 {{- with .Values.global.imagePullSecrets }}
 # The CR takes secret names; the chart's own value is a list of {name: ...}.

@@ -6,6 +6,7 @@ GO_VERSION ?= 1.26.3
 GO_IMAGE_VERSION ?= $(GO_VERSION)-bookworm
 GOLANGCI_LINT_VERSION ?= v2.11.3
 CGO_ENABLED ?= 1
+GOFIPS140_VERSION ?= v1.0.0
 E2E_TESTS_DIR ?= test/e2e/
 TEST_TARGETS ?= $(shell $(GO) list ./... | grep -v "$(E2E_TESTS_DIR)")
 
@@ -50,6 +51,14 @@ endif
 # --- END private API module access -----------------------------------------
 
 DOCKER_GO_BASE_COMMAND = $(DOCKER_COMMAND) -e CGO_ENABLED=$(CGO_ENABLED) -e GO111MODULE=on $(DOCKER_GO_CACHING_VOLUME_AND_ENV)
+# Links the binaries against the CMVP-validated Go Cryptographic Module. The
+# module ships inside the toolchain and is pure Go, so neither the builder image
+# nor the runtime base image needs a FIPS variant. GODEBUG=fips140 then selects
+# how strictly it is used at run time; see docs/fips.md.
+ifeq ($(FIPS), 1)
+DOCKER_GO_BASE_COMMAND += -e GOFIPS140=$(GOFIPS140_VERSION)
+endif
+
 GO_ENV_ARCH_AMD = -e GOOS=linux -e GOARCH=amd64 -e CC=x86_64-linux-gnu-gcc -e CXX=x86_64-linux-gnu-g++
 GO_ENV_ARCH_ARM = -e GOOS=linux -e GOARCH=arm64 -e CC=aarch64-linux-gnu-gcc -e CXX=aarch64-linux-gnu-g++
 DOCKER_GO_COMMAND = $(DOCKER_GO_BASE_COMMAND) builder:$(GO_IMAGE_VERSION)

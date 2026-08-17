@@ -25,11 +25,13 @@ tests:
           path: spec.template.spec.containers[0].image
           value: reg.example.com/kai/nodepool-controller:2.26.0
 
-  - it: appends -fips when global.fips is set
+  # Tag resolution only; the full FIPS surface is covered by fips_test.yaml.
+  - it: appends -fips when global.fipsMode is enabled
     set:
       image.registry: reg.example.com/kai
       image.tag: "2.26.0"
-      global.fips: true
+      global.fipsMode: "on"
+      kai-scheduler.global.fips: true
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image

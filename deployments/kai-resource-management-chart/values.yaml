@@ -27,8 +27,10 @@ global:
   imagePullPolicy: IfNotPresent
   # List of {name: <secret>} image pull secrets added to every pod.
   imagePullSecrets: []
-  # Select the FIPS image variants (appends "-fips" to every image tag).
-  fips: false
+  # Go FIPS 140-3 mode: "off" | "on" | "only" ("only" also fails non-approved
+  # algorithms at runtime). Anything but "off" selects the "-fips" images and
+  # needs kai-scheduler.global.fips set to match. See docs/fips.md.
+  fipsMode: "off"
   # Emit `--leader-elect` on every component (also implied when a component has >1 replica).
   leaderElection: false
   # Container security context. Defaults to runAsUser 10000, matching the uid the OpenShift
@@ -58,13 +60,17 @@ serviceMonitor:
   accounting: true
 
 # KAI-scheduler subchart (oci://ghcr.io/kai-scheduler/kai-scheduler), always bundled — the controllers
-# depend on its scheduler + CRDs. Parent global.* (fips, imagePullSecrets, securityContext, scheduling)
+# depend on its scheduler + CRDs. Parent global.* (imagePullSecrets, securityContext, scheduling)
 # is shared with the subchart automatically by Helm; KAI-specific overrides are set here. (Our
 # registry/tag live under the top-level `image:` block, NOT global, so they don't clobber KAI's images.)
 kai-scheduler:
   global:
     # Pin KAI to its own published images regardless of the parent global.registry.
     registry: ghcr.io/kai-scheduler/kai-scheduler
+    # Duplicates global.fipsMode: KAI v0.17.0 only understands this boolean, and
+    # Helm shares global.* verbatim rather than deriving one key from another.
+    # Drop once the pinned KAI release understands fipsMode.
+    fips: false
     # Shared node-pool label key. One source: KAI's kai-config and all three controllers read it.
     # Empty ⇒ the scheduler and controllers use their built-in default.
     nodePoolLabelKey: ""
