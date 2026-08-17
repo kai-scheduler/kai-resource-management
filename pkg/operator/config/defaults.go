@@ -36,6 +36,10 @@ const (
 	// DefaultNodePoolName matches the chart's defaultNodePool.name, which also names
 	// the NodePool the chart creates.
 	DefaultNodePoolName = "default"
+
+	// The values each service's own --qps/--burst flags default to.
+	DefaultClientQPS   = 50
+	DefaultClientBurst = 300
 )
 
 // Ports shared by every KRM service. A service needing its own port defines it
@@ -139,15 +143,15 @@ func setPodGroupAssignerDefaults(
 	podGroupAssigner.VPA = kaicommon.SetDefault(podGroupAssigner.VPA, global.VPA)
 }
 
-// Each service gets its own resource default rather than the generic one in
-// kai/v1/common, which is far smaller than these services need — project-controller
-// alone asks for four times its memory limit. Set before SetDefaultsWhereNeeded,
-// which only fills the keys that are still absent.
+// Set before SetDefaultsWhereNeeded, which only fills keys that are still absent.
 func setServiceDefaults(
 	service *kaicommon.Service, imageName string, defaultResources *kaicommon.Resources,
 ) *kaicommon.Service {
 	service = kaicommon.SetDefault(service, &kaicommon.Service{})
 	service.Resources = kaicommon.SetDefault(service.Resources, defaultResources)
+	service.K8sClientConfig = kaicommon.SetDefault(service.K8sClientConfig, &kaicommon.K8sClientConfig{})
+	service.K8sClientConfig.QPS = kaicommon.SetDefault(service.K8sClientConfig.QPS, ptr.To(DefaultClientQPS))
+	service.K8sClientConfig.Burst = kaicommon.SetDefault(service.K8sClientConfig.Burst, ptr.To(DefaultClientBurst))
 	service.SetDefaultsWhereNeeded(imageName)
 	return service
 }

@@ -33,8 +33,8 @@ var _ = Describe("buildArgsList", func() {
 			"--cluster-wide-secrets",
 			"--cluster-wide-pvcs",
 			"--cluster-wide-config-maps",
-			"--qps", "20",
-			"--burst", "100",
+			"--qps", "50",
+			"--burst", "300",
 		}))
 	})
 
