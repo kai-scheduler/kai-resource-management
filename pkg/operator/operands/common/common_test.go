@@ -96,6 +96,24 @@ var _ = Describe("ObjectForKRMConfig", func() {
 	})
 })
 
+var _ = Describe("FipsGodebugEnvVar", func() {
+	ctx := context.Background()
+
+	DescribeTable("renders the mode as GODEBUG",
+		func(mode *krmv1alpha1.FipsMode, expected string) {
+			Expect(FipsGodebugEnvVar(ctx, &krmv1alpha1.GlobalConfig{FipsMode: mode})).To(
+				Equal(corev1.EnvVar{Name: "GODEBUG", Value: expected}))
+		},
+		Entry("off", ptr.To(krmv1alpha1.FipsModeOff), "fips140=off"),
+		Entry("on", ptr.To(krmv1alpha1.FipsModeOn), "fips140=on"),
+		Entry("only", ptr.To(krmv1alpha1.FipsModeOnly), "fips140=only"),
+		// Unset and out-of-enum both disable rather than reach a pod spec: the
+		// latter is only possible for a CR stored before the enum existed.
+		Entry("unset", nil, "fips140=off"),
+		Entry("out of enum", ptr.To(krmv1alpha1.FipsMode("ON")), "fips140=off"),
+	)
+})
+
 var _ = Describe("DeploymentForKRMConfig", func() {
 	ctx := context.Background()
 
@@ -114,6 +132,17 @@ var _ = Describe("DeploymentForKRMConfig", func() {
 		Expect(deployment.Spec.Template.Labels).To(HaveKeyWithValue("app", "nodepool-controller"))
 		Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal("nodepool-controller"))
 		Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(1))
+	})
+
+	It("puts every operand container into the configured FIPS mode", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.Global.FipsMode = ptr.To(krmv1alpha1.FipsModeOnly)
+
+		deployment, err := DeploymentForKRMConfig(ctx, newClient(), krmConfig, newService("project-controller"), "project-controller")
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(
+			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only"}))
 	})
 
 	It("drops the security context on OpenShift, which assigns the uid range itself", func() {
