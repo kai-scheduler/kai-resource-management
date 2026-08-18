@@ -4,7 +4,7 @@
 # NOTE:
 # This file is documentation ONLY. It is listed in .helmignore and is never merged
 # into .Values, so values here have NO effect at render time. It catalogs the defaults
-# the templates apply via `| default` plus the overridable per-controller args, so they
+# the templates apply via `| default` plus the per-controller args, so they
 # don't clutter values.yaml. To change any of these, add the key to values.yaml (or --set it).
 #
 # Every key under a controller's `args:` renders generically as a CLI flag: the camelCase
@@ -15,7 +15,8 @@
 # kai-scheduler subchart (kai-scheduler.global.nodePoolLabelKey / podgrouper.queueLabelKey).
 
 # Args shared by more than one controller (also surfaced in values.yaml). Each is applied only
-# to the controllers whose binary defines the flag; a per-controller <comp>.args key overrides.
+# to the controllers whose binary defines the flag. Setting one under a service's args fails
+# the render: they must agree across services, so there is one source and no override.
 commonArgs:
   finalizerDomain: ""                # --finalizer-domain (nodepool + project)
   namespaceProjectLabelKey: ""       # --namespace-project-label-key (project + pod-group-assigner)
@@ -109,8 +110,11 @@ projectController:
     limits: { cpu: 300m, memory: 2Gi }
     requests: { cpu: 150m, memory: 1Gi }
 
+# Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
+# operator applies its own default for whatever is left unset, and those defaults are
+# in pkg/operator/config, not in a template.
 podGroupAssigner:
-  replicas: 1
+  replicas: 1                        # unset ⇒ global.replicaCount
   webhook:
     port: 443                        # Service port the API server dials
     targetPort: 8443                 # container --webhook-port
@@ -118,8 +122,8 @@ podGroupAssigner:
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
-    qps: ""                         # --qps   (binary default 50)
-    burst: ""                       # --burst (binary default 300)
+    qps: ""                         # --qps   (default 50); reaches the CR as service.k8sClientConfig.qps
+    burst: ""                       # --burst (default 300); reaches the CR as service.k8sClientConfig.burst
     unexistingNodepoolSentinel: ""  # --unexisting-nodepool-sentinel
     annotationNodepoolsKey: ""      # --annotation-nodepools-key
   resources:

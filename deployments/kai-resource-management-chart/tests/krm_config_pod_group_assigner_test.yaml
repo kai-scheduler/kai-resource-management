@@ -1,0 +1,84 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# pod-group-assigner is installed by the operator, so its chart values reach it
+# through the KRMConfig rather than through a Deployment this chart renders.
+suite: podGroupAssigner values reach the KRMConfig
+templates:
+  - templates/krm-config.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
+  image.registry: reg.example.com/kai
+tests:
+  # The chart renders the webhook configurations and mints their certificate, so
+  # this must agree with it or the service serves a webhook nothing calls.
+  - it: carries the pod webhook toggle
+    asserts:
+      - equal: {path: spec.podGroupAssigner.webhooks.enablePodWebhook, value: true}
+
+  - it: follows the pod webhook being turned off
+    set:
+      podGroupAssigner.webhook.pod: false
+    asserts:
+      - equal: {path: spec.podGroupAssigner.webhooks.enablePodWebhook, value: false}
+
+  - it: carries the webhook ports
+    set:
+      podGroupAssigner.webhook.port: 8443
+      podGroupAssigner.webhook.targetPort: 9443
+    asserts:
+      - equal: {path: spec.podGroupAssigner.controllerService.webhook.port, value: 8443}
+      - equal: {path: spec.podGroupAssigner.controllerService.webhook.targetPort, value: 9443}
+
+  - it: carries the cert secret name
+    set:
+      podGroupAssigner.webhook.certSecretName: runai-pga-tls
+    asserts:
+      - equal: {path: spec.podGroupAssigner.webhooks.certSecretName, value: runai-pga-tls}
+
+  - it: carries the service's own flags
+    set:
+      podGroupAssigner.args.unexistingNodepoolSentinel: acme-none
+      podGroupAssigner.args.annotationNodepoolsKey: acme/node-pools
+      podGroupAssigner.args.debug: true
+    asserts:
+      - equal: {path: spec.podGroupAssigner.args.unexistingNodepoolSentinel, value: acme-none}
+      - equal: {path: spec.podGroupAssigner.args.annotationNodepoolsKey, value: acme/node-pools}
+      - equal: {path: spec.podGroupAssigner.args.debug, value: true}
+
+  - it: carries qps and burst as client config, not args
+    set:
+      podGroupAssigner.args.qps: 100
+      podGroupAssigner.args.burst: 200
+    asserts:
+      - equal: {path: spec.podGroupAssigner.service.k8sClientConfig.qps, value: 100}
+      - equal: {path: spec.podGroupAssigner.service.k8sClientConfig.burst, value: 200}
+      - notExists: {path: spec.podGroupAssigner.args.qps}
+
+  # Only modelled keys are mapped; anything else belongs in extraArgs.
+  - it: leaves an unmodelled args key out of the CR
+    set:
+      podGroupAssigner.args.somethingElse: value
+    asserts:
+      - notExists: {path: spec.podGroupAssigner.args.somethingElse}
+
+  - it: passes extraArgs through
+    set:
+      podGroupAssigner.extraArgs: ["--foo", "bar"]
+    asserts:
+      - equal: {path: "spec.podGroupAssigner.extraArgs[0]", value: "--foo"}
+
+  - it: omits what is not set
+    asserts:
+      - notExists: {path: spec.podGroupAssigner.extraArgs}
+      - notExists: {path: spec.podGroupAssigner.controllerService}
+
+  - it: disables the service rather than removing it when the component is off
+    set:
+      podGroupAssigner.enabled: false
+    asserts:
+      - equal: {path: spec.podGroupAssigner.service.enabled, value: false}

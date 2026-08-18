@@ -13,7 +13,6 @@ tests:
   - it: defaults to off, leaving tags unsuffixed
     templates:
       - templates/nodepool-controller/deployment.yaml
-      - templates/pod-group-assigner/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - notMatchRegex:
@@ -31,7 +30,6 @@ tests:
       kai-scheduler.global.fips: true
     templates:
       - templates/nodepool-controller/deployment.yaml
-      - templates/pod-group-assigner/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - matchRegex:
@@ -66,7 +64,6 @@ tests:
       kai-scheduler.global.fips: true
     templates:
       - templates/nodepool-controller/deployment.yaml
-      - templates/pod-group-assigner/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - contains:

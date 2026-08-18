@@ -4,7 +4,6 @@
 suite: component enable/disable toggles
 templates:
   - templates/nodepool-controller/deployment.yaml
-  - templates/pod-group-assigner/deployment.yaml
   - templates/krm-operator/deployment.yaml
 release:
   name: rm
@@ -25,10 +24,6 @@ tests:
       - hasDocuments:
           count: 1
         template: templates/nodepool-controller/deployment.yaml
-      - hasDocuments:
-          count: 1
-        template: templates/pod-group-assigner/deployment.yaml
-
   - it: omits nodepool-controller when disabled
     set:
       image.registry: reg.example.com/kai
@@ -37,15 +32,6 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/nodepool-controller/deployment.yaml
-
-  - it: omits pod-group-assigner when disabled
-    set:
-      image.registry: reg.example.com/kai
-      podGroupAssigner.enabled: false
-    asserts:
-      - hasDocuments:
-          count: 0
-        template: templates/pod-group-assigner/deployment.yaml
 
   - it: omits the operator when disabled
     set:

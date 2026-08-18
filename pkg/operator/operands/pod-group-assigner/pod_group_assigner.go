@@ -1,12 +1,11 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-// Package projectcontroller installs the project-controller service.
+// Package podgroupassigner installs the pod-group-assigner service.
 //
 // The chart still owns this service's RBAC and its admission webhook
-// configurations. Everything else — the Deployment, its ServiceAccount and
-// Service, the two ConfigMaps it reads and its ServiceMonitor — is built here.
-package projectcontroller
+// configurations. The Deployment, its ServiceAccount and Service are built here.
+package podgroupassigner
 
 import (
 	"context"
@@ -18,10 +17,10 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/common"
 )
 
-// ProjectController is the operand. It is a long-lived singleton, so
+// PodGroupAssigner is the operand. It is a long-lived singleton, so
 // lastDesiredState survives between reconciles and is what the status reconciler
 // later asks about.
-type ProjectController struct {
+type PodGroupAssigner struct {
 	namespace        string
 	lastDesiredState []client.Object
 
@@ -34,7 +33,7 @@ type ProjectController struct {
 // filled, which is what the reconciler does before deploying. It dereferences the
 // defaulted fields without checking them: a caller that skips defaulting gets a nil
 // pointer panic on the first one rather than a half-configured Deployment.
-func (p *ProjectController) DesiredState(
+func (p *PodGroupAssigner) DesiredState(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) ([]client.Object, error) {
 	p.namespace = krmConfig.Spec.Namespace
@@ -42,7 +41,7 @@ func (p *ProjectController) DesiredState(
 		p.BaseResourceName = defaultResourceName
 	}
 
-	if !*krmConfig.Spec.ProjectController.Service.Enabled {
+	if !*krmConfig.Spec.PodGroupAssigner.Service.Enabled {
 		p.lastDesiredState = []client.Object{}
 		return nil, nil
 	}
@@ -50,11 +49,8 @@ func (p *ProjectController) DesiredState(
 	var objects []client.Object
 	for _, resourceFunc := range []operands.ResourceFunc{
 		p.serviceAccountForKRMConfig,
-		p.roleBindingsConfigMapForKRMConfig,
-		p.deleteBlockersConfigMapForKRMConfig,
 		p.deploymentForKRMConfig,
 		p.serviceForKRMConfig,
-		p.serviceMonitorForKRMConfig,
 	} {
 		object, err := resourceFunc(ctx, runtimeClient, krmConfig)
 		if err != nil {
@@ -67,7 +63,7 @@ func (p *ProjectController) DesiredState(
 	}
 
 	if vpa := common.BuildVPAFromObjects(
-		krmConfig.Spec.ProjectController.VPA, objects, krmConfig.Spec.Namespace); vpa != nil {
+		krmConfig.Spec.PodGroupAssigner.VPA, objects, krmConfig.Spec.Namespace); vpa != nil {
 		objects = append(objects, vpa)
 	}
 
@@ -75,25 +71,25 @@ func (p *ProjectController) DesiredState(
 	return objects, nil
 }
 
-func (p *ProjectController) IsDeployed(ctx context.Context, readerClient client.Reader) (bool, error) {
+func (p *PodGroupAssigner) IsDeployed(ctx context.Context, readerClient client.Reader) (bool, error) {
 	return common.AllObjectsExists(ctx, readerClient, p.lastDesiredState)
 }
 
-func (p *ProjectController) IsAvailable(ctx context.Context, readerClient client.Reader) (bool, error) {
+func (p *PodGroupAssigner) IsAvailable(ctx context.Context, readerClient client.Reader) (bool, error) {
 	return common.AllControllersAvailable(ctx, readerClient, p.lastDesiredState)
 }
 
-func (p *ProjectController) Name() string {
-	return "ProjectController"
+func (p *PodGroupAssigner) Name() string {
+	return "PodGroupAssigner"
 }
 
-func (p *ProjectController) Monitor(
+func (p *PodGroupAssigner) Monitor(
 	_ context.Context, _ client.Reader, _ *krmv1alpha1.KRMConfig,
 ) error {
 	return nil
 }
 
-func (p *ProjectController) HasMissingDependencies(
+func (p *PodGroupAssigner) HasMissingDependencies(
 	_ context.Context, _ client.Reader, _ *krmv1alpha1.KRMConfig,
 ) (string, error) {
 	return "", nil

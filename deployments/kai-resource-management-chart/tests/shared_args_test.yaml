@@ -1,0 +1,88 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# Shared vocabulary must agree across every service, so commonArgs is the single
+# source and a per-service copy is refused rather than quietly ignored.
+suite: commonArgs is the only source of shared vocabulary
+release:
+  name: krm
+  namespace: kai
+set:
+  image.registry: reg.example.com/kai
+tests:
+  - it: refuses a shared key under a chart-rendered controller
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+    set:
+      nodepoolController.args.schedulerName: np-override
+    asserts:
+      - failedTemplate:
+          errorPattern: nodepoolController.args.schedulerName is not settable
+
+  - it: refuses a shared key under an operator-installed service
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+      podGroupAssigner.args.projectLabelKey: pga-override
+    asserts:
+      - failedTemplate:
+          errorPattern: podGroupAssigner.args.projectLabelKey is not settable
+
+  - it: refuses it for project-controller too
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+      projectController.args.finalizerDomain: pc-override
+    asserts:
+      - failedTemplate:
+          errorPattern: projectController.args.finalizerDomain is not settable
+
+  - it: still lets a service set its own non-shared args
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+    set:
+      nodepoolController.args.toExcludeLabel: acme/exclude
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --to-exclude-label
+
+  - it: carries the shared vocabulary from commonArgs to the chart-rendered controller
+    templates:
+      - templates/nodepool-controller/deployment.yaml
+    set:
+      commonArgs.schedulerName: shared-scheduler
+      commonArgs.finalizerDomain: acme.io
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: shared-scheduler
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: acme.io
+
+  - it: carries it to the operator-installed services through spec.global
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+      commonArgs.schedulerName: shared-scheduler
+      commonArgs.projectLabelKey: acme/project
+    asserts:
+      - equal: {path: spec.global.schedulerName, value: shared-scheduler}
+      - equal: {path: spec.global.projectLabelKey, value: acme/project}
+
+  - it: defaultNodePool.name is the single source for the default node pool
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+      defaultNodePool.name: my-default
+    asserts:
+      - equal: {path: spec.global.defaultNodePoolName, value: my-default}
