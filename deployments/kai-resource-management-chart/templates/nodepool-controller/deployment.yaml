@@ -4,7 +4,8 @@
 {{- if .Values.nodepoolController.enabled }}
 {{- $comp := .Values.nodepoolController }}
 {{- $a := $comp.args | default dict }}
-{{- $a = merge (deepCopy $a) (pick (.Values.commonArgs | default dict) "finalizerDomain" "schedulerName") }}
+{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "nodepoolController" "args" $a) }}
+{{- $commonArgs := .Values.commonArgs | default dict }}
 {{- $kai := index .Values "kai-scheduler" }}
 {{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}
 {{- $defaultNodepoolName := (.Values.defaultNodePool | default dict).name }}
@@ -66,7 +67,9 @@ spec:
                 "nodepool-label-key"      $nodePoolLabelKey
                 "default-nodepool-name"   $defaultNodepoolName
                 "metrics-namespace"       $metrics.namespace
-                "dcgm-exporter-namespace" $comp.dcgmExporterNamespace) | nindent 12 }}
+                "dcgm-exporter-namespace" $comp.dcgmExporterNamespace
+                "finalizer-domain"        $commonArgs.finalizerDomain
+                "scheduler-name"          $commonArgs.schedulerName) | nindent 12 }}
             {{- include "kai-resource-management.componentArgs" $a | nindent 12 }}
             {{- if $a.debug }}
             - --debug

@@ -314,6 +314,7 @@ siblings of it. Values are read from the same projectController.* keys the chart
 own RBAC and webhook templates use, so a setting has one home and two readers.
 */}}
 {{- define "kai-resource-management.krm-config-project-controller" -}}
+{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "projectController" "args" (($.Values.projectController | default dict).args | default dict)) }}
 {{- $comp := .Values.projectController | default dict -}}
 {{- $webhook := $comp.webhook | default dict -}}
 {{- $features := $comp.features | default dict -}}
@@ -410,6 +411,7 @@ siblings of it. Values are read from the same podGroupAssigner.* keys the chart'
 own webhook template uses, so a setting has one home and two readers.
 */}}
 {{- define "kai-resource-management.krm-config-pod-group-assigner" -}}
+{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "podGroupAssigner" "args" (($.Values.podGroupAssigner | default dict).args | default dict)) }}
 {{- $comp := .Values.podGroupAssigner | default dict -}}
 {{- $webhook := $comp.webhook | default dict -}}
 {{- $args := $comp.args | default dict -}}
@@ -458,6 +460,21 @@ qps and burst are deliberately absent: they live on service.k8sClientConfig.
 {{- else if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
 {{ $key }}: {{ toString $value | quote }}
 {{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Shared vocabulary must agree across every service - a scheduler name or finalizer
+domain that differed between two of them would simply be wrong - so commonArgs is
+the only source and a per-service copy is refused rather than ignored. Usage:
+  {{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "podGroupAssigner" "args" $args) }}
+*/}}
+{{- define "kai-resource-management.reject-shared-arg-override" -}}
+{{- $shared := list "schedulerName" "finalizerDomain" "projectLabelKey" "namespaceProjectLabelKey" "enforceSchedulerAnnotationKey" -}}
+{{- range $key := $shared }}
+{{- if hasKey ($.args | default dict) $key }}
+{{- fail (printf "%s.args.%s is not settable: %s is shared vocabulary, set commonArgs.%s instead" $.comp $key $key $key) }}
 {{- end }}
 {{- end }}
 {{- end -}}

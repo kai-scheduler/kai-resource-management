@@ -107,9 +107,8 @@ kubectl get krmconfig krm-config -o jsonpath='{.status.conditions}' | jq
 `Ready` summarises the rest; `Deployed`, `Available`, `DependenciesFulfilled`
 and `Reconciling` say which part is outstanding.
 
-**It installs project-controller.** nodepool-controller and pod-group-assigner
-are still deployed by this chart directly; each becomes an operand under its own
-change.
+**It installs project-controller and pod-group-assigner.** nodepool-controller is
+still deployed by this chart directly; it becomes an operand under its own change.
 
 For project-controller the operator creates the Deployment, its ServiceAccount and
 Service, the two ConfigMaps the controller reads, and its ServiceMonitor. This

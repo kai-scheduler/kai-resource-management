@@ -70,19 +70,6 @@ tests:
         documentSelector:
           path: metadata.name
           value: kai-pod-mutation
-  - it: podGroupAssigner.args.namespaceProjectLabelKey overrides commonArgs for both
-    # Precedence has to match the Deployment's, or the selector and the flag disagree.
-    set:
-      commonArgs.namespaceProjectLabelKey: acme/project
-      podGroupAssigner.args.namespaceProjectLabelKey: comp/wins
-    asserts:
-      - equal:
-          path: webhooks[0].namespaceSelector.matchExpressions[0].key
-          value: comp/wins
-        template: templates/pod-group-assigner/webhook.yaml
-        documentSelector:
-          path: metadata.name
-          value: kai-pod-group-mutation
   - it: commonArgs.schedulerName reaches nodepool-controller and pod-group-assigner, not project-controller
     # Both binaries must target the same scheduler: nodepool-controller stamps it on
     # SchedulingShards, pod-group-assigner writes it on pods when enforcement applies.
@@ -97,20 +84,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: my-scheduler
         template: templates/nodepool-controller/deployment.yaml
-  - it: nodepoolController.args.schedulerName overrides the shared value
-    set:
-      commonArgs.schedulerName: my-scheduler
-      nodepoolController.args.schedulerName: np-override
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: np-override
-        template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: my-scheduler
-        template: templates/nodepool-controller/deployment.yaml
-      # the shared value still reaches the controller that did not override it
   - it: nodepool-controller pins --scheduler-namespace to the release namespace
     template: templates/nodepool-controller/deployment.yaml
     asserts:
@@ -161,15 +134,12 @@ tests:
     # Proves any go-operator flag is settable from values without a template edit — required
     # for using this chart as a subchart of a parent that drives the full arg surface.
     set:
-      nodepoolController.args.finalizerDomain: example.org
+      nodepoolController.args.unschedulableLabel: acme/unschedulable
       nodepoolController.args.toExcludeLabel: acme/exclude
-      projectController.args.projectLabelKey: acme/project
-      projectController.args.namespaceProjectLabelKey: acme/queue
-      podGroupAssigner.args.annotationNodepoolsKey: acme/nps
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --finalizer-domain
+          content: --unschedulable-label
         template: templates/nodepool-controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].args
@@ -187,26 +157,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: my-default
         template: templates/nodepool-controller/deployment.yaml
-  - it: commonArgs apply only to controllers whose binary defines the flag, per-controller overrides win
-    set:
-      commonArgs.finalizerDomain: acme.io
-      commonArgs.projectLabelKey: acme/project
-      projectController.args.finalizerDomain: proj-override
-    asserts:
-      # finalizer-domain: nodepool + project, NOT pod-group-assigner
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --finalizer-domain
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: acme.io
-        template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --project-label-key
-        template: templates/nodepool-controller/deployment.yaml
-
   - it: vocabulary/operational flags are omitted by default (render-when-set)
     asserts:
       - notContains:

@@ -11,7 +11,7 @@ Components:
   ✓ project-controller (installed by krm-operator)
 {{- end }}
 {{- if .Values.podGroupAssigner.enabled }}
-  ✓ pod-group-assigner{{ if .Values.podGroupAssigner.webhook.enabled }} (with PodGroup mutating webhook){{ end }}
+  ✓ pod-group-assigner (installed by krm-operator)
 {{- end }}
 
 Notes:
@@ -30,10 +30,10 @@ Notes:
     The operator idles until one named "krm-config" is applied.
 {{- end }}
 {{- end }}
-{{- if .Values.podGroupAssigner.webhook.enabled }}
-  - The pod-group-assigner webhook TLS cert is provisioned separately. Until the Secret
-    "{{ .Values.podGroupAssigner.webhook.certSecretName }}" exists with tls.crt/tls.key and the
-    MutatingWebhookConfiguration caBundle is populated, the webhook will not serve.
+{{- if include "kai-resource-management.openshift" . }}
+  - Webhook serving certificates are minted by the OpenShift service-CA operator rather than by
+    this chart, and not instantly. Until each Secret appears, the pod waiting on it stays in
+    ContainerCreating and that webhook does not answer.
 {{- end }}
 
 Verify:

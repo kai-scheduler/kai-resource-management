@@ -60,6 +60,13 @@ var _ = Describe("buildArgsList", func() {
 		Expect(buildArgsList(krmConfig)).ToNot(ContainElement("--finalizer-domain"))
 	})
 
+	It("passes a node pool name other than the default", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.Global.DefaultNodePoolName = ptr.To("my-default")
+
+		Expect(buildArgsList(krmConfig)).To(ContainElements("--default-nodepool-name", "my-default"))
+	})
+
 	It("passes its own label and annotation keys", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.PodGroupAssigner.Args.UnexistingNodepoolSentinel = ptr.To("acme-none")
@@ -130,6 +137,13 @@ var _ = Describe("buildArgsList", func() {
 var _ = Describe("leader election", func() {
 	It("is off for a single replica by default", func() {
 		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--leader-elect"))
+	})
+
+	It("can be turned on for this service alone", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.PodGroupAssigner.Args.LeaderElect = ptr.To(true)
+
+		Expect(buildArgsList(krmConfig)).To(ContainElement("--leader-elect"))
 	})
 
 	It("follows the global setting", func() {

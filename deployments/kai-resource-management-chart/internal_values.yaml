@@ -4,7 +4,7 @@
 # NOTE:
 # This file is documentation ONLY. It is listed in .helmignore and is never merged
 # into .Values, so values here have NO effect at render time. It catalogs the defaults
-# the templates apply via `| default` plus the overridable per-controller args, so they
+# the templates apply via `| default` plus the per-controller args, so they
 # don't clutter values.yaml. To change any of these, add the key to values.yaml (or --set it).
 #
 # Every key under a controller's `args:` renders generically as a CLI flag: the camelCase
@@ -15,7 +15,8 @@
 # kai-scheduler subchart (kai-scheduler.global.nodePoolLabelKey / podgrouper.queueLabelKey).
 
 # Args shared by more than one controller (also surfaced in values.yaml). Each is applied only
-# to the controllers whose binary defines the flag; a per-controller <comp>.args key overrides.
+# to the controllers whose binary defines the flag. Setting one under a service's args fails
+# the render: they must agree across services, so there is one source and no override.
 commonArgs:
   finalizerDomain: ""                # --finalizer-domain (nodepool + project)
   namespaceProjectLabelKey: ""       # --namespace-project-label-key (project + pod-group-assigner)

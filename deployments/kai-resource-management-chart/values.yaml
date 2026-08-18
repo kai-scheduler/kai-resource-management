@@ -99,7 +99,8 @@ defaultNodePool:
   name: default
   spec: {}
 
-# Args shared by more than one controller (set once; per-controller <comp>.args overrides).
+# Args shared by more than one controller. These are the single source: every service that
+# takes one reads it from here, and setting the same key under a service's args is an error.
 # Each is applied only to controllers whose binary accepts it. Empty ⇒ binary default.
 # See internal_values.yaml for which controllers use each.
 commonArgs:

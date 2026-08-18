@@ -168,6 +168,13 @@ var _ = Describe("webhook wiring", func() {
 		Expect(service.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(8443)))
 	})
 
+	// A missing Secret has to stop the pod, not leave a webhook that never answers.
+	It("requires the Secret rather than tolerating its absence", func() {
+		deployment := findType[*appsv1.Deployment](desiredState(newKRMConfig()))
+
+		Expect(deployment.Spec.Template.Spec.Volumes[0].Secret.Optional).To(BeNil())
+	})
+
 	It("keeps the certificate mounted with the pod webhook off", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.PodGroupAssigner.Webhooks.EnablePodWebhook = ptr.To(false)
