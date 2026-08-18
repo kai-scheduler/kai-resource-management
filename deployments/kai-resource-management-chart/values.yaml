@@ -152,7 +152,7 @@ crdUpgrader:
     name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
-nodepoolController:
+nodePoolController:
   enabled: true
   image:
     name: nodepool-controller

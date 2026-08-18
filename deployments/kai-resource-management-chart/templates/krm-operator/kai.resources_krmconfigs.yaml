@@ -1262,6 +1262,14 @@ spec:
                       without the Prometheus operator installed is not an error: the operator skips
                       the ServiceMonitor while its CRD is absent.
                     properties:
+                      accounting:
+                        description: |-
+                          Accounting additionally creates the nodepool-controller accounting
+                          ServiceMonitor, labeled kai.scheduler/accounting=true. The node-to-nodepool
+                          metrics are read by two Prometheuses, and that label routes a ServiceMonitor
+                          to exactly one of them, so reaching both takes two. Ignored when Enabled is
+                          false, and harmless where no accounting Prometheus is deployed.
+                        type: boolean
                       enabled:
                         description: Enabled creates a ServiceMonitor for every service
                           that exposes metrics.

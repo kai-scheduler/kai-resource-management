@@ -82,7 +82,7 @@ The main configuration groups are:
 | `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
-| `nodepoolController` | Node-pool controller deployment, arguments, and webhook. |
+| `nodePoolController` | Node-pool controller deployment, arguments, and webhook. |
 | `projectController` | Project controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhooks this chart still renders. |
 | `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhooks. |
 
@@ -189,7 +189,7 @@ configurations and provisions their serving certificates.
 | --- | --- | --- | --- |
 | `kai-pod-group-mutation` | Mutating | `podgroups` on create | always on |
 | `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
-| `kai-nodepool-validation` | Validating | `nodepools` on create | `nodepoolController.webhook.nodepool` |
+| `kai-nodepool-validation` | Validating | `nodepools` on create | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
 
 Every value defaults to `true`. Setting one to `false` removes that webhook

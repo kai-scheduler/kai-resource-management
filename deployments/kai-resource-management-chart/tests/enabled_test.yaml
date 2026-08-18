@@ -27,7 +27,7 @@ tests:
   - it: omits nodepool-controller when disabled
     set:
       image.registry: reg.example.com/kai
-      nodepoolController.enabled: false
+      nodePoolController.enabled: false
     asserts:
       - hasDocuments:
           count: 0

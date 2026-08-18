@@ -14,10 +14,10 @@ tests:
     templates:
       - templates/nodepool-controller/deployment.yaml
     set:
-      nodepoolController.args.schedulerName: np-override
+      nodePoolController.args.schedulerName: np-override
     asserts:
       - failedTemplate:
-          errorPattern: nodepoolController.args.schedulerName is not settable
+          errorPattern: nodePoolController.args.schedulerName is not settable
 
   - it: refuses a shared key under an operator-installed service
     templates:
@@ -45,7 +45,7 @@ tests:
     templates:
       - templates/nodepool-controller/deployment.yaml
     set:
-      nodepoolController.args.toExcludeLabel: acme/exclude
+      nodePoolController.args.toExcludeLabel: acme/exclude
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args

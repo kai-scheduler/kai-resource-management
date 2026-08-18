@@ -10,7 +10,7 @@ release:
 tests:
   - it: emits --debug, never --log-level, when args.debug is true
     set:
-      nodepoolController.args.debug: true
+      nodePoolController.args.debug: true
       podGroupAssigner.args.debug: true
     asserts:
       - contains:

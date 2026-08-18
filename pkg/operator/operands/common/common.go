@@ -153,18 +153,35 @@ func ServiceForKRMConfig(
 	return service, nil
 }
 
-// ServiceMonitorForKRMConfig scrapes the named port of the Service of the same
-// name. metricsPortName must name a port that Service publishes; Prometheus
+// ServiceMonitorOptions varies a monitor from the default "one per service". A
+// second monitor on one endpoint is how a metric reaches two Prometheuses that
+// select on the same label, since a label routes a monitor to exactly one of them.
+type ServiceMonitorOptions struct {
+	// Name overrides the monitor's own name. Empty means the service's name.
+	Name string
+
+	// ExtraLabels are added to the monitor. The app label is not one of them: it
+	// always names the scraped service, whatever the monitor is called.
+	ExtraLabels map[string]string
+}
+
+// ServiceMonitorForKRMConfig scrapes the named port of the Service named
+// serviceName. metricsPortName must name a port that Service publishes; Prometheus
 // resolves the endpoint by name, not by number.
 //
 // Returns nil when the Prometheus operator is not installed, so a service can be
 // deployed on a cluster that has nothing to scrape it with.
 func ServiceMonitorForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
-	serviceName string, metricsPortName string,
+	serviceName string, metricsPortName string, options ServiceMonitorOptions,
 ) (*monitoringv1.ServiceMonitor, error) {
+	monitorName := options.Name
+	if monitorName == "" {
+		monitorName = serviceName
+	}
+
 	serviceMonitorObj, err := ObjectForKRMConfig(
-		ctx, runtimeClient, &monitoringv1.ServiceMonitor{}, serviceName, krmConfig.Spec.Namespace)
+		ctx, runtimeClient, &monitoringv1.ServiceMonitor{}, monitorName, krmConfig.Spec.Namespace)
 	if err != nil {
 		if meta.IsNoMatchError(err) || runtime.IsNotRegisteredError(err) {
 			return nil, nil
@@ -175,6 +192,14 @@ func ServiceMonitorForKRMConfig(
 	serviceMonitor.TypeMeta = metav1.TypeMeta{
 		Kind:       monitoringv1.ServiceMonitorsKind,
 		APIVersion: monitoringv1.SchemeGroupVersion.String(),
+	}
+
+	// ObjectForKRMConfig labels an object after itself, which is wrong here as soon
+	// as the monitor is not named after the service it selects.
+	labels := serviceMonitor.GetLabels()
+	labels["app"] = serviceName
+	for key, value := range options.ExtraLabels {
+		labels[key] = value
 	}
 
 	serviceMonitor.Spec = monitoringv1.ServiceMonitorSpec{

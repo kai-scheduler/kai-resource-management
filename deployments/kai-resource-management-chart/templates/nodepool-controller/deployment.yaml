@@ -1,10 +1,10 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if .Values.nodepoolController.enabled }}
-{{- $comp := .Values.nodepoolController }}
+{{- if .Values.nodePoolController.enabled }}
+{{- $comp := .Values.nodePoolController }}
 {{- $a := $comp.args | default dict }}
-{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "nodepoolController" "args" $a) }}
+{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "nodePoolController" "args" $a) }}
 {{- $commonArgs := .Values.commonArgs | default dict }}
 {{- $kai := index .Values "kai-scheduler" }}
 {{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey }}

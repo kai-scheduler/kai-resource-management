@@ -1,8 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if and .Values.nodepoolController.enabled (.Values.nodepoolController.webhook | default dict).nodepool }}
-{{- $webhook := .Values.nodepoolController.webhook }}
+{{- if and .Values.nodePoolController.enabled (.Values.nodePoolController.webhook | default dict).nodepool }}
+{{- $webhook := .Values.nodePoolController.webhook }}
 {{- $secretName := $webhook.certSecretName | default "nodepool-controller-tls-secret" }}
 {{- $webhookPort := int ($webhook.port | default 443) }}
 {{- $openshift := include "kai-resource-management.openshift" . }}
