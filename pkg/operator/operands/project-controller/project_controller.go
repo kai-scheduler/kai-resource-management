@@ -3,8 +3,8 @@
 
 // Package projectcontroller installs the project-controller service.
 //
-// The chart still owns this service's RBAC, its admission webhook configurations
-// and their TLS Secrets. Everything else — the Deployment, its ServiceAccount and
+// The chart still owns this service's RBAC and its admission webhook
+// configurations. Everything else — the Deployment, its ServiceAccount and
 // Service, the two ConfigMaps it reads and its ServiceMonitor — is built here.
 package projectcontroller
 

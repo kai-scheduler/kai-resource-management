@@ -3,9 +3,8 @@
 
 // Package podgroupassigner installs the pod-group-assigner service.
 //
-// The chart still owns this service's RBAC, its admission webhook configurations
-// and their TLS Secret. The Deployment, its ServiceAccount and Service are built
-// here.
+// The chart still owns this service's RBAC and its admission webhook
+// configurations. The Deployment, its ServiceAccount and Service are built here.
 package podgroupassigner
 
 import (
