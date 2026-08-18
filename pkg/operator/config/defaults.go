@@ -134,15 +134,6 @@ func setPortMappingDefaults(
 	return portMapping
 }
 
-func setPodGroupAssignerDefaults(
-	podGroupAssigner *krmv1alpha1.PodGroupAssigner, global *krmv1alpha1.GlobalConfig,
-) {
-	podGroupAssigner.Service = setServiceDefaults(
-		podGroupAssigner.Service, PodGroupAssignerImageName, podGroupAssignerResources())
-	podGroupAssigner.Replicas = kaicommon.SetDefault(podGroupAssigner.Replicas, global.ReplicaCount)
-	podGroupAssigner.VPA = kaicommon.SetDefault(podGroupAssigner.VPA, global.VPA)
-}
-
 // Set before SetDefaultsWhereNeeded, which only fills keys that are still absent.
 func setServiceDefaults(
 	service *kaicommon.Service, imageName string, defaultResources *kaicommon.Resources,

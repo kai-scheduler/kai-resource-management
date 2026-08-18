@@ -296,23 +296,6 @@ type NodePoolController struct {
 	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
 }
 
-// PodGroupAssigner configures the pod-group-assigner service.
-//
-// The service's own flag surface is added by RUN-42110.
-type PodGroupAssigner struct {
-	// Service is the common deployment configuration: enablement, image, resources.
-	// +optional
-	Service *kaicommon.Service `json:"service,omitempty"`
-
-	// Replicas overrides global.replicaCount for this service.
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
-
-	// VPA overrides global.vpa for this service.
-	// +optional
-	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
-}
-
 // KRMConfigStatus is the observed state of the installation.
 type KRMConfigStatus struct {
 	// Conditions report reconciliation progress and readiness.

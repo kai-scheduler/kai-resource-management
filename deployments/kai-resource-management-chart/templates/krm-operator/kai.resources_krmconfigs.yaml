@@ -2625,6 +2625,61 @@ spec:
               podGroupAssigner:
                 description: PodGroupAssigner configures the pod-group-assigner service.
                 properties:
+                  args:
+                    description: |-
+                      Args holds the service's own command line flags. An unset field means the
+                      flag is not passed at all and the binary's own default applies.
+                    properties:
+                      annotationNodepoolsKey:
+                        description: |-
+                          AnnotationNodepoolsKey is the Pod annotation whose value lists the node pools
+                          explicitly requested for it.
+                        type: string
+                      debug:
+                        description: Debug raises the service's log verbosity.
+                        type: boolean
+                      leaderElect:
+                        description: |-
+                          LeaderElect overrides global.leaderElection for this service. Unset means
+                          leader election follows global.leaderElection, or a replica count above one.
+                        type: boolean
+                      unexistingNodepoolSentinel:
+                        description: |-
+                          UnexistingNodepoolSentinel is the label value marking a PodGroup as not yet
+                          assigned to any node pool.
+                        type: string
+                    type: object
+                  controllerService:
+                    description: |-
+                      ControllerService describes the ports the service listens on and the Service
+                      publishes. Named to avoid colliding with Service above.
+                    properties:
+                      webhook:
+                        description: Webhook is the admission webhook port.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                    type: object
+                  extraArgs:
+                    description: |-
+                      ExtraArgs are appended verbatim after every other flag, so a flag repeated
+                      here overrides the one built above it. The escape hatch for a flag this API
+                      does not model yet.
+                    items:
+                      type: string
+                    type: array
                   replicas:
                     description: Replicas overrides global.replicaCount for this service.
                     format: int32
@@ -3795,6 +3850,23 @@ spec:
                             - Auto
                             type: string
                         type: object
+                    type: object
+                  webhooks:
+                    description: |-
+                      Webhooks configures the admission webhooks the service serves. The webhook
+                      configurations themselves and their TLS certificates stay with the Helm chart.
+                    properties:
+                      certSecretName:
+                        description: |-
+                          CertSecretName is the TLS Secret the service mounts. The Helm chart mints
+                          it, or on OpenShift the service-CA operator does.
+                        type: string
+                      enablePodWebhook:
+                        description: |-
+                          EnablePodWebhook serves the Pod mutating webhook, which enforces the
+                          scheduler name, labels a pod with its project, and applies the project's
+                          default node pools as node affinity.
+                        type: boolean
                     type: object
                 type: object
               projectController:
