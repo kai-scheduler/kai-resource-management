@@ -986,10 +986,16 @@ spec:
                     description: FinalizerDomain is the domain prefix for finalizers
                       the controllers set.
                     type: string
-                  fips:
-                    description: Fips selects the FIPS-validated image variant for
-                      every service.
-                    type: boolean
+                  fipsMode:
+                    description: |-
+                      FipsMode sets the FIPS 140-3 run-time mode of every service. It does not
+                      choose the image: a FIPS-built binary is a build-time property, and the chart
+                      selects it by tag. Setting this against a non-FIPS image has no effect.
+                    enum:
+                    - "off"
+                    - "on"
+                    - only
+                    type: string
                   imagePullSecrets:
                     description: ImagePullSecrets are added to every service pod.
                     items:

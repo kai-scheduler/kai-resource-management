@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
@@ -101,6 +102,7 @@ func DeploymentForKRMConfig(
 			ImagePullPolicy: *service.Image.PullPolicy,
 			Resources:       corev1.ResourceRequirements(*service.Resources),
 			SecurityContext: krmConfig.Spec.Global.GetSecurityContext(),
+			Env:             []corev1.EnvVar{FipsGodebugEnvVar(ctx, krmConfig.Spec.Global)},
 		},
 	}
 
@@ -352,6 +354,28 @@ func AddControllerRuntimeJSONLogArg(jsonLog *bool, args []string) []string {
 	}
 
 	return args
+}
+
+// FipsGodebugEnvVar renders global.fipsMode as the GODEBUG entry that selects the
+// Go FIPS 140-3 run-time mode.
+//
+// Emitted even for "off", so the value is always owned by us: a FIPS-built image
+// defaults to fips140=on, and omitting the variable there would leave no way to
+// turn FIPS back off. An unrecognised mode falls back to off rather than reaching
+// a pod spec, where it would make the container fail to start; the CRD enum
+// rejects those, but a KRMConfig stored before the enum existed is not revalidated.
+func FipsGodebugEnvVar(ctx context.Context, global *krmv1alpha1.GlobalConfig) corev1.EnvVar {
+	mode := ptr.Deref(global.FipsMode, krmv1alpha1.FipsModeOff)
+	if !slices.Contains(
+		[]krmv1alpha1.FipsMode{
+			krmv1alpha1.FipsModeOff, krmv1alpha1.FipsModeOn, krmv1alpha1.FipsModeOnly}, mode) {
+		log.FromContext(ctx).Error(
+			fmt.Errorf("unsupported fips mode %q", mode),
+			"Falling back to a disabled FIPS mode", "fipsMode", mode)
+		mode = krmv1alpha1.FipsModeOff
+	}
+
+	return corev1.EnvVar{Name: "GODEBUG", Value: fmt.Sprintf("fips140=%s", mode)}
 }
 
 func GetGlobalImagePullSecrets(global *krmv1alpha1.GlobalConfig) []corev1.LocalObjectReference {

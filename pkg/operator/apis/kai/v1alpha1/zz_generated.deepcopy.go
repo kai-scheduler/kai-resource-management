@@ -131,9 +131,9 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.Fips != nil {
-		in, out := &in.Fips, &out.Fips
-		*out = new(bool)
+	if in.FipsMode != nil {
+		in, out := &in.FipsMode, &out.FipsMode
+		*out = new(FipsMode)
 		**out = **in
 	}
 	if in.JSONLog != nil {

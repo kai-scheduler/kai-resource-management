@@ -117,3 +117,103 @@ jobs:
           else
             echo "No GitHub Release for $PACKAGE_VERSION; skipping chart asset upload."
           fi
+
+  # Publishes the `<version>-fips` variant of every image, which the chart
+  # selects with global.fipsMode. Deliberately a second job rather than a step in
+  # build-and-push: the two image sets share no build cache state, and a failure
+  # here must not prevent the regular images and the chart from being published.
+  # No chart is packaged here - one chart serves both variants.
+  build-and-push-fips:
+    name: Build & Push FIPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Extract package version from tag
+        run: |
+          PACKAGE_VERSION=${GITHUB_REF_NAME}
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          echo $PACKAGE_VERSION
+
+      # Keyed apart from the regular build's cache: the FIPS objects are compiled
+      # against a different crypto implementation, so sharing one cache would only
+      # cause misses.
+      - name: Cache Go build cache (Docker-mounted)
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build-docker-gocache
+            ~/.cache/go-build-docker-gopath
+          key: go-docker-fips-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-docker-fips-${{ runner.os }}-
+
+      # --- BEGIN private API module access ---------------------------------
+      # TEMPORARY: needed only while kai-resource-management-api is a private
+      # repository. GITHUB_TOKEN is scoped to this repository and cannot read
+      # it. Remove this block once the repositories are public: the public Go
+      # module proxy will then serve the module anonymously.
+      - name: Mint a token for the private API module
+        uses: actions/create-github-app-token@v2
+        id: apptoken
+        with:
+          app-id: ${{ secrets.KAI_MODULE_READER_APP_ID }}
+          private-key: ${{ secrets.KAI_MODULE_READER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: kai-resource-management-api
+
+      # Scoped to the exact module, not github.com/kai-scheduler/*: GOPRIVATE
+      # also disables checksum-database verification, and the sibling module
+      # github.com/kai-scheduler/api is public and is in the sumdb.
+      # GIT_CONFIG_GLOBAL is what build/makefile/golang.mk forwards into the
+      # builder container, which fetches modules into its own GOPATH volume.
+      - name: Configure Go and git for the private API module
+        env:
+          TOKEN: ${{ steps.apptoken.outputs.token }}
+        run: |
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          # The rewrite is scoped to this one repository, so the token is
+          # never sent to any other GitHub URL.
+          git config --global \
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
+          echo "GIT_CONFIG_GLOBAL=$HOME/.gitconfig" >> "$GITHUB_ENV"
+      # --- END private API module access -----------------------------------
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.3'
+          # Needed on the host only to run `go version -m` in the verification
+          # step below, which reads build info out of an already-built binary.
+          # No host Go build runs here, so setup-go's cache has nothing to hold.
+          cache: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker build & push FIPS images
+        run: make build FIPS=1 DOCKER_BUILD_PLATFORM=linux/amd64,linux/arm64 DOCKER_REPO_BASE=${DOCKER_REGISTRY} VERSION=$PACKAGE_VERSION DOCKER_BUILDX_ADDITIONAL_ARGS=--push
+
+      # The images are already pushed by this point, so this is a post-hoc audit
+      # rather than a gate. It still matters: a silently dropped GOFIPS140 would
+      # otherwise ship a `-fips` tag containing an ordinary binary, which nothing
+      # downstream can detect. Only the Go services leave binaries in bin/; the
+      # helm-hooks image carries upstream kubectl and is not FIPS-built.
+      # No `set -o pipefail` here, deliberately: `grep -q` exits on its first
+      # match and closes the pipe, so `go version` can take a SIGPIPE and the
+      # pipeline would report failure on exactly the binaries that passed.
+      - name: Verify binaries are FIPS-enabled
+        run: |
+          for f in bin/*-amd64 bin/*-arm64; do
+            go version -m "$f" | grep -q 'GOFIPS140=v1.0.0' || { echo "$f is not FIPS-enabled"; exit 1; }
+          done

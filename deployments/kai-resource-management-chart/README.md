@@ -90,6 +90,10 @@ The main configuration groups are:
 a developer reference for template defaults and is not included in packaged
 charts.
 
+FIPS 140-3 installs set `global.fipsMode`, which selects the `-fips` images and
+their run-time mode, and require `kai-scheduler.global.fips` to match. See
+[FIPS 140-3](../../docs/fips.md).
+
 ## KRM operator
 
 The operator reconciles `KRMConfig`, a cluster-scoped singleton named

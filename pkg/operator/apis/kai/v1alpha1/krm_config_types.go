@@ -114,6 +114,21 @@ type SchedulerConfigRef struct {
 	Name string `json:"name,omitempty"`
 }
 
+// FipsMode is the Go FIPS 140-3 run-time mode of a service, as GODEBUG=fips140.
+// +kubebuilder:validation:Enum=off;on;only
+type FipsMode string
+
+const (
+	// FipsModeOff runs the ordinary crypto paths even on a FIPS-built binary.
+	FipsModeOff FipsMode = "off"
+	// FipsModeOn serves approved algorithms from the validated module. Non-approved
+	// algorithms keep working, outside the boundary. A FIPS build defaults to this.
+	FipsModeOn FipsMode = "on"
+	// FipsModeOnly additionally makes non-approved algorithms error or panic, so
+	// nothing outside the validated boundary is reachable.
+	FipsModeOnly FipsMode = "only"
+)
+
 // GlobalConfig holds the settings every KRM service inherits.
 //
 // SchedulerName, QueueLabelKey and NodePoolLabelKey resolve as: a value here wins,
@@ -208,9 +223,11 @@ type GlobalConfig struct {
 	// +optional
 	Openshift *bool `json:"openshift,omitempty"`
 
-	// Fips selects the FIPS-validated image variant for every service.
+	// FipsMode sets the FIPS 140-3 run-time mode of every service. It does not
+	// choose the image: a FIPS-built binary is a build-time property, and the chart
+	// selects it by tag. Setting this against a non-FIPS image has no effect.
 	// +optional
-	Fips *bool `json:"fips,omitempty"`
+	FipsMode *FipsMode `json:"fipsMode,omitempty"`
 
 	// JSONLog switches every service to structured JSON logging.
 	// +optional

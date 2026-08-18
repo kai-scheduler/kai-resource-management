@@ -31,6 +31,10 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 		Expect(spec.Namespace).To(Equal(OperatorNamespace()))
 		Expect(spec.SchedulerConfigRef.Name).To(Equal(constants.DefaultKAIConfigSingeltonInstanceName))
 		Expect(spec.Global.ReplicaCount).To(Equal(ptr.To(int32(1))))
+		// Off rather than on: a FIPS-built binary already runs with fips140=on, so
+		// defaulting to anything else would change the behaviour of an image chosen
+		// for how it was built.
+		Expect(spec.Global.FipsMode).To(Equal(ptr.To(krmv1alpha1.FipsModeOff)))
 		Expect(spec.NodePoolController.Service.Image.Name).To(Equal(ptr.To(NodePoolControllerImageName)))
 		Expect(spec.ProjectController.Service.Image.Name).To(Equal(ptr.To(ProjectControllerImageName)))
 		Expect(spec.PodGroupAssigner.Service.Image.Name).To(Equal(ptr.To(PodGroupAssignerImageName)))
@@ -52,6 +56,7 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 			Global: &krmv1alpha1.GlobalConfig{
 				ReplicaCount: ptr.To(int32(3)),
 				Openshift:    ptr.To(true),
+				FipsMode:     ptr.To(krmv1alpha1.FipsModeOnly),
 			},
 			SchedulerConfigRef: &krmv1alpha1.SchedulerConfigRef{Name: "other-config"},
 		}
@@ -61,6 +66,7 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 		Expect(spec.Namespace).To(Equal("elsewhere"))
 		Expect(spec.Global.ReplicaCount).To(Equal(ptr.To(int32(3))))
 		Expect(spec.Global.Openshift).To(Equal(ptr.To(true)))
+		Expect(spec.Global.FipsMode).To(Equal(ptr.To(krmv1alpha1.FipsModeOnly)))
 		Expect(spec.SchedulerConfigRef.Name).To(Equal("other-config"))
 	})
 
