@@ -8,8 +8,6 @@
 suite: admission webhooks and their TLS certs
 templates:
   - templates/pod-group-assigner/webhook.yaml
-  - templates/pod-group-assigner/deployment.yaml
-  - templates/pod-group-assigner/service.yaml
   - templates/nodepool-controller/webhook.yaml
   - templates/nodepool-controller/deployment.yaml
   - templates/nodepool-controller/service.yaml
@@ -143,9 +141,6 @@ tests:
     # Not optional: the chart creates the Secret, so a missing one is a real failure rather
     # than a webhook that silently never answers.
     asserts:
-      - notExists:
-          path: spec.template.spec.volumes[?(@.name=="webhook-certs")].secret.optional
-        template: templates/pod-group-assigner/deployment.yaml
       - equal:
           path: spec.template.spec.volumes[?(@.name=="webhook-certs")].secret.secretName
           value: nodepool-controller-tls-secret
@@ -159,11 +154,6 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --enable-nodepool-validation-webhook=true
         template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-pod-webhook=true
-        template: templates/pod-group-assigner/deployment.yaml
-
   - it: drops only its own webhook when a gate is turned off
     set:
       projectController.webhook.department: false
@@ -188,10 +178,6 @@ tests:
     asserts:
       - hasDocuments: {count: 2}
         template: templates/pod-group-assigner/webhook.yaml
-      - exists:
-          path: spec.template.spec.volumes[?(@.name=="webhook-certs")]
-        template: templates/pod-group-assigner/deployment.yaml
-
   - it: removes the cert, port and mount when a controller's webhooks are all off
     set:
       nodepoolController.webhook.nodepool: false

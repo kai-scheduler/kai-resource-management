@@ -109,8 +109,11 @@ projectController:
     limits: { cpu: 300m, memory: 2Gi }
     requests: { cpu: 150m, memory: 1Gi }
 
+# Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
+# operator applies its own default for whatever is left unset, and those defaults are
+# in pkg/operator/config, not in a template.
 podGroupAssigner:
-  replicas: 1
+  replicas: 1                        # unset ⇒ global.replicaCount
   webhook:
     port: 443                        # Service port the API server dials
     targetPort: 8443                 # container --webhook-port
@@ -118,8 +121,8 @@ podGroupAssigner:
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
-    qps: ""                         # --qps   (binary default 50)
-    burst: ""                       # --burst (binary default 300)
+    qps: ""                         # --qps   (default 50); reaches the CR as service.k8sClientConfig.qps
+    burst: ""                       # --burst (default 300); reaches the CR as service.k8sClientConfig.burst
     unexistingNodepoolSentinel: ""  # --unexisting-nodepool-sentinel
     annotationNodepoolsKey: ""      # --annotation-nodepools-key
   resources:

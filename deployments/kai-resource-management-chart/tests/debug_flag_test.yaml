@@ -4,7 +4,6 @@
 suite: unified --debug flag
 templates:
   - templates/nodepool-controller/deployment.yaml
-  - templates/pod-group-assigner/deployment.yaml
 release:
   name: krm
   namespace: kai-resource-management

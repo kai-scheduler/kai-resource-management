@@ -197,6 +197,7 @@ spec:
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
   {{- include "kai-resource-management.krm-config-project-controller" $ }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "podGroupAssigner" "comp" .Values.podGroupAssigner) }}
+  {{- include "kai-resource-management.krm-config-pod-group-assigner" $ }}
 {{- end -}}
 
 {{/*
@@ -392,6 +393,64 @@ qps and burst are deliberately absent: they live on service.k8sClientConfig.
 {{- $args := . -}}
 {{- range $key := list "debug" "leaderElect" "projectNamePrefix" "projectIdLabelKey"
     "queueDepartmentNameLabelKey" "namespaceVersionLabelKey" "resourceManualOverrideLabelKey" "limitRangeName" }}
+{{- if hasKey $args $key }}
+{{- $value := index $args $key }}
+{{- if kindIs "bool" $value }}
+{{ $key }}: {{ $value }}
+{{- else if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+{{ $key }}: {{ toString $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The pod-group-assigner keys the generic service block does not cover, emitted as
+siblings of it. Values are read from the same podGroupAssigner.* keys the chart's
+own webhook template uses, so a setting has one home and two readers.
+*/}}
+{{- define "kai-resource-management.krm-config-pod-group-assigner" -}}
+{{- $comp := .Values.podGroupAssigner | default dict -}}
+{{- $webhook := $comp.webhook | default dict -}}
+{{- $args := $comp.args | default dict -}}
+    {{- if or $webhook.port $webhook.targetPort }}
+    controllerService:
+      webhook:
+        {{- with $webhook.port }}
+        port: {{ . | int }}
+        {{- end }}
+        {{- with $webhook.targetPort }}
+        targetPort: {{ . | int }}
+        {{- end }}
+    {{- end }}
+    {{- if or (hasKey $webhook "pod") $webhook.certSecretName }}
+    webhooks:
+      {{- if hasKey $webhook "pod" }}
+      enablePodWebhook: {{ $webhook.pod }}
+      {{- end }}
+      {{- with $webhook.certSecretName }}
+      certSecretName: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- $argsBody := include "kai-resource-management.krm-config-pod-group-assigner-args" $args }}
+    {{- if trim $argsBody }}
+    args:
+      {{- trim $argsBody | nindent 6 }}
+    {{- end }}
+    {{- with $comp.extraArgs }}
+    extraArgs:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end -}}
+
+{{/*
+The typed args of the KRMConfig, taken from podGroupAssigner.args. Only these keys
+are modelled; anything else set there is ignored, and belongs in extraArgs.
+qps and burst are deliberately absent: they live on service.k8sClientConfig.
+*/}}
+{{- define "kai-resource-management.krm-config-pod-group-assigner-args" -}}
+{{- $args := . -}}
+{{- range $key := list "debug" "leaderElect" "unexistingNodepoolSentinel" "annotationNodepoolsKey" }}
 {{- if hasKey $args $key }}
 {{- $value := index $args $key }}
 {{- if kindIs "bool" $value }}

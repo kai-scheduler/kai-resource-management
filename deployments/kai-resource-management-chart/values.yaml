@@ -212,13 +212,17 @@ projectController:
     project: true
     department: true
 
+# The krm-operator installs this service; these values reach it through the KRMConfig.
+# Its RBAC and admission webhooks are still rendered by this chart.
 podGroupAssigner:
   enabled: true
   image:
     name: pod-group-assigner
-  # replicas / resources: defaults in template
+  # replicas / resources: the operator's defaults apply when unset.
   args:
     debug: false
+  # Flags the KRMConfig does not model, appended after every other argument.
+  extraArgs: []
   # PodGroup mutation is always on and has no value; only Pod mutation is optional.
   webhook:
     # Mutate Pods on create in project namespaces: enforce the scheduler name, label the pod
