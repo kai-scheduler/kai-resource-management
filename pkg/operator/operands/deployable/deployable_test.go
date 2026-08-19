@@ -162,6 +162,24 @@ var _ = Describe("DeployableOperands", func() {
 			Expect(created.OwnerReferences[0].Controller).To(Equal(ptr.To(true)))
 		})
 
+		It("takes the apiVersion from the owner rather than assuming one", func() {
+			operand.configMaps = map[string]map[string]string{"settings": {"key": "value"}}
+			foreignOwner := &monitoringv1.ServiceMonitor{
+				ObjectMeta: metav1.ObjectMeta{Name: "some-owner", Namespace: testNamespace},
+			}
+			foreignOwner.SetGroupVersionKind(
+				monitoringv1.SchemeGroupVersion.WithKind(monitoringv1.ServiceMonitorsKind))
+
+			Expect(engine.Deploy(ctx, runtimeClient, krmConfig, foreignOwner)).To(Succeed())
+
+			created := getConfigMap("settings")
+			Expect(created.OwnerReferences).To(HaveLen(1))
+			Expect(created.OwnerReferences[0].APIVersion).To(
+				Equal(monitoringv1.SchemeGroupVersion.String()))
+			Expect(created.OwnerReferences[0].Kind).To(Equal(monitoringv1.ServiceMonitorsKind))
+			Expect(created.OwnerReferences[0].Name).To(Equal("some-owner"))
+		})
+
 		It("rejects an object with no GroupVersionKind, which could never be matched again", func() {
 			operand.extra = []client.Object{&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "no-gvk", Namespace: testNamespace},

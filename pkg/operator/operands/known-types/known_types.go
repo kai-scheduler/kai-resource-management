@@ -122,7 +122,7 @@ func register[
 	// to store for it. Returning nil leaves the object out of the index entirely.
 	indexer := func(obj client.Object) []string {
 		owner := metav1.GetControllerOf(obj)
-		if !ownedByKRMConfig(owner) {
+		if !ownedByKAIResourcesKind(owner) {
 			return nil
 		}
 		return []string{ownerKey(owner)}
@@ -232,8 +232,11 @@ func ownerKey(owner *metav1.OwnerReference) string {
 	return owner.Kind + "/" + owner.Name
 }
 
-// ownedByKRMConfig keeps a foreign object whose controller happens to share a
-// name out of the index, so the operator never prunes something not its own.
-func ownedByKRMConfig(owner *metav1.OwnerReference) bool {
+// ownedByKAIResourcesKind admits any owner in this API group, not only a KRMConfig:
+// nodepool-controller owns objects through a NodePool, which shares the group. What
+// keeps the two apart is Collect, which looks up ReconcilerKey — kind and name — so
+// an object owned by NodePool/x is never collected for KRMConfig/y, and never pruned
+// on its behalf.
+func ownedByKAIResourcesKind(owner *metav1.OwnerReference) bool {
 	return owner != nil && owner.APIVersion == krmv1alpha1.GroupVersion.String()
 }
