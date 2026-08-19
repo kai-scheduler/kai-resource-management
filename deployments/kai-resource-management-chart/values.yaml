@@ -165,7 +165,9 @@ nodePoolController:
   # applies; set to override.
   # dcgmExporterNamespace: ""
   webhook:
-    # Validate NodePools on create: reject a missing or duplicate label key/value pair.
+    # Validate NodePools: on create, reject a missing or duplicate label key/value
+    # pair; on delete, refuse to remove defaultNodePool.name, the catch-all that
+    # nothing recreates.
     nodepool: true
 
 # The krm-operator installs this controller; these values reach it through the KRMConfig.

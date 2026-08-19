@@ -189,7 +189,7 @@ configurations and provisions their serving certificates.
 | --- | --- | --- | --- |
 | `kai-pod-group-mutation` | Mutating | `podgroups` on create | always on |
 | `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
-| `kai-nodepool-validation` | Validating | `nodepools` on create | `nodePoolController.webhook.nodepool` |
+| `kai-nodepool-validation` | Validating | `nodepools` on create and delete | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
 
 Every value defaults to `true`. Setting one to `false` removes that webhook
@@ -200,6 +200,11 @@ name.
 
 Project and department validation runs on create and update but never on delete.
 Deletion ordering is enforced by the controllers' finalizers instead.
+
+NodePool validation does run on delete, to refuse one deletion: the pool named by
+`defaultNodePool.name`. It is the catch-all for nodes no other nodepool selects,
+and nothing recreates it, so removing it leaves those nodes unschedulable. Every
+other NodePool deletes normally.
 
 The webhook configurations are cluster-scoped and named without the release name,
 so only one release of this chart per cluster is supported.
