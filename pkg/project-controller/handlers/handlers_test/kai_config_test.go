@@ -3,9 +3,9 @@ package handlers_test
 import (
 	. "github.com/onsi/ginkgo" //nolint:staticcheck // dot import for test framework is intentional
 	. "github.com/onsi/gomega" //nolint:staticcheck // dot import for test framework is intentional
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/config"
-	. "github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/handlers"
-	. "github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/test"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
+	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
+	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 

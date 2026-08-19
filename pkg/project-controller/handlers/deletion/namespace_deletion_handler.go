@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/handlers"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

@@ -19,9 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/test"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/webhooks/validation"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/webhooks/validation"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 func TestValidationWebhook(t *testing.T) {

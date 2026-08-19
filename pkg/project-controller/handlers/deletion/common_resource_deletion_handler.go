@@ -6,8 +6,8 @@ import (
 	"sort"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

@@ -2,7 +2,7 @@ package deletion_test
 
 import (
 	. "github.com/onsi/ginkgo"
-	. "github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/handlers/deletion"
+	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

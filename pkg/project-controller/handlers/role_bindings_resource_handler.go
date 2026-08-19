@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/thoas/go-funk"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

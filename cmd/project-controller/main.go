@@ -12,18 +12,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/cmd/profiling"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/webhooks/validation"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/cmd/project-controller/profiling"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/webhooks/validation"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"go.uber.org/zap/zapcore"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/cmd/version"
+	"github.com/kai-scheduler/kai-resource-management/cmd/project-controller/version"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -32,11 +32,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/reconcilers"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/reconcilers"
 	// +kubebuilder:scaffold:imports
-
-	// TODO: remove once switch to new repo
-	_ "github.com/run-ai/runai/runai-common-packages/fips"
 )
 
 var (

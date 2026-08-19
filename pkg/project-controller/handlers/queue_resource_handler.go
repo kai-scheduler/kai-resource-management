@@ -6,9 +6,9 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/config"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

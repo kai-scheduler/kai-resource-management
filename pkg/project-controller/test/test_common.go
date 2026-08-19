@@ -18,10 +18,10 @@ import (
 	"k8s.io/utils/ptr"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/project-controller/pkg/handlers"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 // externalWorkloadAPIVersion is the group/version of the run.ai ExternalWorkload
