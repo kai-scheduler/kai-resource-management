@@ -50,7 +50,7 @@ krmOperator:
     qps: ""                  # --qps (default 50)
     burst: ""                # --burst (default 300)
 
-nodepoolController:
+nodePoolController:
   replicas: 1
   metrics:
     port: 9400

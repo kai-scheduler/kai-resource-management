@@ -193,7 +193,7 @@ spec:
   global:
     {{- trim $globalBody | nindent 4 }}
   {{- end }}
-  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "nodePoolController" "comp" .Values.nodepoolController) }}
+  {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "nodePoolController" "comp" .Values.nodePoolController) }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
   {{- include "kai-resource-management.krm-config-project-controller" $ }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "podGroupAssigner" "comp" .Values.podGroupAssigner) }}
@@ -238,9 +238,14 @@ defaultNodePoolName: {{ . | quote }}
 {{- if .Values.global.leaderElection }}
 leaderElection: true
 {{- end }}
-{{- if not .Values.serviceMonitor.create }}
+{{- if or (not .Values.serviceMonitor.create) (not .Values.serviceMonitor.accounting) }}
 serviceMonitor:
+{{- if not .Values.serviceMonitor.create }}
   enabled: false
+{{- end }}
+{{- if not .Values.serviceMonitor.accounting }}
+  accounting: false
+{{- end }}
 {{- end }}
 {{- if (include "kai-resource-management.openshift" .) }}
 openshift: true

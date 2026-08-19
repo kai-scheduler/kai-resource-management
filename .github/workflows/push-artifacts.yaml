@@ -28,19 +28,10 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
 
-      # `make build` runs the Go toolchain only inside containers, which mount
-      # these two host directories as GOPATH and GOCACHE. actions/setup-go's
-      # own cache covers ~/go/pkg/mod instead, which this job never reads, so
-      # these are the directories that have to be cached here.
-      - name: Cache Go build cache (Docker-mounted)
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build-docker-gocache
-            ~/.cache/go-build-docker-gopath
-          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-docker-${{ runner.os }}-
+      # No Go build cache here on purpose. This workflow only runs on a tag, and a
+      # tag is a fresh cache scope that can read nothing but the default branch's,
+      # which no workflow writes — so a cache step here could only ever write
+      # entries that nothing restores, against the repository's 10 GB budget.
 
       # --- BEGIN private API module access ---------------------------------
       # TEMPORARY: needed only while kai-resource-management-api is a private
@@ -136,18 +127,7 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
 
-      # Keyed apart from the regular build's cache: the FIPS objects are compiled
-      # against a different crypto implementation, so sharing one cache would only
-      # cause misses.
-      - name: Cache Go build cache (Docker-mounted)
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build-docker-gocache
-            ~/.cache/go-build-docker-gopath
-          key: go-docker-fips-${{ runner.os }}-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-docker-fips-${{ runner.os }}-
+      # No Go build cache here either, for the reason given on the job above.
 
       # --- BEGIN private API module access ---------------------------------
       # TEMPORARY: needed only while kai-resource-management-api is a private

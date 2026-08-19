@@ -38,6 +38,21 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 		Expect(spec.NodePoolController.Service.Image.Name).To(Equal(ptr.To(NodePoolControllerImageName)))
 		Expect(spec.ProjectController.Service.Image.Name).To(Equal(ptr.To(ProjectControllerImageName)))
 		Expect(spec.PodGroupAssigner.Service.Image.Name).To(Equal(ptr.To(PodGroupAssignerImageName)))
+		Expect(spec.Global.ServiceMonitor.Enabled).To(Equal(ptr.To(true)))
+		Expect(spec.Global.ServiceMonitor.Accounting).To(Equal(ptr.To(true)))
+	})
+
+	It("keeps the accounting monitor turned off when it was asked to", func() {
+		spec := &krmv1alpha1.KRMConfigSpec{
+			Global: &krmv1alpha1.GlobalConfig{
+				ServiceMonitor: &krmv1alpha1.ServiceMonitorSpec{Accounting: ptr.To(false)},
+			},
+		}
+
+		SetDefaultsWhereNeeded(spec)
+
+		Expect(spec.Global.ServiceMonitor.Accounting).To(Equal(ptr.To(false)))
+		Expect(spec.Global.ServiceMonitor.Enabled).To(Equal(ptr.To(true)))
 	})
 
 	// The services belong beside the operator, wherever the chart was installed.

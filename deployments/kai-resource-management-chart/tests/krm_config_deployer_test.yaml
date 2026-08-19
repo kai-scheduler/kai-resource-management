@@ -123,6 +123,25 @@ tests:
           path: data["krm-config.yaml"]
           pattern: "serviceMonitor:"
 
+  - it: turns the accounting monitor off in the CR without turning the rest off
+    set:
+      serviceMonitor.accounting: false
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'serviceMonitor:\n {6}accounting: false'
+
+  - it: turns both monitor toggles off under one serviceMonitor key
+    set:
+      serviceMonitor.create: false
+      serviceMonitor.accounting: false
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: 'serviceMonitor:\n {6}enabled: false\n {6}accounting: false'
+
   - it: carries the scheduler settings when they are set
     set:
       commonArgs.schedulerName: my-scheduler

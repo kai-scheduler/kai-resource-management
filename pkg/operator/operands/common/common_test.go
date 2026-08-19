@@ -10,6 +10,7 @@ import (
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -276,5 +277,76 @@ var _ = Describe("argument helpers", func() {
 	It("switches controller-runtime to JSON logging only when asked", func() {
 		Expect(AddControllerRuntimeJSONLogArg(ptr.To(true), []string{})).To(Equal([]string{"--zap-devel=false"}))
 		Expect(AddControllerRuntimeJSONLogArg(ptr.To(false), []string{})).To(BeEmpty())
+	})
+})
+
+func newMonitoringClient(objects ...client.Object) client.Client {
+	scheme := runtime.NewScheme()
+	Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+	Expect(monitoringv1.AddToScheme(scheme)).To(Succeed())
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+}
+
+var _ = Describe("ServiceMonitorForKRMConfig", func() {
+	ctx := context.Background()
+
+	It("names the monitor after the service by default", func() {
+		monitor, err := ServiceMonitorForKRMConfig(
+			ctx, newMonitoringClient(), newKRMConfig(), "nodepool-controller", "metrics",
+			ServiceMonitorOptions{})
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(monitor.Name).To(Equal("nodepool-controller"))
+		Expect(monitor.Labels).To(HaveKeyWithValue("app", "nodepool-controller"))
+		Expect(monitor.Spec.JobLabel).To(Equal("nodepool-controller"))
+		Expect(monitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "nodepool-controller"))
+		Expect(monitor.Spec.NamespaceSelector.MatchNames).To(Equal([]string{testNamespace}))
+		Expect(monitor.Spec.Endpoints).To(HaveLen(1))
+		Expect(monitor.Spec.Endpoints[0].Port).To(Equal("metrics"))
+	})
+
+	// A second monitor on one endpoint is only reachable by the other Prometheus if
+	// it selects the service it is not named after.
+	It("keeps selecting the service when the monitor has its own name", func() {
+		monitor, err := ServiceMonitorForKRMConfig(
+			ctx, newMonitoringClient(), newKRMConfig(), "nodepool-controller", "metrics",
+			ServiceMonitorOptions{
+				Name:        "nodepool-controller-accounting",
+				ExtraLabels: map[string]string{"kai.scheduler/accounting": "true"},
+			})
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(monitor.Name).To(Equal("nodepool-controller-accounting"))
+		Expect(monitor.Labels).To(HaveKeyWithValue("app", "nodepool-controller"))
+		Expect(monitor.Labels).To(HaveKeyWithValue("kai.scheduler/accounting", "true"))
+		Expect(monitor.Spec.JobLabel).To(Equal("nodepool-controller"))
+		Expect(monitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "nodepool-controller"))
+	})
+
+	It("reads back the monitor it already created rather than a second one", func() {
+		existing := &monitoringv1.ServiceMonitor{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nodepool-controller-accounting",
+				Namespace: testNamespace,
+				Labels:    map[string]string{"added-by": "an-admin"},
+			},
+		}
+
+		monitor, err := ServiceMonitorForKRMConfig(
+			ctx, newMonitoringClient(existing), newKRMConfig(), "nodepool-controller", "metrics",
+			ServiceMonitorOptions{Name: "nodepool-controller-accounting"})
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(monitor.Labels).To(HaveKeyWithValue("added-by", "an-admin"))
+		Expect(monitor.Labels).To(HaveKeyWithValue("app", "nodepool-controller"))
+	})
+
+	// Deploying on a cluster with no Prometheus operator is not an error.
+	It("reports nothing when the ServiceMonitor kind is unknown", func() {
+		monitor, err := ServiceMonitorForKRMConfig(
+			ctx, newClient(), newKRMConfig(), "nodepool-controller", "metrics", ServiceMonitorOptions{})
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(monitor).To(BeNil())
 	})
 })

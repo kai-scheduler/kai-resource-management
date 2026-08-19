@@ -1,8 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if .Values.nodepoolController.enabled }}
-{{- $comp := .Values.nodepoolController }}
+{{- if .Values.nodePoolController.enabled }}
+{{- $comp := .Values.nodePoolController }}
 {{- $svc := $comp.service | default dict }}
 {{- $metricsPort := int (($comp.metrics | default dict).port | default 9400) }}
 {{- $metricsPortName := ($comp.metrics | default dict).name | default "metrics" }}

@@ -91,7 +91,7 @@ tests:
       global.fipsMode: "on"
       kai-scheduler.global.fips: true
       image.tag: "1.2.3"
-      nodepoolController.image.tag: "4.5.6"
+      nodePoolController.image.tag: "4.5.6"
     templates:
       - templates/nodepool-controller/deployment.yaml
     asserts:

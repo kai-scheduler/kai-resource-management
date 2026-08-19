@@ -40,8 +40,8 @@ tests:
   - it: per-component image overrides win
     set:
       image.registry: reg.example.com/kai
-      nodepoolController.image.registry: other.example.com/x
-      nodepoolController.image.tag: custom
+      nodePoolController.image.registry: other.example.com/x
+      nodePoolController.image.tag: custom
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image

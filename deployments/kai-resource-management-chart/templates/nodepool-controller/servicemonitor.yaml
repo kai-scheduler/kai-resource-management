@@ -1,8 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-{{- if and .Values.nodepoolController.enabled .Values.serviceMonitor.create }}
-{{- $comp := .Values.nodepoolController }}
+{{- if and .Values.nodePoolController.enabled .Values.serviceMonitor.create }}
+{{- $comp := .Values.nodePoolController }}
 {{- $metricsPortName := ($comp.metrics | default dict).name | default "metrics" }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

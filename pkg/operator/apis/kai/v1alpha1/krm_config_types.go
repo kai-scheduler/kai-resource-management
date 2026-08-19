@@ -250,6 +250,14 @@ type ServiceMonitorSpec struct {
 	// Enabled creates a ServiceMonitor for every service that exposes metrics.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Accounting additionally creates the nodepool-controller accounting
+	// ServiceMonitor, labeled kai.scheduler/accounting=true. The node-to-nodepool
+	// metrics are read by two Prometheuses, and that label routes a ServiceMonitor
+	// to exactly one of them, so reaching both takes two. Ignored when Enabled is
+	// false, and harmless where no accounting Prometheus is deployed.
+	// +optional
+	Accounting *bool `json:"accounting,omitempty"`
 }
 
 // PortMapping is one named port, published on Port and served on TargetPort.

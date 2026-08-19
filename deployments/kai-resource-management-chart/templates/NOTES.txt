@@ -4,7 +4,7 @@ Components:
 {{- if .Values.krmOperator.enabled }}
   ✓ krm-operator (reconciles KRMConfig)
 {{- end }}
-{{- if .Values.nodepoolController.enabled }}
+{{- if .Values.nodePoolController.enabled }}
   ✓ nodepool-controller
 {{- end }}
 {{- if .Values.projectController.enabled }}

@@ -105,7 +105,7 @@ tests:
   - it: explicit args.leaderElect false overrides a global-on setting (issue 1 regression)
     set:
       global.leaderElection: true
-      nodepoolController.args.leaderElect: false
+      nodePoolController.args.leaderElect: false
       projectController.args.leaderElect: false
       podGroupAssigner.args.leaderElect: false
     asserts:
@@ -115,9 +115,9 @@ tests:
         template: templates/nodepool-controller/deployment.yaml
   - it: nodepool-controller metrics.namespace / schedulingShardArgs / excludedNodepoolName render
     set:
-      nodepoolController.metrics.namespace: kai
-      nodepoolController.args.schedulingShardArgs: '{"v":"2"}'
-      nodepoolController.args.excludedNodepoolName: kai-excluded
+      nodePoolController.metrics.namespace: kai
+      nodePoolController.args.schedulingShardArgs: '{"v":"2"}'
+      nodePoolController.args.excludedNodepoolName: kai-excluded
     template: templates/nodepool-controller/deployment.yaml
     asserts:
       - contains:
@@ -134,8 +134,8 @@ tests:
     # Proves any go-operator flag is settable from values without a template edit — required
     # for using this chart as a subchart of a parent that drives the full arg surface.
     set:
-      nodepoolController.args.unschedulableLabel: acme/unschedulable
-      nodepoolController.args.toExcludeLabel: acme/exclude
+      nodePoolController.args.unschedulableLabel: acme/unschedulable
+      nodePoolController.args.toExcludeLabel: acme/exclude
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args

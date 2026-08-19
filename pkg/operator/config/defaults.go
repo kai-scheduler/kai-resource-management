@@ -113,6 +113,7 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 	global.VPA.SetDefaultsWhereNeeded()
 	global.ServiceMonitor = kaicommon.SetDefault(global.ServiceMonitor, &krmv1alpha1.ServiceMonitorSpec{})
 	global.ServiceMonitor.Enabled = kaicommon.SetDefault(global.ServiceMonitor.Enabled, ptr.To(true))
+	global.ServiceMonitor.Accounting = kaicommon.SetDefault(global.ServiceMonitor.Accounting, ptr.To(true))
 }
 
 func setNodePoolControllerDefaults(

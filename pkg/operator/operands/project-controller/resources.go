@@ -107,7 +107,7 @@ func (p *ProjectController) serviceMonitorForKRMConfig(
 	}
 
 	monitor, err := common.ServiceMonitorForKRMConfig(ctx, runtimeClient, krmConfig, p.BaseResourceName,
-		*krmConfig.Spec.ProjectController.ControllerService.Metrics.Name)
+		*krmConfig.Spec.ProjectController.ControllerService.Metrics.Name, common.ServiceMonitorOptions{})
 	// A typed nil would reach the caller as a non-nil client.Object.
 	if err != nil || monitor == nil {
 		return nil, err

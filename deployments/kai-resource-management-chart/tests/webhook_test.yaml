@@ -180,7 +180,7 @@ tests:
         template: templates/pod-group-assigner/webhook.yaml
   - it: removes the cert, port and mount when a controller's webhooks are all off
     set:
-      nodepoolController.webhook.nodepool: false
+      nodePoolController.webhook.nodepool: false
       projectController.webhook.project: false
       projectController.webhook.department: false
     asserts:

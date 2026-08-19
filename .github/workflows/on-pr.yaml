@@ -51,12 +51,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Cache Go build cache (Docker-mounted)
+      # .gocache is where the Makefile points GOCACHE, so the Go commands that run
+      # on the host share a cache between runs; the two docker-mounted directories
+      # are the same for the commands that run in a container.
+      #
+      # Every job in this workflow uses this one key deliberately: the content is
+      # the same, and a key per job would multiply what the ref stores against the
+      # repository's 10 GB cache budget.
+      - name: Cache the Go build caches
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build-docker-gocache
             ~/.cache/go-build-docker-gopath
+            .gocache
           key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-docker-${{ runner.os }}-
@@ -112,12 +120,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Cache Go build cache (Docker-mounted)
+      - name: Cache the Go build caches
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build-docker-gocache
             ~/.cache/go-build-docker-gopath
+            .gocache
           key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: |
             go-docker-${{ runner.os }}-

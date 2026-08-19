@@ -193,7 +193,7 @@ tests:
   - it: keeps every subject when components are disabled
     set:
       openshift: true
-      nodepoolController.enabled: false
+      nodePoolController.enabled: false
       podGroupAssigner.enabled: false
       krmOperator.enabled: false
     documentIndex: 2
