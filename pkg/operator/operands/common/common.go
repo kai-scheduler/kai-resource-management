@@ -197,10 +197,10 @@ func ServiceMonitorForKRMConfig(
 	// ObjectForKRMConfig labels an object after itself, which is wrong here as soon
 	// as the monitor is not named after the service it selects.
 	labels := serviceMonitor.GetLabels()
-	labels["app"] = serviceName
 	for key, value := range options.ExtraLabels {
 		labels[key] = value
 	}
+	labels["app"] = serviceName
 
 	serviceMonitor.Spec = monitoringv1.ServiceMonitorSpec{
 		JobLabel:          serviceName,
