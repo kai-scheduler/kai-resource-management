@@ -120,8 +120,9 @@ const (
 // SchedulerName, QueueLabelKey and NodePoolLabelKey must match the scheduler the
 // services talk to, and nothing reconciles them against it. A value set here is
 // passed to every service as a flag; left empty, no flag is passed and each
-// service uses its own built-in default. The chart sets them from the scheduler
-// it installs, so the two agree by construction.
+// service uses its own built-in default. Installed from this chart they are set
+// from the scheduler it installs, so the two agree by construction; a KRMConfig
+// created by anything else has to set them itself.
 type GlobalConfig struct {
 	// SchedulerName is the scheduler the controllers bind workloads to.
 	//

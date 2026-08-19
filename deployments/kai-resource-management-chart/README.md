@@ -181,10 +181,12 @@ relying on an edit:
 helm template <release> . -s templates/hooks/post/krm-config-deployer/configmap.yaml
 ```
 
-For example the scheduler's manifest carries no `resources` for any of its
-services, so setting `podGrouper.service.resources` by hand persists — while
-`podGrouper.service.image.tag` is rendered, so an edit there is reverted on the
-next upgrade.
+For example the scheduler's manifest emits a service's `resources` only when the
+matching value is set — and the values key is lower-case and flatter than the CR
+path it writes to, `podgrouper.resources` against `podGrouper.service.resources`.
+Leave the value unset and a hand edit to the CR survives; set it and the chart
+owns the field. An image tag is rendered unconditionally, so an edit to
+`podGrouper.service.image.tag` is always reverted.
 
 None of this applies in GitOps mode: there the CR is a release resource and Helm
 reverts every hand edit.
