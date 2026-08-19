@@ -124,10 +124,17 @@ tests:
         template: templates/project-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-project-validation}
 
-  - it: validates NodePools on create only, cluster-scoped
-    # ValidateUpdate and ValidateDelete are deliberate no-ops in the binary.
+  - it: validates NodePools on create and delete, cluster-scoped
+    # No UPDATE: labelKey/labelValue are immutable, so ValidateUpdate is a no-op.
+    # DELETE is what stops the default nodepool being removed, so losing it from
+    # this rule silently removes that protection.
     asserts:
-      - equal: {path: "webhooks[0].rules[0].operations", value: ["CREATE"]}
+      - equal: {path: "webhooks[0].rules[0].operations", value: ["CREATE", "DELETE"]}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-nodepool-validation}
+      # Both operations reach the one handler the controller registers; splitting
+      # them across entries would need a second path the binary does not serve.
+      - lengthEqual: {path: webhooks, count: 1}
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
       - equal: {path: "webhooks[0].rules[0].apiGroups", value: ["kai.resources"]}

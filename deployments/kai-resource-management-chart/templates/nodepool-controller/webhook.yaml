@@ -41,9 +41,11 @@ webhooks:
         path: /validate-kai-resources-v1alpha1-nodepool
         port: {{ $webhookPort }}
     rules:
-      # CREATE only: the validator's ValidateUpdate and ValidateDelete are deliberate no-ops
-      # because labelKey/labelValue are immutable in the CRD.
-      - operations: ["CREATE"]
+      # No UPDATE: labelKey/labelValue are immutable in the CRD, so the validator's
+      # ValidateUpdate is a deliberate no-op. DELETE is registered to keep the default
+      # nodepool alive — nothing recreates it, and without it every node no other
+      # nodepool selects would be left unschedulable.
+      - operations: ["CREATE", "DELETE"]
         apiGroups: ["kai.resources"]
         apiVersions: ["v1alpha1"]
         resources: ["nodepools"]
