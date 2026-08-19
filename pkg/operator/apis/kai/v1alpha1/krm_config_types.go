@@ -87,11 +87,6 @@ type KRMConfigSpec struct {
 	// +optional
 	Global *GlobalConfig `json:"global,omitempty"`
 
-	// SchedulerConfigRef points at the KAI Scheduler Config this installation reads
-	// its scheduler vocabulary from. KRM consumes that config and never writes it.
-	// +optional
-	SchedulerConfigRef *SchedulerConfigRef `json:"schedulerConfigRef,omitempty"`
-
 	// NodePoolController configures the nodepool-controller service.
 	// +optional
 	NodePoolController *NodePoolController `json:"nodePoolController,omitempty"`
@@ -103,15 +98,6 @@ type KRMConfigSpec struct {
 	// PodGroupAssigner configures the pod-group-assigner service.
 	// +optional
 	PodGroupAssigner *PodGroupAssigner `json:"podGroupAssigner,omitempty"`
-}
-
-// SchedulerConfigRef names the KAI Scheduler Config resource to consume. It is
-// cluster-scoped, so no namespace is needed.
-type SchedulerConfigRef struct {
-	// Name of the KAI Scheduler Config resource.
-	// +kubebuilder:default=kai-config
-	// +optional
-	Name string `json:"name,omitempty"`
 }
 
 // FipsMode is the Go FIPS 140-3 run-time mode of a service, as GODEBUG=fips140.
@@ -131,11 +117,12 @@ const (
 
 // GlobalConfig holds the settings every KRM service inherits.
 //
-// SchedulerName, QueueLabelKey and NodePoolLabelKey resolve as: a value here wins,
-// else the Config named by SchedulerConfigRef, else the KAI built-in default.
-// Setting them here is what makes a fresh install independent of when that Config
-// appears; leaving them empty is how a co-install inherits an existing scheduler's
-// settings. KRM only ever reads that Config, never writes it.
+// SchedulerName, QueueLabelKey and NodePoolLabelKey must match the scheduler the
+// services talk to, and nothing reconciles them against it. A value set here is
+// passed to every service as a flag; left empty, no flag is passed and each
+// service uses its own built-in default. Installed from this chart they are set
+// from the scheduler it installs, so the two agree by construction; a KRMConfig
+// created by anything else has to set them itself.
 type GlobalConfig struct {
 	// SchedulerName is the scheduler the controllers bind workloads to.
 	//

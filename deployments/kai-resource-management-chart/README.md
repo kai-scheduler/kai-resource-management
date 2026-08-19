@@ -139,9 +139,8 @@ recreating what the other prunes.
 The default keeps the CR out of the release deliberately. The operator hangs
 `ownerReferences` for every object it creates off this CR, so if the CR's UID
 ever changed, every one of those objects would be cascade-deleted. `kubectl apply
---server-side` converges it forward and never recreates it. The same property is
-why a manual `kubectl edit` of the CR survives `helm upgrade` here, where a
-release-managed resource would be reverted.
+--server-side` converges it forward and never recreates it. That is also what
+makes hand-editing the CR possible; see *Editing a CR by hand* below.
 
 > **Switching modes on an existing install is disruptive in both directions.**
 >
@@ -163,13 +162,65 @@ On uninstall, a post-delete hook (`postCleanup.enabled`) removes the objects the
 operator created and then the CR — the latter only in deployer mode, since in
 GitOps mode Helm deletes it and in external mode it was never ours.
 
+### Editing a CR by hand
+
+This chart's `krm-config` and the bundled scheduler's `kai-config` are both applied
+with `kubectl apply --server-side --force-conflicts`, each under its own field
+manager. Preservation is therefore a per-field question, not a per-resource one:
+
+| The field is | On `helm upgrade` |
+| --- | --- |
+| absent from the chart's manifest | the deployer never owns it — **your edit survives** |
+| present in the chart's manifest | ownership is taken back — **your edit is overwritten**, with no error |
+| present before, dropped since | server-side apply prunes it |
+
+Which fields a chart sets is exactly what its manifest renders, so check before
+relying on an edit:
+
+```sh
+helm template <release> . -s templates/hooks/post/krm-config-deployer/configmap.yaml
+```
+
+For example the scheduler's manifest emits a service's `resources` only when the
+matching value is set — and the values key is lower-case and flatter than the CR
+path it writes to, `podgrouper.resources` against `podGrouper.service.resources`.
+Leave the value unset and a hand edit to the CR survives; set it and the chart
+owns the field. An image tag is rendered unconditionally, so an edit to
+`podGrouper.service.image.tag` is always reverted.
+
+None of this applies in GitOps mode: there the CR is a release resource and Helm
+reverts every hand edit.
+
+### Installed as a sub-chart
+
+When a parent chart installs this one and creates the CRs itself, turn off **both**
+deployers — this chart's and the scheduler's:
+
+```yaml
+kai-resource-management:
+  krmConfigDeployer:
+    enabled: false
+  kai-scheduler:
+    kaiConfigDeployer:
+      enabled: false
+```
+
+Forgetting the second is the easy mistake: the parent's operator and the bundled
+scheduler's hook then both manage `kai-config`.
+
 Three settings under `spec.global` — `schedulerName`, `queueLabelKey` and
 `nodePoolLabelKey` — must match the scheduler or workloads bind to the wrong
 queue or node pool. Set them at install and leave them alone: nothing
-reconciles them against the scheduler afterwards. Left empty, the operator
-reads them from the KAI Scheduler `Config` named by `spec.schedulerConfigRef`,
-so an installation alongside an existing scheduler inherits its settings. That
-`Config` is only ever read, never written.
+reconciles them against the scheduler afterwards.
+
+The chart fills them from the scheduler it installs, so they agree by
+construction: `schedulerName` from `commonArgs.schedulerName`,
+`nodePoolLabelKey` from `kai-scheduler.global.nodePoolLabelKey` and
+`queueLabelKey` from `kai-scheduler.podgrouper.queueLabelKey`. Each is written
+into the CR only when set; left unset, no flag is passed and each service uses
+its own built-in default, as does the bundled scheduler. Installing alongside a
+scheduler this chart did not install is not supported yet — set all three
+explicitly to whatever that scheduler uses.
 
 Its ClusterRole is maintained by hand rather than generated, and must be
 extended whenever the operator is taught to own a new kind.

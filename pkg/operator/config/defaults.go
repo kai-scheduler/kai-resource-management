@@ -12,7 +12,6 @@ package config
 import (
 	"os"
 
-	"github.com/kai-scheduler/api/constants"
 	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
 	corev1 "k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -63,9 +62,6 @@ func SetDefaultsWhereNeeded(spec *krmv1alpha1.KRMConfigSpec) {
 	spec.Global = kaicommon.SetDefault(spec.Global, &krmv1alpha1.GlobalConfig{})
 	setGlobalDefaults(spec.Global)
 
-	spec.SchedulerConfigRef = kaicommon.SetDefault(spec.SchedulerConfigRef, &krmv1alpha1.SchedulerConfigRef{})
-	setSchedulerConfigRefDefaults(spec.SchedulerConfigRef)
-
 	spec.NodePoolController = kaicommon.SetDefault(spec.NodePoolController, &krmv1alpha1.NodePoolController{})
 	setNodePoolControllerDefaults(spec.NodePoolController, spec.Global)
 
@@ -87,14 +83,9 @@ func OperatorNamespace() string {
 	return FallbackNamespace
 }
 
-func setSchedulerConfigRefDefaults(ref *krmv1alpha1.SchedulerConfigRef) {
-	if len(ref.Name) == 0 {
-		ref.Name = constants.DefaultKAIConfigSingeltonInstanceName
-	}
-}
-
-// The scheduler vocabulary is deliberately left unset: empty means "inherit from
-// the referenced kai-config", which the operator resolves at reconcile time.
+// The scheduler vocabulary is deliberately left unset: an unset field renders no
+// flag, so each service keeps its own built-in default rather than being pinned
+// to one the operator invented.
 func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 	global.ReplicaCount = kaicommon.SetDefault(global.ReplicaCount, ptr.To(int32(1)))
 	global.Openshift = kaicommon.SetDefault(global.Openshift, ptr.To(false))

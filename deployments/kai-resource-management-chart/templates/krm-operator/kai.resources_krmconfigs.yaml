@@ -5317,16 +5317,6 @@ spec:
                         type: boolean
                     type: object
                 type: object
-              schedulerConfigRef:
-                description: |-
-                  SchedulerConfigRef points at the KAI Scheduler Config this installation reads
-                  its scheduler vocabulary from. KRM consumes that config and never writes it.
-                properties:
-                  name:
-                    default: kai-config
-                    description: Name of the KAI Scheduler Config resource.
-                    type: string
-                type: object
             type: object
           status:
             description: KRMConfigStatus is the observed state of the installation.
