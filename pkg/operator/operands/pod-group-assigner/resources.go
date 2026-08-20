@@ -119,7 +119,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 		// Spelled out either way: the flag decides whether the Pod handler is
 		// registered at all, so omitting it is not the same as passing false.
 		"--enable-pod-webhook=" +
-			strconv.FormatBool(ptr.Deref(config.Webhooks.EnablePodWebhook, false)),
+			strconv.FormatBool(ptr.Deref(config.Webhooks.EnablePodWebhook, true)),
 	}
 
 	args = appendStringArg(args, "--nodepool-label-key", global.NodePoolLabelKey)

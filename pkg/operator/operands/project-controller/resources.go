@@ -161,8 +161,8 @@ func servicePorts(config *krmv1alpha1.ProjectController) []corev1.ServicePort {
 // The certificate covers both webhooks, so it is wanted whenever either is on,
 // matching the binary, which starts no TLS server when both are off.
 func webhooksEnabled(webhooks *krmv1alpha1.ProjectControllerWebhooks) bool {
-	return ptr.Deref(webhooks.EnableProjectValidation, false) ||
-		ptr.Deref(webhooks.EnableDepartmentValidation, false)
+	return ptr.Deref(webhooks.EnableProjectValidation, true) ||
+		ptr.Deref(webhooks.EnableDepartmentValidation, true)
 }
 
 // A flag left out entirely is what lets the binary's own default apply, so an
@@ -183,9 +183,9 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 		// Spelled out either way: the flag also tells the binary whether to start
 		// its TLS server, so omitting it is not the same as passing false.
 		"--enable-project-validation-webhook=" +
-			strconv.FormatBool(ptr.Deref(config.Webhooks.EnableProjectValidation, false)),
+			strconv.FormatBool(ptr.Deref(config.Webhooks.EnableProjectValidation, true)),
 		"--enable-department-validation-webhook=" +
-			strconv.FormatBool(ptr.Deref(config.Webhooks.EnableDepartmentValidation, false)),
+			strconv.FormatBool(ptr.Deref(config.Webhooks.EnableDepartmentValidation, true)),
 	}
 
 	if webhooksEnabled(config.Webhooks) {
@@ -211,7 +211,8 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	args = appendSwitch(args, "--role-bindings", config.Features.CreateRoleBindings)
 	args = appendSwitch(args, "--cluster-wide-secrets", config.Features.ClusterWideSecret)
 	args = appendSwitch(args, "--cluster-wide-pvcs", config.Features.ClusterWidePvc)
-	args = appendSwitch(args, "--cluster-wide-config-maps", config.Features.ClusterWideConfigMap)
+	args = append(args, "--cluster-wide-config-maps="+
+		strconv.FormatBool(ptr.Deref(config.Features.ClusterWideConfigMap, true)))
 	args = appendSwitch(args, "--limit-range", config.Features.LimitRange)
 	args = appendSwitch(args, "--enable-profiling", config.Profiling.Enabled)
 	args = appendSwitch(args, "--debug", config.Args.Debug)

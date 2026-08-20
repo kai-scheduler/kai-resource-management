@@ -58,6 +58,26 @@ var _ = Describe("Queue Resource Handler", func() {
 		Expect(k8sClient.Create(context.Background(), &dep2)).To(Succeed())
 	})
 
+	It("Handles a Queue whose spec omits the optional resources block", func() {
+		// resources is optional on the CRD with no default, so it reaches the handler
+		// as nil; it must behave like an empty block rather than panic.
+		for i := range project.Spec.Queues {
+			project.Spec.Queues[i].Resources = nil
+		}
+
+		conditions, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+		Expect(conditions).To(HaveLen(1))
+		Expect(conditions[0].Status).To(Equal(corev1.ConditionTrue))
+
+		created, getErr := getQueue(k8sClient, project.Name)
+		Expect(getErr).Should(Succeed())
+		Expect(created.Spec.Resources).ToNot(BeNil())
+		Expect(created.Spec.Resources.GPU.Quota).To(BeZero())
+		Expect(created.Spec.Resources.CPU.Quota).To(BeZero())
+		Expect(created.Spec.Resources.Memory.Quota).To(BeZero())
+	})
+
 	It("Handles a new, non-existing Queue", func() {
 		By("Creating a new Queue matching the Project Queue spec", func() {
 
