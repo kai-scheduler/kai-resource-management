@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 // Package scheme builds the runtime scheme for pod-group-assigner.
 //
 // Add a group here only when the service actually Gets, Lists or Watches one of

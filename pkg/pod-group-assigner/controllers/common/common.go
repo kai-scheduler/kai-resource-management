@@ -1,9 +1,12 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package common
 
 import (
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 )
 
 const (

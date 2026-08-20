@@ -1,11 +1,14 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package converter
 
 import (
 	"context"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

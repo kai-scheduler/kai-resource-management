@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package tests
 
 import (
@@ -12,11 +15,11 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	pgaconfig "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup"
 	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/scheme"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	corev1 "k8s.io/api/core/v1"

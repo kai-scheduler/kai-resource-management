@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package converter
 
 // NodePoolIdentifiers groups the configurable string identifiers needed when

@@ -1,13 +1,16 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package podgroup
 
 import (
 	"context"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	"github.com/rs/zerolog/log"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"

@@ -1,11 +1,14 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog/log"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

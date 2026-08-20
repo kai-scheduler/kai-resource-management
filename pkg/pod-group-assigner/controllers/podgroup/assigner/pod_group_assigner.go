@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package assigner
 
 import (
@@ -7,14 +10,14 @@ import (
 	"reflect"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	"github.com/rs/zerolog/log"
+	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
+	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/assignment_params"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/requested_nodepools_converter"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/utils"
-	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
-	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
+	"github.com/rs/zerolog/log"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

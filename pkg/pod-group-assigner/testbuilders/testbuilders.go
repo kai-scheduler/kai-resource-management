@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 // Package testbuilders provides object constructors shared by the
 // pod-group-assigner fake-client-based test suites. Living in a non-test
 // package lets the controller suite and the converter unit tests import the
