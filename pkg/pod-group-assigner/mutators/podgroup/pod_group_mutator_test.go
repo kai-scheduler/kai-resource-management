@@ -4,6 +4,8 @@
 package podgroup
 
 import (
+	"testing"
+
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	. "github.com/onsi/ginkgo/v2"
@@ -12,6 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
+
+func TestPodGroupMutator(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "PodGroup Mutator Unit Tests")
+}
 
 const (
 	RunaiProjectLabel = "project"
@@ -65,14 +72,14 @@ var _ = Describe("TestNodePoolOptionsConverter", Ordered, func() {
 			podGroup.Labels = testData.podGroupLabels
 			podGroupHandler.mutatePodGroup(podGroup)
 
-			Expect(podGroup.Spec.MarkUnschedulable).NotTo(BeNil(), "Test <%s>: expected MarkUnschedulable to be <false> after the webhook, but is was: <%t>",
+			Expect(podGroup.Spec.MarkUnschedulable).NotTo(BeNil(), "Test <%s>: expected MarkUnschedulable to be <false> after the webhook, but it was: <%v>",
 				testData.testName, podGroup.Spec.MarkUnschedulable)
-			Expect(*podGroup.Spec.MarkUnschedulable).To(BeFalse(), "Test <%s>: expected MarkUnschedulable to be <false> after the webhook, but is was: <%t>",
+			Expect(*podGroup.Spec.MarkUnschedulable).To(BeFalse(), "Test <%s>: expected MarkUnschedulable to be <false> after the webhook, but it was: <%t>",
 				testData.testName, *podGroup.Spec.MarkUnschedulable)
 
-			Expect(podGroup.Spec.SchedulingBackoff).NotTo(BeNil(), "Test <%s>: expected SchedulingBackoff to be <1> after the webhook, but is was: <%t>",
+			Expect(podGroup.Spec.SchedulingBackoff).NotTo(BeNil(), "Test <%s>: expected SchedulingBackoff to be <1> after the webhook, but it was: <%v>",
 				testData.testName, podGroup.Spec.SchedulingBackoff)
-			Expect(*podGroup.Spec.SchedulingBackoff).To(BeFalse(), "Test <%s>: expected SchedulingBackoff to be <1> after the webhook, but is was: <%t>",
+			Expect(*podGroup.Spec.SchedulingBackoff).To(Equal(int32(1)), "Test <%s>: expected SchedulingBackoff to be <1> after the webhook, but it was: <%d>",
 				testData.testName, *podGroup.Spec.SchedulingBackoff)
 
 			nodePoolFromLabel, found := podGroup.Labels[testNodePoolLabelKey]
