@@ -64,7 +64,7 @@ func init() {
 	flag.BoolVar(&options.EnableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&options.enablePodWebhook, "enable-pod-webhook", false,
+	flag.BoolVar(&options.enablePodWebhook, "enable-pod-webhook", true,
 		"Enable the pod mutating webhook. For pods of a project namespace that are either scheduled by "+
 			"--scheduler-name or whose project enforces it, it enforces the scheduler name, labels the pod "+
 			"with its project, and applies the project's defaultNodePools as node affinity.")
