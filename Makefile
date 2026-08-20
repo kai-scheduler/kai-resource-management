@@ -58,8 +58,6 @@ changie: $(CHANGIE) ## Install changie locally.
 $(CHANGIE): | $(LOCALBIN) $(GOCACHE) $(GOTMPDIR)
 	test -s $(CHANGIE) || GOBIN=$(LOCALBIN) $(GO) install github.com/miniscruff/changie@$(CHANGIE_VERSION)
 
-# Anything that renders the chart needs its subchart dependencies present;
-# charts/ is gitignored, so a fresh checkout has none.
 .PHONY: helm-deps
 helm-deps: ## Fetch the chart's declared subchart dependencies into charts/.
 	helm dependency build $(CHART_DIR)
