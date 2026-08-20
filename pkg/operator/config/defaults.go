@@ -90,7 +90,6 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 	global.ReplicaCount = kaicommon.SetDefault(global.ReplicaCount, ptr.To(int32(1)))
 	global.Openshift = kaicommon.SetDefault(global.Openshift, ptr.To(false))
 	global.FipsMode = kaicommon.SetDefault(global.FipsMode, ptr.To(krmv1alpha1.FipsModeOff))
-	global.JSONLog = kaicommon.SetDefault(global.JSONLog, ptr.To(false))
 	global.RequireDefaultPodAntiAffinityTerm = kaicommon.SetDefault(global.RequireDefaultPodAntiAffinityTerm, ptr.To(false))
 	global.SecurityContext = kaicommon.SetDefault(global.SecurityContext, &corev1.SecurityContext{
 		AllowPrivilegeEscalation: ptr.To(false),

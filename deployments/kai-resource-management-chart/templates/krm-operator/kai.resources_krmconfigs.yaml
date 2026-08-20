@@ -1001,10 +1001,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  jsonLog:
-                    description: JSONLog switches every service to structured JSON
-                      logging.
-                    type: boolean
                   leaderElection:
                     description: |-
                       LeaderElection turns on leader election for every service. A replica count

@@ -216,10 +216,6 @@ type GlobalConfig struct {
 	// +optional
 	FipsMode *FipsMode `json:"fipsMode,omitempty"`
 
-	// JSONLog switches every service to structured JSON logging.
-	// +optional
-	JSONLog *bool `json:"jsonLog,omitempty"`
-
 	// VPA is the default Vertical Pod Autoscaler configuration for services that do
 	// not set their own.
 	// +optional

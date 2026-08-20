@@ -273,11 +273,6 @@ var _ = Describe("argument helpers", func() {
 	It("renders nothing when there is no client config", func() {
 		Expect(AddK8sClientConfigToArgs(nil, []string{})).To(BeEmpty())
 	})
-
-	It("switches controller-runtime to JSON logging only when asked", func() {
-		Expect(AddControllerRuntimeJSONLogArg(ptr.To(true), []string{})).To(Equal([]string{"--zap-devel=false"}))
-		Expect(AddControllerRuntimeJSONLogArg(ptr.To(false), []string{})).To(BeEmpty())
-	})
 })
 
 func newMonitoringClient(objects ...client.Object) client.Client {

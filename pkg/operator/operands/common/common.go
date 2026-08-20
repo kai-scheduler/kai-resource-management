@@ -373,14 +373,6 @@ func AddK8sClientConfigToArgs(k8sClientConfig *kaicommon.K8sClientConfig, args [
 	return args
 }
 
-func AddControllerRuntimeJSONLogArg(jsonLog *bool, args []string) []string {
-	if jsonLog != nil && *jsonLog {
-		args = append(args, "--zap-devel=false")
-	}
-
-	return args
-}
-
 // FipsGodebugEnvVar renders global.fipsMode as the GODEBUG entry that selects the
 // Go FIPS 140-3 run-time mode.
 //

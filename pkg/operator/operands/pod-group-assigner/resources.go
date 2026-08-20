@@ -141,7 +141,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	// Last, so a flag repeated here wins over the one built above it.
 	args = append(args, config.ExtraArgs...)
 
-	return common.AddControllerRuntimeJSONLogArg(global.JSONLog, args)
+	return args
 }
 
 // Leader election follows the per-service override when set, else the global

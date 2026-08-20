@@ -176,13 +176,6 @@ var _ = Describe("buildArgsList", func() {
 
 		Expect(args[len(args)-2:]).To(Equal([]string{"--qps", "500"}))
 	})
-
-	It("switches to JSON logging with the global setting", func() {
-		krmConfig := newKRMConfig()
-		krmConfig.Spec.Global.JSONLog = ptr.To(true)
-
-		Expect(buildArgsList(krmConfig)).To(ContainElement("--zap-devel=false"))
-	})
 })
 
 var _ = Describe("leader election", func() {
