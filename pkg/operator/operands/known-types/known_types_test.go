@@ -150,6 +150,23 @@ var _ = Describe("Collect", func() {
 		Expect(collectAll(ctx, newClient(orphan), krmConfigOwner())).To(BeEmpty())
 	})
 
+	// nodepool-controller owns SchedulingShards and ServiceMonitors through a
+	// NodePool, which is in the same API group as KRMConfig and so passes the index
+	// predicate. Only the kind in ReconcilerKey keeps the two apart, and pruning
+	// deletes whatever Collect returns — so a regression here has the operator
+	// deleting the other controller's objects.
+	It("ignores an object owned by a NodePool, which shares the API group", func() {
+		nodePoolOwned := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "shard-settings",
+				Namespace:       testNamespace,
+				OwnerReferences: ownedBy(krmv1alpha1.GroupVersion.String(), "NodePool", "default"),
+			},
+		}
+
+		Expect(collectAll(ctx, newClient(nodePoolOwned), krmConfigOwner())).To(BeEmpty())
+	})
+
 	It("ignores an object owned by a different KRMConfig", func() {
 		otherConfig := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{

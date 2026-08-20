@@ -136,11 +136,6 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(FipsMode)
 		**out = **in
 	}
-	if in.JSONLog != nil {
-		in, out := &in.JSONLog, &out.JSONLog
-		*out = new(bool)
-		**out = **in
-	}
 	if in.VPA != nil {
 		in, out := &in.VPA, &out.VPA
 		*out = new(common.VPASpec)

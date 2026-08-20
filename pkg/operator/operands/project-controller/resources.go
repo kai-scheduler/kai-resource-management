@@ -222,7 +222,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	// Last, so a flag repeated here wins over the one built above it.
 	args = append(args, config.ExtraArgs...)
 
-	return common.AddControllerRuntimeJSONLogArg(global.JSONLog, args)
+	return args
 }
 
 // Empty counts as unset: passing a flag with an empty value would override the

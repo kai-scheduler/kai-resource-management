@@ -61,7 +61,6 @@ func DeploymentForKRMConfig(
 	ctx context.Context, runtimeClient client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 	service *kaicommon.Service, deploymentName string,
 ) (*appsv1.Deployment, error) {
-
 	deploymentObj, err := ObjectForKRMConfig(
 		ctx, runtimeClient, &appsv1.Deployment{}, deploymentName, krmConfig.Spec.Namespace)
 	if err != nil {
@@ -327,11 +326,12 @@ func MergeAffinities(localAffinity *corev1.Affinity,
 
 	podAntiAffinity := &corev1.PodAntiAffinity{}
 
-	if localAffinity.PodAntiAffinity != nil {
+	switch {
+	case localAffinity.PodAntiAffinity != nil:
 		podAntiAffinity = localAffinity.PodAntiAffinity
-	} else if globalAffinity.PodAntiAffinity != nil {
+	case globalAffinity.PodAntiAffinity != nil:
 		podAntiAffinity = globalAffinity.PodAntiAffinity
-	} else if len(podAntiAffinityLabel) > 0 {
+	case len(podAntiAffinityLabel) > 0:
 		podAffinityTerm := corev1.PodAffinityTerm{
 			LabelSelector: &metav1.LabelSelector{
 				MatchLabels: podAntiAffinityLabel,
@@ -368,14 +368,6 @@ func AddK8sClientConfigToArgs(k8sClientConfig *kaicommon.K8sClientConfig, args [
 		if k8sClientConfig.Burst != nil {
 			args = append(args, "--burst", strconv.Itoa(*k8sClientConfig.Burst))
 		}
-	}
-
-	return args
-}
-
-func AddControllerRuntimeJSONLogArg(jsonLog *bool, args []string) []string {
-	if jsonLog != nil && *jsonLog {
-		args = append(args, "--zap-devel=false")
 	}
 
 	return args

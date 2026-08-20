@@ -75,9 +75,10 @@ func (d *DeployableOperands) Deploy(
 
 	objectsToCreate, objectsToDelete, objectsToUpdate := d.calculateActionsOnObjects(desiredState, currentState)
 
+	ownerGVK := owner.GetObjectKind().GroupVersionKind()
 	reconcilerAsOwnerReference := metav1.OwnerReference{
-		APIVersion: krmv1alpha1.GroupVersion.String(),
-		Kind:       owner.GetObjectKind().GroupVersionKind().Kind,
+		APIVersion: ownerGVK.GroupVersion().String(),
+		Kind:       ownerGVK.Kind,
 		Name:       owner.GetName(),
 		UID:        owner.GetUID(),
 		Controller: ptr.To(true),
@@ -234,7 +235,6 @@ func (d *DeployableOperands) inheritFieldsFromCurrent(currentObj, desiredObj cli
 func createObjectsInCluster(
 	ctx context.Context, runtimeClient client.Client, reconcilerAsOwnerReference metav1.OwnerReference,
 	objectsToCreate []client.Object) error {
-
 	sortObjectByCreationOrder(objectsToCreate, objectsCreationOrder)
 
 	for _, obj := range objectsToCreate {

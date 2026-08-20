@@ -23,6 +23,9 @@ rules:
       - departments/finalizers
       - departments/status
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["kai.resources"]
+    resources: ["nodepools"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["scheduling.run.ai"]
     resources: ["queues"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

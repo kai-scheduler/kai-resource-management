@@ -85,12 +85,14 @@ var _ = Describe("SetDefaultsWhereNeeded", func() {
 	// optional value is a pointer.
 	It("does not overwrite an explicit false", func() {
 		spec := &krmv1alpha1.KRMConfigSpec{
-			Global: &krmv1alpha1.GlobalConfig{JSONLog: ptr.To(false)},
+			Global: &krmv1alpha1.GlobalConfig{
+				ServiceMonitor: &krmv1alpha1.ServiceMonitorSpec{Enabled: ptr.To(false)},
+			},
 		}
 
 		SetDefaultsWhereNeeded(spec)
 
-		Expect(spec.Global.JSONLog).To(Equal(ptr.To(false)))
+		Expect(spec.Global.ServiceMonitor.Enabled).To(Equal(ptr.To(false)))
 	})
 
 	It("gives each service the global replica count unless it sets its own", func() {
