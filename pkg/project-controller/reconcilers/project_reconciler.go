@@ -304,8 +304,8 @@ func (reconciler *ProjectReconciler) finalizeProject(ctx context.Context, projec
 }
 
 func (reconciler *ProjectReconciler) deleteFinalizer(ctx context.Context, project *kaiv1alpha1.Project) error {
-	reconciler.Log.Info("Removing finalizer <%v> from project's <%v> finalizers list",
-		config.FinalizerName(), project.Name)
+	reconciler.Log.Info("Removing the controller's finalizer from the project",
+		"finalizer", config.FinalizerName(), common.LogProjectTag, project.Name)
 	project.Finalizers = common.DeleteTerm(config.FinalizerName(), project.Finalizers)
 	if err := reconciler.updateFinalizers(ctx, project); err != nil {
 		reconciler.Log.Error(err, "Error removing controller from finalizer list in Project",

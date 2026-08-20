@@ -86,7 +86,7 @@ func getProjectNameFromNamespace(namespace *corev1.Namespace) string {
 func (reconciler *ProjectReconciler) MapNamespaceToProjectEvent(_ context.Context, object client.Object) []reconcile.Request {
 	namespace, ok := object.(*corev1.Namespace)
 	if !ok {
-		reconciler.Log.Info("Warning: Cannot convert object to *corev1.Namespace: %v",
+		reconciler.Log.Info("Warning: Cannot convert object to a Namespace, ignoring the event",
 			common.LogNamespaceTag, object)
 		return []reconcile.Request{}
 	}
@@ -102,7 +102,7 @@ func (reconciler *ProjectReconciler) MapNamespaceToProjectEvent(_ context.Contex
 func (reconciler *ProjectReconciler) MapRoleBindingToProjectEvent(_ context.Context, object client.Object) []reconcile.Request {
 	roleBinding, ok := object.(*rbacv1.RoleBinding)
 	if !ok {
-		reconciler.Log.Info("Warning: Cannot convert object to *rbacv1.RoleBinding: %v",
+		reconciler.Log.Info("Warning: Cannot convert object to a RoleBinding, ignoring the event",
 			common.LogRoleBindingTag, object)
 		return []reconcile.Request{}
 	}
@@ -116,7 +116,7 @@ func (reconciler *ProjectReconciler) MapRoleBindingToProjectEvent(_ context.Cont
 
 	projectName, err := getProjectNameFromNamespaceName(roleBinding.Namespace, reconciler.Client)
 	if err != nil {
-		reconciler.Log.Error(err, "Failed getting project name of namespace <%s>",
+		reconciler.Log.Error(err, "Failed getting the project name of the namespace",
 			common.LogNamespaceTag, roleBinding.Namespace)
 		return []reconcile.Request{}
 	}
