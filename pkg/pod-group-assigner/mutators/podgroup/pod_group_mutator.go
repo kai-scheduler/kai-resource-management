@@ -31,11 +31,11 @@ func (pgm *PodGroupMutator) Handle(ctx context.Context, req admission.Request) a
 	ctx = log.Logger.WithContext(ctx)
 
 	podGroup := &kaiv2alpha2.PodGroup{}
-	if err := json.Unmarshal(req.Object.Raw, &podGroup); err != nil {
-		err := fmt.Errorf("unable to unmarshal podgroup")
-		log.Ctx(ctx).Error().Msgf("Failure in PodGroupMutator Handle, error: <%s>", err.Error())
+	if err := json.Unmarshal(req.Object.Raw, podGroup); err != nil {
+		webhookErr := fmt.Errorf("unable to unmarshal podgroup: %s", err.Error())
+		log.Ctx(ctx).Error().Msgf("Failure in PodGroupMutator Handle, error: <%s>", webhookErr.Error())
 
-		return admission.Errored(http.StatusInternalServerError, err)
+		return admission.Errored(http.StatusInternalServerError, webhookErr)
 	}
 
 	log.Ctx(ctx).Info().Msgf("PodGroupMutator: handling mutation of pod group <%s/%s>",

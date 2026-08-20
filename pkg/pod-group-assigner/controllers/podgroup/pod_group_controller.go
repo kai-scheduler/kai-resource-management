@@ -86,6 +86,7 @@ func (r *PodGroupReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Mana
 	}
 
 	r.podGroupAssigner = assigner.NewPodGroupAssigner(mgr.GetClient())
+	go r.podGroupAssigner.ClearNodePoolListCachePeriodically(ctx)
 
 	// watches Node Pools as well - converting each to Reconcile on all Pod Groups of that Node Pool;
 	// but with event filter - that filters in only Node Pools that are Deleting or Unschedulable.

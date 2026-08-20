@@ -68,11 +68,19 @@ func init() {
 		"Enable the pod mutating webhook. For pods of a project namespace that are either scheduled by "+
 			"--scheduler-name or whose project enforces it, it enforces the scheduler name, labels the pod "+
 			"with its project, and applies the project's defaultNodePools as node affinity.")
+	zapOptions := bindZapFlags()
 	flag.Parse()
-	initLogging(options.useDebugLogLevel)
+	initLogging(options.useDebugLogLevel, zapOptions)
 }
 
-func initLogging(useDebugLogLevel bool) {
+func bindZapFlags() *zap.Options {
+	opts := &zap.Options{TimeEncoder: zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")}
+	opts.BindFlags(flag.CommandLine)
+
+	return opts
+}
+
+func initLogging(useDebugLogLevel bool, zapOptions *zap.Options) {
 	if !useDebugLogLevel {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	} else {
@@ -80,12 +88,8 @@ func initLogging(useDebugLogLevel bool) {
 	}
 
 	// controller log needs to be set up for the underlying webhook code, for example
-	opts := zap.Options{
-		Development: useDebugLogLevel,
-		TimeEncoder: zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	zapOptions.Development = useDebugLogLevel
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(zapOptions)))
 }
 
 func main() {

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
+	"time"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
@@ -27,9 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const nodePoolListCacheLifetime = 7 * 24 * time.Hour
+
 type PodGroupAssigner struct {
 	Client                      client.Client
 	podGroupsNodePoolList       map[types.UID][]string
+	podGroupsNodePoolListMutex  sync.RWMutex
 	requestedNodePoolsConverter *requested_nodepools_converter.RequestedNodePoolsConverter
 }
 
@@ -288,8 +293,32 @@ func (pga *PodGroupAssigner) patchPodGroupSchedulingConditionsStatus(ctx context
 	return nil
 }
 
+// Dropping every entry is safe: each one is a memo the next reconcile rebuilds.
+func (pga *PodGroupAssigner) ClearNodePoolListCachePeriodically(ctx context.Context) {
+	ticker := time.NewTicker(nodePoolListCacheLifetime)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			pga.podGroupsNodePoolListMutex.Lock()
+			cleared := len(pga.podGroupsNodePoolList)
+			pga.podGroupsNodePoolList = make(map[types.UID][]string)
+			pga.podGroupsNodePoolListMutex.Unlock()
+
+			log.Ctx(ctx).Info().Msgf("Cleared %d cached node pool lists", cleared)
+		}
+	}
+}
+
 func (pga *PodGroupAssigner) getRequestedNodePoolsForPodGroup(ctx context.Context, podGroup *kaiv2alpha2.PodGroup, podGroupPods *corev1.PodList) ([]string, error) {
-	if requestedNodePools, found := pga.podGroupsNodePoolList[podGroup.UID]; found {
+	pga.podGroupsNodePoolListMutex.RLock()
+	requestedNodePools, found := pga.podGroupsNodePoolList[podGroup.UID]
+	pga.podGroupsNodePoolListMutex.RUnlock()
+
+	if found {
 		log.Ctx(ctx).Debug().Msgf("For pod group <%s>, got node pool list from cache: <%v>",
 			getPodGroupNamespacedName(podGroup.ObjectMeta), requestedNodePools)
 
@@ -301,7 +330,9 @@ func (pga *PodGroupAssigner) getRequestedNodePoolsForPodGroup(ctx context.Contex
 		return []string{}, err
 	}
 
+	pga.podGroupsNodePoolListMutex.Lock()
 	pga.podGroupsNodePoolList[podGroup.UID] = requestedNodePools
+	pga.podGroupsNodePoolListMutex.Unlock()
 
 	return requestedNodePools, nil
 }

@@ -32,8 +32,8 @@ func (version VersionInfo) String() string {
 
 func Version() VersionInfo {
 	versionStr := fmt.Sprintf("%s-DEVELOPMENT", gitShortCommit)
-	if //goland:noinspection GoBoolExpressions --> its populated by ldFlags
-	gitTag != "" {
+	//goland:noinspection GoBoolExpressions -- it's populated by ldFlags
+	if gitTag != "" {
 		versionStr = gitTag
 	}
 
