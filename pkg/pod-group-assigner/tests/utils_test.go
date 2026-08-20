@@ -5,6 +5,7 @@ package tests
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -95,7 +96,7 @@ func createPodsForPodGroup(podGroupName, namespace string, numberOfPods int,
 func getNodeSelectorTermsForNodePoolOptions(nodePoolOptions []string) [][]corev1.NodeSelectorRequirement {
 	matchExpressionss := [][]corev1.NodeSelectorRequirement{}
 
-	allTestNodePools := append(testNodePools, extraTestNodePools...)
+	allTestNodePools := slices.Concat(testNodePools, extraTestNodePools)
 
 	for _, nodePool := range nodePoolOptions {
 		if nodePool == testDefaultNodePoolName {

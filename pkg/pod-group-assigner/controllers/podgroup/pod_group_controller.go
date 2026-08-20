@@ -101,8 +101,8 @@ func nodePoolWatchObject() client.Object {
 	return &v1alpha1.NodePool{}
 }
 
-func (r *PodGroupReconciler) getPodGroupForRequest(ctx context.Context, req ctrl.Request, podGroup *kaiv2alpha2.PodGroup) (shouldContinue bool, bool error) {
-	err := r.cachedClient.Get(ctx, req.NamespacedName, podGroup)
+func (r *PodGroupReconciler) getPodGroupForRequest(ctx context.Context, req ctrl.Request, podGroup *kaiv2alpha2.PodGroup) (shouldContinue bool, err error) {
+	err = r.cachedClient.Get(ctx, req.NamespacedName, podGroup)
 	if err == nil {
 		return true, nil
 	}

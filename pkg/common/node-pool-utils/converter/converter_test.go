@@ -20,9 +20,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
+type ctxKey string
+
 const (
 	labelKeyNodePool = "runai/node-pool"
 	kindPod          = "Pod"
+
+	// A context key of its own type, so it cannot collide with a value another
+	// package stores on the same context.
+	failKey = ctxKey("fail")
 
 	// The values runai fed these identifiers with, kept so the assertions below
 	// mean exactly what they did there. The converter takes them as parameters,
@@ -116,7 +122,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 			fakeClientBuilder := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(kaiNodepoolA)
 
 			fakeListFn := func(ctx context.Context, client client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
-				if ctx.Value("fail") == true {
+				if ctx.Value(failKey) == true {
 					return errors.New("i was told to fail")
 				}
 
@@ -194,7 +200,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 				}
 
 				// make the mock client return error
-				ctx = context.WithValue(ctx, "fail", true)
+				ctx = context.WithValue(ctx, failKey, true)
 			})
 			It("continues if IgnoreConversionErrors is true", func() {
 				sources.AffinitySource.IgnoreConversionErrors = true

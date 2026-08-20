@@ -62,6 +62,7 @@ linters:
           - errcheck
           - goconst
           - govet
+          - fatcontext
         path: (.+)_test.go
     paths:
       - generated
