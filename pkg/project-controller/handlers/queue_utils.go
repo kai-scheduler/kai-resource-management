@@ -54,6 +54,9 @@ func populateQueueSpec(resources *kaiv1alpha1.QueueResourcesConfig, displayName,
 	if priority != nil {
 		priorityValue = ptr.To(int(*priority))
 	}
+	if resources == nil {
+		resources = &kaiv1alpha1.QueueResourcesConfig{}
+	}
 	*outputQueueSpec = schedv2.QueueSpec{
 		DisplayName: displayName,
 		ParentQueue: parentQueue,

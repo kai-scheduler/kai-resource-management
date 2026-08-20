@@ -61,13 +61,15 @@ func setProjectControllerWebhookDefaults(webhooks *krmv1alpha1.ProjectController
 		webhooks.CertSecretName, ptr.To(ProjectControllerCertSecretName))
 }
 
-// Every feature is on except limit ranges, which stay off because enabling them
-// makes the controller own a LimitRange in every project namespace.
+// Each default matches the binary's own default for the same flag, so running the
+// controller standalone and running it under the operator behave alike. Limit
+// ranges, cluster-wide Secrets and cluster-wide PVCs stay off because each makes
+// the controller own another object in every project namespace.
 func setProjectControllerFeatureDefaults(features *krmv1alpha1.ProjectControllerFeatures) {
 	features.CreateNamespaces = kaicommon.SetDefault(features.CreateNamespaces, ptr.To(true))
 	features.CreateRoleBindings = kaicommon.SetDefault(features.CreateRoleBindings, ptr.To(true))
-	features.ClusterWideSecret = kaicommon.SetDefault(features.ClusterWideSecret, ptr.To(true))
+	features.ClusterWideSecret = kaicommon.SetDefault(features.ClusterWideSecret, ptr.To(false))
 	features.ClusterWideConfigMap = kaicommon.SetDefault(features.ClusterWideConfigMap, ptr.To(true))
-	features.ClusterWidePvc = kaicommon.SetDefault(features.ClusterWidePvc, ptr.To(true))
+	features.ClusterWidePvc = kaicommon.SetDefault(features.ClusterWidePvc, ptr.To(false))
 	features.LimitRange = kaicommon.SetDefault(features.LimitRange, ptr.To(false))
 }

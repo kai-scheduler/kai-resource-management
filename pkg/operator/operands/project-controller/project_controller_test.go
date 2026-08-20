@@ -191,7 +191,7 @@ var _ = Describe("DesiredState", func() {
 		for _, object := range desiredState(krmConfig) {
 			if configMap, isConfigMap := object.(*corev1.ConfigMap); isConfigMap &&
 				configMap.Name == "runai-rolebindings-plugin" {
-				Expect(configMap.Data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
+				Expect(configMap.Data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-configmap-per-project")))
 				return
 			}
 		}
@@ -303,11 +303,11 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 	It("carries an entry per enabled feature", func() {
 		data := dataOf(newKRMConfig())
 
-		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
 		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-configmap-per-project")))
-		Expect(data).To(HaveKey(roleBindingKey("kai-project-controller-cluster-pvc-per-project")))
-		// Limit ranges are off by default.
+		// Limit ranges, cluster-wide Secrets and cluster-wide PVCs are all off by default.
 		Expect(data).ToNot(HaveKey(roleBindingKey("kai-project-controller-limit-range-per-project")))
+		Expect(data).ToNot(HaveKey(roleBindingKey("kai-project-controller-cluster-secret-per-project")))
+		Expect(data).ToNot(HaveKey(roleBindingKey("kai-project-controller-cluster-pvc-per-project")))
 	})
 
 	// The controller's own ClusterRole is bound cluster-wide by the chart, so a
@@ -350,6 +350,8 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 	It("binds every entry to a ClusterRole in this installation's namespace", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.Features.LimitRange = ptr.To(true)
+		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(true)
+		krmConfig.Spec.ProjectController.Features.ClusterWidePvc = ptr.To(true)
 
 		data := dataOf(krmConfig)
 		Expect(data).To(HaveLen(len(builtinRoleBindings)))
@@ -372,9 +374,12 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 	// Each entry binds a ClusterRole the chart creates under the same flag, to this
 	// operand's own ServiceAccount in the install namespace.
 	It("binds a chart ClusterRole to the controller's ServiceAccount", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(true)
+
 		roleBinding := &rbacRoleBinding{}
 		Expect(yaml.Unmarshal(
-			[]byte(dataOf(newKRMConfig())[roleBindingKey("kai-project-controller-cluster-secret-per-project")]),
+			[]byte(dataOf(krmConfig)[roleBindingKey("kai-project-controller-cluster-secret-per-project")]),
 			roleBinding)).To(Succeed())
 
 		Expect(roleBinding.Kind).To(Equal("RoleBinding"))
@@ -418,6 +423,8 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 
 	It("ignores an extra that reuses a shipped binding name", func() {
 		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(true)
+		krmConfig.Spec.ProjectController.Features.ClusterWidePvc = ptr.To(true)
 		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{
 			{Name: "kai-project-controller-cluster-secret-per-project", ServiceAccountName: "someone-else"},
 		}

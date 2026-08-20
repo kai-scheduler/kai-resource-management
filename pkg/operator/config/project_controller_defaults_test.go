@@ -40,13 +40,14 @@ var _ = Describe("project-controller defaults", func() {
 		Expect(projectController.Webhooks.CertSecretName).To(Equal(ptr.To(ProjectControllerCertSecretName)))
 	})
 
-	It("enables every feature except limit ranges", func() {
+	// Each of these matches the binary's default for the same flag.
+	It("defaults every feature the way the binary does", func() {
 		features := projectController.Features
 		Expect(features.CreateNamespaces).To(Equal(ptr.To(true)))
 		Expect(features.CreateRoleBindings).To(Equal(ptr.To(true)))
-		Expect(features.ClusterWideSecret).To(Equal(ptr.To(true)))
+		Expect(features.ClusterWideSecret).To(Equal(ptr.To(false)))
 		Expect(features.ClusterWideConfigMap).To(Equal(ptr.To(true)))
-		Expect(features.ClusterWidePvc).To(Equal(ptr.To(true)))
+		Expect(features.ClusterWidePvc).To(Equal(ptr.To(false)))
 		Expect(features.LimitRange).To(Equal(ptr.To(false)))
 	})
 
@@ -67,14 +68,14 @@ var _ = Describe("project-controller defaults", func() {
 	It("keeps a feature that was explicitly turned off", func() {
 		spec := &krmv1alpha1.KRMConfigSpec{
 			ProjectController: &krmv1alpha1.ProjectController{
-				Features: &krmv1alpha1.ProjectControllerFeatures{ClusterWideSecret: ptr.To(false)},
+				Features: &krmv1alpha1.ProjectControllerFeatures{ClusterWideConfigMap: ptr.To(false)},
 			},
 		}
 
 		SetDefaultsWhereNeeded(spec)
 
-		Expect(spec.ProjectController.Features.ClusterWideSecret).To(Equal(ptr.To(false)))
-		Expect(spec.ProjectController.Features.ClusterWidePvc).To(Equal(ptr.To(true)))
+		Expect(spec.ProjectController.Features.ClusterWideConfigMap).To(Equal(ptr.To(false)))
+		Expect(spec.ProjectController.Features.CreateNamespaces).To(Equal(ptr.To(true)))
 	})
 
 	It("defaults the shared settings the controller reads from global", func() {
