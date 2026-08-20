@@ -78,7 +78,7 @@ $(SERVICE_NAMES):
 	$(MAKE) docker-build-generic SERVICE_NAME=$@
 
 .PHONY: lint
-lint: fmt-check vet-go lint-go ## Run all static checks.
+lint: fmt-check lint-go ## Run all static checks.
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.

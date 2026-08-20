@@ -51,23 +51,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # .gocache is where the Makefile points GOCACHE, so the Go commands that run
-      # on the host share a cache between runs; the two docker-mounted directories
-      # are the same for the commands that run in a container.
-      #
-      # Every job in this workflow uses this one key deliberately: the content is
-      # the same, and a key per job would multiply what the ref stores against the
-      # repository's 10 GB cache budget.
-      - name: Cache the Go build caches
+      # Go runs both on the host and in containers here, so both sets of
+      # directories are cached. The key is per job: sharing one with build let
+      # whichever job saved first define the entry, and actions/cache never
+      # overwrites an existing key.
+      - name: Cache the Go caches
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build-docker-gocache
             ~/.cache/go-build-docker-gopath
+            ~/go/pkg/mod
             .gocache
-          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          key: go-validate-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: |
-            go-docker-${{ runner.os }}-
+            go-validate-${{ runner.os }}-
 
       # --- BEGIN private API module access ---------------------------------
       # TEMPORARY: needed only while kai-resource-management-api is a private
@@ -104,7 +102,9 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: '1.26.3'
-          cache: true
+          # The cache step above holds the module cache. setup-go would also
+          # store ~/.cache/go-build, which the Makefile's GOCACHE overrides.
+          cache: false
 
       - name: Run validation
         run: make validate
@@ -120,16 +120,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Only the docker-mounted directories: no Go runs on the host here.
       - name: Cache the Go build caches
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build-docker-gocache
             ~/.cache/go-build-docker-gopath
-            .gocache
-          key: go-docker-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: |
-            go-docker-${{ runner.os }}-
+            go-build-${{ runner.os }}-
 
       # --- BEGIN private API module access ---------------------------------
       # TEMPORARY: needed only while kai-resource-management-api is a private
