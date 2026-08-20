@@ -1,48 +1,191 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-// TEMPORARY: placeholder entry point. It exists only so the build, image and
-// release infrastructure has a binary to produce. Replace it with the real
-// pod-group-assigner wiring.
 package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
+	"strings"
 
-	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	podgroupassigner "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	podgroupcontroller "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup"
+	podmutator "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/mutators/pod"
+	podgroupmutator "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/mutators/podgroup"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/profiling"
+	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/scheme"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/version"
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	//+kubebuilder:scaffold:imports
 )
 
-var scheme = runtime.NewScheme()
+var (
+	scheme  = scheme_init.Scheme()
+	options = &Options{}
+)
+
+// Options is the main context object for the controller manager.
+type Options struct {
+	useDebugLogLevel     bool
+	certDir              string
+	webhookPort          int
+	enableProfiler       bool
+	profilerApiPort      string
+	k8sClientConfigQPS   int
+	k8sClientConfigBurst int
+	EnableLeaderElection bool
+	enablePodWebhook     bool
+}
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	flag.BoolVar(&options.useDebugLogLevel, "debug", false, "Should use debug log level")
+	config.AddLabelFlags(flag.CommandLine)
+	flag.StringVar(&options.certDir, "cert-dir", "/etc/webhook/certs", "Directory that contains the server key and certificate for the webhooks")
+	flag.IntVar(&options.webhookPort, "webhook-port", 8443, "The port to serve the webhook from")
+	flag.BoolVar(&options.enableProfiler, "enable-profiling", false, "Should enable profiler")
+	flag.StringVar(&options.profilerApiPort, "profiler-api-port", "8182", "Profiler API port")
+	flag.IntVar(&options.k8sClientConfigQPS, "qps", 50, "Queries per second to the K8s API server")
+	flag.IntVar(&options.k8sClientConfigBurst, "burst", 300, "Burst to the K8s API server")
+	flag.BoolVar(&options.EnableLeaderElection, "leader-elect", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&options.enablePodWebhook, "enable-pod-webhook", true,
+		"Enable the pod mutating webhook. For pods of a project namespace that are either scheduled by "+
+			"--scheduler-name or whose project enforces it, it enforces the scheduler name, labels the pod "+
+			"with its project, and applies the project's defaultNodePools as node affinity.")
+	zapOptions := bindZapFlags()
+	flag.Parse()
+	initLogging(options.useDebugLogLevel, zapOptions)
+}
 
-	utilruntime.Must(kaires.AddToScheme(scheme))
+func bindZapFlags() *zap.Options {
+	opts := &zap.Options{TimeEncoder: zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")}
+	opts.BindFlags(flag.CommandLine)
+
+	return opts
+}
+
+func initLogging(useDebugLogLevel bool, zapOptions *zap.Options) {
+	if !useDebugLogLevel {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	// controller log needs to be set up for the underlying webhook code, for example
+	zapOptions.Development = useDebugLogLevel
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(zapOptions)))
 }
 
 func main() {
-	logOptions := zap.Options{
-		Development: true,
-		TimeEncoder: zapcore.ISO8601TimeEncoder,
-	}
-	logOptions.BindFlags(flag.CommandLine)
-	flag.Parse()
+	log.Info().Msg("Run:AI Pod Group Assigner")
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logOptions), zap.WriteTo(os.Stderr)))
+	clientConfig := ctrl.GetConfigOrDie()
+	clientConfig.QPS = float32(options.k8sClientConfigQPS)
+	clientConfig.Burst = options.k8sClientConfigBurst
 
-	ctx := ctrl.SetupSignalHandler()
-	if err := podgroupassigner.New(scheme).Run(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Error while running the app: %v\n", err)
+	mgr, err := ctrl.NewManager(clientConfig, ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0", // disable metrics
+		},
+		LeaderElection:   options.EnableLeaderElection,
+		LeaderElectionID: "pod-group-assigner.run.ai",
+	})
+	if err != nil {
+		log.Error().Msgf("unable to start manager, error: %s", err.Error())
 		os.Exit(1)
 	}
+
+	registerWebhooks(mgr)
+
+	managerContext := ctrl.SetupSignalHandler()
+
+	podGroupController := podgroupcontroller.NewPodGroupReconciler(mgr.GetClient())
+	if err = podGroupController.SetupWithManager(managerContext, mgr); err != nil {
+		log.Error().Msgf("unable to create PodGroup controller, error: %s", err.Error())
+		os.Exit(1)
+	}
+	//+kubebuilder:scaffold:builder
+
+	if err = mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		log.Error().Msgf("unable to set up health check, error: %s", err.Error())
+		os.Exit(1)
+	}
+
+	if err = mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		log.Error().Msgf("unable to set up ready check, error: %s", err.Error())
+		os.Exit(1)
+	}
+
+	if options.enableProfiler {
+		go profiling.RegisterProfiler(options.profilerApiPort)
+	}
+
+	printVersion()
+	log.Info().Msg("Starting PodGroupController")
+
+	if err = mgr.Start(managerContext); err != nil {
+		log.Error().Msgf("problem running manager, error: %s", err.Error())
+		os.Exit(1)
+	}
+}
+
+func registerWebhooks(mgr manager.Manager) {
+	webhookServer := webhook.NewServer(webhook.Options{
+		Port:    options.webhookPort,
+		CertDir: options.certDir,
+	})
+
+	webhookServer.Register("/mutate-pod-group", &webhook.Admission{Handler: podgroupmutator.NewPodGroupMutator()})
+
+	if options.enablePodWebhook {
+		log.Info().Msgf("Registering pod mutating webhook at %s", podmutator.WebhookPath)
+		webhookServer.Register(podmutator.WebhookPath,
+			&webhook.Admission{Handler: podmutator.NewPodMutator(mgr.GetClient())})
+	}
+
+	if err := mgr.Add(webhookServer); err != nil {
+		log.Error().Msgf("unable to add webhook server to manager, error: %s", err.Error())
+		os.Exit(1)
+	}
+}
+
+func printVersion() {
+	versionInfo := version.Version()
+	log.Info().Msgf("Version: %s", versionInfo.Version)
+
+	if strings.HasSuffix(versionInfo.Version, "-DEVELOPMENT") {
+		return
+	}
+
+	if versionInfo.BuildDate != "" {
+		log.Info().Msgf("BuildDate: %s", versionInfo.BuildDate)
+	}
+
+	if versionInfo.GitCommit != "" {
+		log.Info().Msgf("Commit Hash: %s", versionInfo.GitCommit)
+	}
+
+	if versionInfo.GitTag != "" {
+		log.Info().Msgf("Tag: %s", versionInfo.GitTag)
+	}
+
+	log.Info().Msgf("Go Version: %s", versionInfo.GoVersion)
+	log.Info().Msgf("Platform: %s", versionInfo.Platform)
 }
