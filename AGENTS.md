@@ -24,7 +24,7 @@ make lint-go          # Run the pinned golangci-lint version
 make lint             # Run formatting and static checks
 make test-chart       # Run chart unit tests in the pinned container
 make test             # Run non-e2e Go and Helm tests
-make validate         # Run all non-mutating repository validation
+make validate         # Run all non-mutating repository validation except tests
 make gen-license      # Add missing Apache-2.0 source headers
 ```
 
@@ -149,8 +149,8 @@ packages.
 - Preserve upstream headers on generated files.
 - Use kubebuilder markers immediately above the declaration they affect.
 
-Run `make gen-license` after adding source files and `make validate` before
-finishing.
+Run `make gen-license` after adding source files, and `make validate` and
+`make test` before finishing.
 
 ## Kubernetes controller conventions
 
@@ -289,7 +289,7 @@ Before declaring work complete:
 2. Add or update tests appropriate to the change.
 3. Update documentation for every affected audience.
 4. Add a changelog fragment for user-visible behavior changes.
-5. Run `make validate`.
+5. Run `make validate` and `make test`.
 6. Run any additional component-specific checks documented by the root
    Makefile.
 7. Confirm `git diff --check` succeeds.

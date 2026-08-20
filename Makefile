@@ -126,7 +126,7 @@ scc-check: ## Verify every ServiceAccount the chart renders is granted the OpenS
 	bash hack/scc-check.sh $(CHART_DIR)
 
 .PHONY: validate
-validate: mod-check lint test license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files.
+validate: mod-check lint license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

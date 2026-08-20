@@ -109,6 +109,9 @@ jobs:
       - name: Run validation
         run: make validate
 
+      - name: Run tests
+        run: make test
+
   build:
     needs: [ check-build-and-test-required ]
     if: needs.check-build-and-test-required.outputs.code == 'true'
