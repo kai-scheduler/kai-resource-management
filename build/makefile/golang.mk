@@ -99,7 +99,7 @@ fmt-check: ## Verify Go source formatting without changing files.
 	fi
 
 .PHONY: vet-go
-vet-go:
+vet-go: | $(GOCACHE) $(GOTMPDIR)
 	@packages="$$( $(GO) list ./... )"; \
 	if [ -n "$$packages" ]; then \
 		$(GO) vet ./...; \
@@ -108,7 +108,7 @@ vet-go:
 	fi
 
 .PHONY: test-go
-test-go: ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
+test-go: | $(GOCACHE) $(GOTMPDIR) ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
 	@if [ -n "$(strip $(TEST_TARGETS))" ]; then \
 		$(GO) test $(TEST_TARGETS); \
 	else \
@@ -116,7 +116,7 @@ test-go: ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
 	fi
 
 .PHONY: lint-go
-lint-go: gocache ## Run golangci-lint for all Go packages.
+lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.
 	@packages="$$( $(GO) list ./... )"; \
 	if [ -n "$$packages" ]; then \
 		$(DOCKER_GO_LINTER_COMMAND) golangci-lint run -v -c $(GOLANGCI_LINTER_CONFIG_PATH) || $(FAILURE_MESSAGE_HANDLER); \
