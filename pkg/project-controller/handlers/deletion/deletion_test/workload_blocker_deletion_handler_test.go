@@ -42,7 +42,7 @@ var _ = Describe("Workloads Deletion Handler", func() {
 		// Sanity
 		Expect(handler.GetNamespace(TestNamespace.Name)).ToNot(BeZero())
 
-		//When
+		// When
 		conditions, err := handler.OnDelete(&project)
 		Expect(err).To(BeNil())
 
@@ -68,7 +68,7 @@ var _ = Describe("Workloads Deletion Handler", func() {
 		// Sanity
 		Expect(handler.GetNamespace(TestNamespace.Name)).ToNot(BeZero())
 
-		//When
+		// When
 		conditions, err := handler.OnDelete(&project)
 		Expect(err).To(Not(BeNil()))
 

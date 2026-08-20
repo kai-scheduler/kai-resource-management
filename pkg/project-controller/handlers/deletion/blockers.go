@@ -4,6 +4,7 @@
 package deletion
 
 import (
+	"errors"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,7 +103,7 @@ func groupBlockers(blockers []Blocker) ([]BlockerGroup, error) {
 
 func (b Blocker) validate() error {
 	if b.DisplayName == "" {
-		return fmt.Errorf("displayName is required")
+		return errors.New("displayName is required")
 	}
 	if b.Version == "" || b.Kind == "" {
 		return fmt.Errorf("blocker %q: version and kind are required", b.DisplayName)

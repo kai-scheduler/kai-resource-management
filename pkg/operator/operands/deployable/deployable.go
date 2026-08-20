@@ -235,7 +235,6 @@ func (d *DeployableOperands) inheritFieldsFromCurrent(currentObj, desiredObj cli
 func createObjectsInCluster(
 	ctx context.Context, runtimeClient client.Client, reconcilerAsOwnerReference metav1.OwnerReference,
 	objectsToCreate []client.Object) error {
-
 	sortObjectByCreationOrder(objectsToCreate, objectsCreationOrder)
 
 	for _, obj := range objectsToCreate {

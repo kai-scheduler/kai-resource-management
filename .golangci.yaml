@@ -3,7 +3,7 @@
 
 version: "2"
 run:
-  timeout: 5m
+  timeout: 8m
   tests: true
 output:
   formats:
@@ -17,6 +17,39 @@ linters:
     - goconst
     - govet
     - unused
+    # Bug-finders. staticcheck subsumes gosimple and stylecheck in v2.
+    - staticcheck
+    - errorlint
+    - ineffassign
+    - nilerr
+    - wastedassign
+    - bodyclose
+    - noctx
+    - durationcheck
+    - makezero
+    - reassign
+    - fatcontext
+    - exhaustive
+    - gosec
+    # Correctness of names, conversions and test wiring.
+    - errname
+    - predeclared
+    - goprintffuncname
+    - unconvert
+    - copyloopvar
+    - usetesting
+    - tparallel
+    - asciicheck
+    - bidichk
+    # Style with a low false-positive rate.
+    - gocritic
+    - whitespace
+  settings:
+    gocritic:
+      disabled-checks:
+        # A single-case type switch reads better than an if with a type assertion
+        # when the case is about the type, and it stays open to more cases.
+        - singleCaseSwitch
   exclusions:
     generated: lax
     presets:

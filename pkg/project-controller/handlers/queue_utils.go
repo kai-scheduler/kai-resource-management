@@ -290,12 +290,11 @@ func getExistingQueueByLabels(ctx context.Context, k8sClient client.Client, log 
 		}
 	}
 
-	notFoundQueueName := ""
+	ownerName := departmentName
 	if projectName != "" {
-		notFoundQueueName = fmt.Sprintf("%s/%s", projectName, nodepoolName)
-	} else {
-		notFoundQueueName = fmt.Sprintf("%s/%s", departmentName, nodepoolName)
+		ownerName = projectName
 	}
+	notFoundQueueName := fmt.Sprintf("%s/%s", ownerName, nodepoolName)
 
 	return nil, errors.NewNotFound(schedv2.Resource("queue"), notFoundQueueName)
 }

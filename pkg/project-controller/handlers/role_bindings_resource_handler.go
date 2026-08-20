@@ -114,8 +114,7 @@ func (handler RoleBindingsResourceHandler) handleResourceInner(
 
 func (handler RoleBindingsResourceHandler) populateDesiredRoleBindings(ctx context.Context) {
 	if len(handler.desiredRoleBindings) == 0 {
-		var errs []error
-		errs = handler.getRoleBindingMapFromCm(ctx)
+		errs := handler.getRoleBindingMapFromCm(ctx)
 		for _, parseErr := range errs {
 			handler.Log.Error(parseErr, "could not parse role binding from configmap",
 				common.LogNamespaceTag, handler.roleBindingCmNamespace)

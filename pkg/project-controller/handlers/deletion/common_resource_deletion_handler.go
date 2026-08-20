@@ -35,11 +35,11 @@ const (
 	PvcsDeletionHandlerFailed        ProjectConditionDeletionReason = "PvcsDeletionHandlerFailed"
 )
 
-type ProjectIsNotEmptyErr struct {
+type ProjectIsNotEmptyError struct {
 	RemainingItems []client.Object
 }
 
-func (e *ProjectIsNotEmptyErr) Error() string {
+func (e *ProjectIsNotEmptyError) Error() string {
 	resources := ""
 	if len(e.RemainingItems) > 0 {
 		resourceMap := make(map[string][]string)

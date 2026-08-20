@@ -48,7 +48,7 @@ var _ = Describe("LimitRange Deletion Handler", func() {
 		Expect(client.Create(context.TODO(), &limitRange)).To(Succeed())
 		Expect(client.Create(context.TODO(), &unrelatedLimitRange)).To(Succeed())
 
-		//When
+		// When
 		conditions, err := handler.OnDelete(&project)
 		Expect(err).To(BeNil())
 

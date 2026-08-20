@@ -27,7 +27,7 @@ const blockerListTimeout = 15 * time.Second
 // ConfigurableBlocker is a generic, config-driven deletion blocker. It lists the
 // configured GVK(s) (optionally filtered by a label selector) in the project namespace
 // and, if any matching resource remains, blocks deletion by reporting its configured
-// project condition as False with a ProjectIsNotEmptyErr. It replaces the historical
+// project condition as False with a ProjectIsNotEmptyError. It replaces the historical
 // per-resource blockers (Workload/DataVolume/Secret/PVC).
 type ConfigurableBlocker struct {
 	CommonResourceDeletionHandler
@@ -81,7 +81,7 @@ func (handler ConfigurableBlocker) onDeleteInner(project *kaiv1alpha1.Project) e
 		return nil
 	}
 
-	return &ProjectIsNotEmptyErr{RemainingItems: remainingObjects}
+	return &ProjectIsNotEmptyError{RemainingItems: remainingObjects}
 }
 
 func (handler ConfigurableBlocker) listBlockers(namespace string, blocker Blocker) ([]client.Object, error) {

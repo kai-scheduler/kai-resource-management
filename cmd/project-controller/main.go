@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -79,7 +80,7 @@ func main() {
 
 	// projectEvents is a channel held locally by the controller to pass reconcile events between the reconcilers, instead of going out via the api.
 	projectEvents := make(chan event.GenericEvent)
-	defer close(projectEvents)
+	defer close(projectEvents) //nolint:gocritic
 
 	createMainReconciler(mgr, projectEvents, projectReconcilerConfig)
 	createReconcileEventTriggers(mgr, projectEvents)
@@ -143,7 +144,7 @@ func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcil
 		os.Exit(1)
 	}
 	if cfg.WebhookCertDir == "" {
-		setupLog.Error(fmt.Errorf("webhook cert directory is empty"),
+		setupLog.Error(errors.New("webhook cert directory is empty"),
 			"a validation webhook is enabled but the webhook cert directory is not configured")
 		os.Exit(1)
 	}

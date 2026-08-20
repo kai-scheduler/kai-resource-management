@@ -5,6 +5,7 @@ package deletion
 
 import (
 	"context"
+
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -36,8 +37,10 @@ func NewLimitRangeDeletionHandler(client client.Client) LimitRangeDeletionHandle
 func (handler LimitRangeDeletionHandler) OnDelete(project *kaiv1alpha1.Project) ([]kaiv1alpha1.ProjectCondition, error) {
 	namespace, err := handler.KaiProjectToNamespace(project)
 	if err != nil {
-		// we have to log and forgive, otherwise deletion will remain on Terminating forever
-		return []kaiv1alpha1.ProjectCondition{}, nil
+		// Forgiven on purpose: returning the error would leave the project Terminating
+		// forever, and a project whose namespace cannot be resolved has no LimitRange
+		// left to delete anyway.
+		return []kaiv1alpha1.ProjectCondition{}, nil //nolint:nilerr // see above
 	}
 
 	err = handler.onDeleteInner(project, namespace)

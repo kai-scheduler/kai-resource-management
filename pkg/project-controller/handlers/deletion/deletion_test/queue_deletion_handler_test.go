@@ -49,7 +49,7 @@ var _ = Describe("Queue Deletion Handler", func() {
 		Expect(handler.GetQueue(queue.Name)).ToNot(BeZero())
 		Expect(handler.GetNamespace(TestNamespace.Name)).ToNot(BeZero())
 
-		//When
+		// When
 		conditions, err := handler.OnDelete(&project)
 		Expect(err).To(BeNil())
 

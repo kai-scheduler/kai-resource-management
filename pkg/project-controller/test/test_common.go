@@ -10,9 +10,9 @@ import (
 	"unsafe"
 
 	"github.com/SemanticallyNull/golandreporter"
-	. "github.com/onsi/ginkgo" //nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/ginkgo" // nolint:staticcheck // dot import for test framework is intentional
 	"github.com/onsi/ginkgo/reporters"
-	//nolint:staticcheck // dot import for test framework is intentional
+	// nolint:staticcheck // dot import for test framework is intentional
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -92,7 +92,7 @@ const (
 	pvcKind = "PersistentVolumeClaim"
 )
 
-//goland:noinspection GoNameStartsWithPackageName
+// goland:noinspection GoNameStartsWithPackageName
 var (
 	// Populate the package-level config before the fixture vars below are initialized.
 	// Several fixtures compute queue names via config-dependent helpers (e.g.

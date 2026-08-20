@@ -412,7 +412,7 @@ var _ = Describe("Project Reconciler Tests", func() {
 		Expect(reconciler.GetProject(projectReconcileRequest, &sanity)).ToNot(Succeed())
 		Expect(sanity).To(BeZero())
 
-		//When
+		// When
 		result, err := reconciler.Reconcile(context.TODO(), projectReconcileRequest)
 
 		// Then

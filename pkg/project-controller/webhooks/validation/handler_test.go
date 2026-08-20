@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"testing"
 
-	. "github.com/onsi/ginkgo" //nolint:staticcheck // dot import for test framework is intentional
-	. "github.com/onsi/gomega" //nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/ginkgo" // nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/gomega" // nolint:staticcheck // dot import for test framework is intentional
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

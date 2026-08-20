@@ -45,7 +45,7 @@ var _ = Describe("LimitRange Resource Handler", func() {
 		It("don't create namespaced LimitRange resources", func() {
 
 			// Given
-			Expect(client.Get(context.TODO(), types.NamespacedName{Name: DefaultLimitRangeConfigMapName, Namespace: config.Get().InstallNamespace}, &corev1.ConfigMap{})).ToNot(Succeed()) //sanity
+			Expect(client.Get(context.TODO(), types.NamespacedName{Name: DefaultLimitRangeConfigMapName, Namespace: config.Get().InstallNamespace}, &corev1.ConfigMap{})).ToNot(Succeed()) // sanity
 
 			// When
 			conditions, err := handler.HandleResource(project)
