@@ -10,7 +10,7 @@ Read the [Code of Conduct](CODE_OF_CONDUCT.md) and the
 1. Fork and clone the repository.
 2. Create a focused branch from `main`.
 3. Make the change, including appropriate tests and documentation.
-4. Run `make validate`.
+4. Run `make validate` and `make test`.
 5. Commit with DCO sign-off and open a pull request.
 
 Developer setup and repository conventions are documented in
@@ -53,10 +53,11 @@ templates.
 Add or update tests appropriate to the behavior being changed. Unit tests belong
 beside the Go package they exercise and must end in `_test.go`.
 
-Run the repository validation before opening a pull request:
+Run the repository validation and the tests before opening a pull request:
 
 ```bash
 make validate
+make test
 ```
 
 The root Makefile is the supported command interface. Component-specific

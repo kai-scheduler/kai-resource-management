@@ -61,7 +61,6 @@ linters:
       - linters:
           - errcheck
           - goconst
-          - govet
         path: (.+)_test.go
     paths:
       - generated

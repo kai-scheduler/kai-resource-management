@@ -151,7 +151,8 @@ make validate
 
 `make test` runs all non-e2e Go tests with the local Go toolchain and runs the
 chart unit tests. `make validate` verifies formatting, module tidiness, static
-analysis, tests, and source license headers without changing tracked files.
+analysis and source license headers without changing tracked files; it does not
+run the tests.
 
 The root Makefile exposes one chart-specific test target:
 

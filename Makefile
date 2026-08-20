@@ -58,10 +58,13 @@ changie: $(CHANGIE) ## Install changie locally.
 $(CHANGIE): | $(LOCALBIN) $(GOCACHE) $(GOTMPDIR)
 	test -s $(CHANGIE) || GOBIN=$(LOCALBIN) $(GO) install github.com/miniscruff/changie@$(CHANGIE_VERSION)
 
+.PHONY: helm-deps
+helm-deps: ## Fetch the chart's declared subchart dependencies into charts/.
+	helm dependency build $(CHART_DIR)
+
 .PHONY: test-chart
-test-chart: ## Run Helm chart unit tests in the pinned container.
+test-chart: helm-deps ## Run Helm chart unit tests in the pinned container.
 	@echo "Running tests for Helm chart: kai-resource-management"
-	helm dependency build ./deployments/kai-resource-management-chart
 	helm lint ./deployments/kai-resource-management-chart
 	docker run -t --rm -v ./deployments/kai-resource-management-chart:/apps helmunittest/helm-unittest:3.17.2-0.8.1 . -f 'tests/**/*_test.yaml'
 
@@ -78,7 +81,7 @@ $(SERVICE_NAMES):
 	$(MAKE) docker-build-generic SERVICE_NAME=$@
 
 .PHONY: lint
-lint: fmt-check vet-go lint-go ## Run all static checks.
+lint: fmt-check lint-go ## Run all static checks.
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.
@@ -122,11 +125,11 @@ crd-rbac-check: ## Verify every chart CRD is named in the crd-manager ClusterRol
 	exit $$rc
 
 .PHONY: scc-check
-scc-check: ## Verify every ServiceAccount the chart renders is granted the OpenShift SCC.
+scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted the OpenShift SCC.
 	bash hack/scc-check.sh $(CHART_DIR)
 
 .PHONY: validate
-validate: mod-check lint test license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files.
+validate: mod-check lint license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.
