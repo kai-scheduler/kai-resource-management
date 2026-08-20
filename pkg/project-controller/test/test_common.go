@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package test
 
 import (
@@ -18,10 +21,10 @@ import (
 	"k8s.io/utils/ptr"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 // externalWorkloadAPIVersion is the group/version of the run.ai ExternalWorkload
@@ -96,7 +99,7 @@ var (
 	// GetQueueNameOfDepartment / GetQueueName read config.Get().DefaultNodepoolName), which
 	// would nil-deref an unset config. This runs first (earliest declaration, no dependency on
 	// the fixtures); individual suites re-set config in their BeforeSuite/BeforeEach.
-	_ = config.SetForTest(RunaiConfigForTests())
+	_ = config.SetForTest(ConfigForTests())
 
 	TestProject = kaiv1alpha1.Project{
 		TypeMeta: metav1.TypeMeta{
@@ -675,9 +678,7 @@ var (
 	}
 )
 
-// RunaiConfigForTests returns the runai-flavored ProjectReconcilerConfig used by the test
-// suites (runai/queue, runai/node-pool, runai namespace, run.ai finalizer domain, ...).
-func RunaiConfigForTests() *config.ProjectReconcilerConfig {
+func ConfigForTests() *config.ProjectReconcilerConfig {
 	return &config.ProjectReconcilerConfig{
 		NodePoolLabelKey:               NodePoolLabelKey,
 		DefaultNodepoolName:            DefaultNodePoolName,

@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package deletion
 
 import (
@@ -38,8 +41,7 @@ type Blocker struct {
 // condition. If any query matches at least one resource, the group blocks deletion
 // and reports its condition (see ConditionType) as False. Groups are assembled at runtime
 // from the project-delete-blockers ConfigMap (Blockers grouped by DisplayName); this package
-// only defines the generic shape and engine — the runai-specific set of blockers is
-// constructed by the go-operator packaging.
+// only defines the generic shape and engine.
 type BlockerGroup struct {
 	// DisplayName names the group (e.g. "Workloads", "Secrets") and is the single
 	// source for the reported condition type and reason — see ConditionType/Reason.

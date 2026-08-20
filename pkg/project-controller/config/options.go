@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package config
 
 import (
@@ -46,14 +49,12 @@ func parseCommandLineArgs(flagSet *flag.FlagSet, options []string, opts *Options
 		"Enable cluster wide pvcs feature, means the project controller will listen on all pvcs and create pvcs")
 	flagSet.BoolVar(&config.ClusterWideConfigMaps, "cluster-wide-config-maps", true,
 		"Enable cluster wide config maps feature, means the project controller will listen on all config maps and create config maps")
-	flagSet.BoolVar(&config.LimitRange, "limit-range", false, "Enable creation of runai limit range")
+	flagSet.BoolVar(&config.LimitRange, "limit-range", false, "Enable limit range feature")
 	flagSet.BoolVar(&config.IsOpenshift, "openshift", false, "Enable openshift specific features")
 
 	flagSet.StringVar(&config.LimitRangeName, "limit-range-name", defaultLimitRangeName, "Name of the LimitRange resource created in each project namespace")
 	flagSet.StringVar(&config.GvkDeleteBlockersNamespace, "project-delete-blockers-namespace", "",
 		"Namespace of the 'project-delete-blockers' ConfigMap describing project-deletion blockers. Empty (default) means no blockers - deletion is never blocked")
-	// Label-vocabulary flags — KAI-style defaults; go-operator's deployments.go
-	// passes runai overrides so runai deployment behavior is unchanged.
 	flagSet.StringVar(&config.NodePoolLabelKey, "nodepool-label-key", kaiconstants.DefaultNodePoolLabelKey, "Label key used to associate Kubernetes resources with a node pool")
 	flagSet.StringVar(&config.DefaultNodepoolName, "default-nodepool-name", kaiconstants.DefaultNodePoolName, "Name of the implicit default node pool (its queues carry no node-pool label)")
 	flagSet.StringVar(&config.QueueLabelKey, "queue-label-key", kaiconstants.DefaultQueueLabel, "Label key used to identify the queue of a workload")

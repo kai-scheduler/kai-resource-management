@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package deletion
 
 import (
@@ -6,8 +9,8 @@ import (
 	"sort"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

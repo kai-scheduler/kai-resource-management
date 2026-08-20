@@ -1,11 +1,14 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers_test
 
 import (
-	. "github.com/onsi/ginkgo" //nolint:staticcheck // dot import for test framework is intentional
-	. "github.com/onsi/gomega" //nolint:staticcheck // dot import for test framework is intentional
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
+	. "github.com/onsi/ginkgo" //nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/gomega" //nolint:staticcheck // dot import for test framework is intentional
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 

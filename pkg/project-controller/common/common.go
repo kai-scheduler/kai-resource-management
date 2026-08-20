@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package common
 
 import (
@@ -7,8 +10,8 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -32,19 +35,6 @@ const (
 
 	AppLabel                  = "app"
 	OcpClusterMonitoringLabel = "openshift.io/cluster-monitoring"
-
-	//--------------------------- Replication Labels -------------------------------------------------------------------
-	// Two groups are involved: (a) type labels  (b) scope labels
-	//
-	// Type labels:
-	// - run.ai/asset          [asset sync owned resources]
-	// - run.ai/resource       [user owned resources, only for secrets]
-	//
-	// Scope labels:
-	// - run.ai/tenant-wide    [asset sync owned only]
-	// - run.ai/cluster-wide   [user owned only]
-	// - run.ai/department     [both asset sync and user owned]
-	//------------------------------------------------------------------------------------------------------------------
 
 	DockerRegistryAssetKind = "docker-registry"
 	PasswordAssetKind       = "password"

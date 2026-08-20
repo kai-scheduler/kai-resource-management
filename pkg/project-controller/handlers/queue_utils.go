@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers
 
 import (
@@ -11,9 +14,9 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -149,8 +152,7 @@ func listQueuesWithLabelSelector(ctx context.Context, k8sClient client.Client,
 }
 
 // listQueuesForNodepool lists queues for the given nodepool without any owner/project/department
-// identity filter. It is used to locate a queue by its OwnerReference rather than by the
-// runai/department-* identity labels.
+// identity filter. It is used to locate a queue by its OwnerReference.
 func listQueuesForNodepool(ctx context.Context, k8sClient client.Client, nodepoolName string) ([]schedv2.Queue, error) {
 	var nodePoolRequirement *labels.Requirement
 	var err error

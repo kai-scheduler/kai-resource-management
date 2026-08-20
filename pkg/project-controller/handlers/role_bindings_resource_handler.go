@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers
 
 import (
@@ -5,8 +8,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/thoas/go-funk"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

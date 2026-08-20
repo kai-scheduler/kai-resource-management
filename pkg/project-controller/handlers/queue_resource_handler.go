@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers
 
 import (
@@ -6,9 +9,9 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -160,7 +163,7 @@ func (handler QueueResourceHandler) buildQueueFromSpec(ctx context.Context, queu
 //   - falls back to finding the department-owned queue for the nodepool by OwnerReference (so a
 //     collision-suffixed name is still honored).
 //
-// The parent is never located via the runai/department-* identity labels - only via the
+// The parent is located via the
 // department object and OwnerReference. Returns "" when the project has no parent, the parent
 // Department does not exist, or the department has no owned queue for the nodepool.
 func (handler QueueResourceHandler) parentQueueNameForProject(ctx context.Context,

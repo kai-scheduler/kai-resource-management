@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers
 
 import (
@@ -6,9 +9,9 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// The DepartmentHandler acquires the default limit ranges Config Map (under our 'runai' Namespace)
+// The DepartmentHandler acquires the default limit ranges Config Map (under our Release Namespace)
 // and applies it as a LimitRange resource under the Project's Namespace
 type DepartmentHandler struct {
 	common.WithLoggerAndCli

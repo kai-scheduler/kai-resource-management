@@ -1,9 +1,12 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package deletion_test
 
 import (
+	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )

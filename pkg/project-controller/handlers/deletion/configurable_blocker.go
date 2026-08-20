@@ -1,12 +1,15 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package deletion
 
 import (
 	"context"
 	"time"
 
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,8 +28,7 @@ const blockerListTimeout = 15 * time.Second
 // configured GVK(s) (optionally filtered by a label selector) in the project namespace
 // and, if any matching resource remains, blocks deletion by reporting its configured
 // project condition as False with a ProjectIsNotEmptyErr. It replaces the historical
-// per-resource blockers (Workload/DataVolume/Secret/PVC); the runai packaging supplies
-// the equivalent config via config.RunaiDefaultBlockerConfig.
+// per-resource blockers (Workload/DataVolume/Secret/PVC).
 type ConfigurableBlocker struct {
 	CommonResourceDeletionHandler
 	group BlockerGroup

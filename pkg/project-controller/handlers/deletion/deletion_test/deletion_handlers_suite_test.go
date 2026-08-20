@@ -1,19 +1,19 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package deletion_test
 
 import (
-	"context"
 	"testing"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Test Globals
@@ -25,31 +25,8 @@ var _ = BeforeSuite(func() {
 	Expect(kaiv1alpha1.AddToScheme(scheme)).Should(Succeed())
 	Expect(kaiv2.AddToScheme(scheme)).Should(Succeed())
 
-	config.SetForTest(test.RunaiConfigForTests())
+	config.SetForTest(test.ConfigForTests())
 })
-
-// gvkRestoringClient wraps a client.Client and backfills the TypeMeta
-// (apiVersion/kind) on objects returned by List. The controller-runtime fake
-// client strips TypeMeta from listed objects, whereas a real API server returns
-// it; some deletion handlers read the kind off listed objects to build their
-// status messages, so the test client mirrors real-client behavior here.
-type gvkRestoringClient struct {
-	client.Client
-}
-
-func (c gvkRestoringClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	if err := c.Client.List(ctx, list, opts...); err != nil {
-		return err
-	}
-	return apimeta.EachListItem(list, func(obj runtime.Object) error {
-		gvks, _, err := c.Scheme().ObjectKinds(obj)
-		if err != nil || len(gvks) == 0 {
-			return nil
-		}
-		obj.GetObjectKind().SetGroupVersionKind(gvks[0])
-		return nil
-	})
-}
 
 func TestDeletionHandlers(t *testing.T) {
 	RegisterFailHandler(Fail)

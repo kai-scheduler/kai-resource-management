@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package handlers_test
 
 import (
@@ -5,12 +8,12 @@ import (
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
 
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +43,7 @@ var _ = BeforeSuite(func() {
 	// Set up the package-level config with runai values so production code
 	// (which reads via config.Get()) sees the same vocabulary the test data
 	// assumes.
-	config.SetForTest(test.RunaiConfigForTests())
+	config.SetForTest(test.ConfigForTests())
 })
 
 func TestResourceHandlers(t *testing.T) {
