@@ -7,8 +7,8 @@ import (
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	"github.com/rs/zerolog/log"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

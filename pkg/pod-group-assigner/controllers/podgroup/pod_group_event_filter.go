@@ -5,9 +5,9 @@ import (
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	"github.com/rs/zerolog/log"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
-	nodepoolutils "github.com/run-ai/runai/runai-cluster/common/node-pool-utils/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"

@@ -6,7 +6,7 @@ import (
 
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	kaipgconstants "github.com/kai-scheduler/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/constants"
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 const (

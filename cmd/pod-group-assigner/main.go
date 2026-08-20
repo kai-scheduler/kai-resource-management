@@ -11,13 +11,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
-	podgroupcontroller "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/podgroup"
-	podmutator "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/mutators/pod"
-	podgroupmutator "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/mutators/podgroup"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/profiling"
-	scheme_init "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/scheme"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/version"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	podgroupcontroller "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup"
+	podmutator "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/mutators/pod"
+	podgroupmutator "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/mutators/podgroup"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/profiling"
+	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/scheme"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/version"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 
-	_ "github.com/run-ai/runai/runai-common-packages/fips"
 )
 
 var (

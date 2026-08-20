@@ -12,11 +12,11 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	pgaconfig "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/podgroup"
-	scheme_init "github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/scheme"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	pgaconfig "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup"
+	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/scheme"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	corev1 "k8s.io/api/core/v1"

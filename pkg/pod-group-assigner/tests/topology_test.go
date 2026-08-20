@@ -7,9 +7,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/podgroup/assigner"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/testbuilders"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/assigner"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/testbuilders"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"

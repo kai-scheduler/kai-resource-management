@@ -7,10 +7,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kaiv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/run/v1alpha1"
 	"github.com/run-ai/runai/runai-cluster/common/constants"
-	"github.com/run-ai/runai/runai-cluster/common/node-pool-utils/converter"
+	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

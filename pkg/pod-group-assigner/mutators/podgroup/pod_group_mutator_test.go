@@ -4,7 +4,7 @@ import (
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"

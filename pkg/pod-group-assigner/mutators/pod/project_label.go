@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	kaipgconstants "github.com/kai-scheduler/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/constants"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/utils"
 
 	corev1 "k8s.io/api/core/v1"
 )

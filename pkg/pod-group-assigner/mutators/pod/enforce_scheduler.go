@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"

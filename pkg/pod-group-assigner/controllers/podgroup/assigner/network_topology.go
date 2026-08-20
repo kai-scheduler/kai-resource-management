@@ -4,7 +4,7 @@ import (
 	"context"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/utils"
 )
 
 const (

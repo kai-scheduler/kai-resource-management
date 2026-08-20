@@ -8,11 +8,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/controllers/podgroup/requested_nodepools_converter"
-	"github.com/run-ai/runai/runai-cluster/cluster/pod-group-assigner/pkg/testbuilders"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
-	"github.com/run-ai/runai/runai-cluster/common/node-pool-utils/converter"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/requested_nodepools_converter"
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/testbuilders"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

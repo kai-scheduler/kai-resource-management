@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/run-ai/runai/runai-cluster/common/node-pool-utils/converter"
+	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
