@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	runv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/run/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,29 +28,10 @@ const (
 	deletingVal  = "deleting-value"
 )
 
-// UseKaiNodePools is a compile-time const, so each CRD's readers are exercised
-// directly rather than by flipping it. Delete the legacy entries alongside the
-// legacy twins.
 func newClient(objects ...client.Object) client.Client {
 	scheme := runtime.NewScheme()
-	Expect(runv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(kaiv1alpha1.AddToScheme(scheme)).To(Succeed())
 	return fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
-}
-
-func legacyPools() []client.Object {
-	return []client.Object{
-		&runv1alpha1.NodePool{
-			ObjectMeta: metav1.ObjectMeta{Name: readyPool},
-			Spec:       runv1alpha1.NodePoolSpec{LabelKey: labelKey, LabelValue: readyValue},
-			Status:     runv1alpha1.NodePoolStatus{Phase: runv1alpha1.NodePoolReady},
-		},
-		&runv1alpha1.NodePool{
-			ObjectMeta: metav1.ObjectMeta{Name: deletingPool},
-			Spec:       runv1alpha1.NodePoolSpec{LabelKey: labelKey, LabelValue: deletingVal},
-			Status:     runv1alpha1.NodePoolStatus{Phase: runv1alpha1.NodePoolDeleting},
-		},
-	}
 }
 
 func kaiPools() []client.Object {
@@ -77,25 +57,23 @@ var _ = Describe("NodePool listing", func() {
 	})
 
 	Describe("GetAllNodePools", func() {
-		It("lists only the kai CRD, ignoring the legacy one", func() {
-			objects := append(legacyPools(), kaiPools()...)
-
-			nodePools, err := utils.GetAllNodePools(ctx, newClient(objects...))
+		It("lists every node pool in the cluster", func() {
+			nodePools, err := utils.GetAllNodePools(ctx, newClient(kaiPools()...))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(nodePools.Items).To(HaveLen(2))
 		})
 
 		// The caller resolves node affinity against these pools and cannot do so
 		// without any, so an empty cluster is an error rather than an empty list.
-		It("errors when no kai node pools exist", func() {
-			_, err := utils.GetAllNodePools(ctx, newClient(legacyPools()...))
+		It("errors when no node pools exist", func() {
+			_, err := utils.GetAllNodePools(ctx, newClient())
 			Expect(err).To(MatchError(ContainSubstring("didn't find any node pools")))
 		})
 	})
 })
 
 var _ = Describe("NodePool indexing", func() {
-	// Both CRDs index identically; the maps are what affinity resolution matches against.
+	// The maps are what affinity resolution matches against.
 	assertMaps := func(keyToValueToName map[string]map[string]string, deleting map[string]string) {
 		Expect(keyToValueToName).To(Equal(map[string]map[string]string{
 			labelKey: {
@@ -108,7 +86,7 @@ var _ = Describe("NodePool indexing", func() {
 		Expect(deleting).To(Equal(map[string]string{deletingPool: "Deleting"}))
 	}
 
-	It("GetNodePoolsMap indexes kai pools by label key and value", func() {
+	It("GetNodePoolsMap indexes pools by label key and value", func() {
 		nodePools := &kaiv1alpha1.NodePoolList{}
 		for _, obj := range kaiPools() {
 			nodePools.Items = append(nodePools.Items, *obj.(*kaiv1alpha1.NodePool))

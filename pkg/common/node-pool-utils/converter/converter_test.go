@@ -8,8 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/run/v1alpha1"
-	"github.com/run-ai/runai/runai-cluster/common/constants"
 	"github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/converter"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +20,13 @@ import (
 const (
 	labelKeyNodePool = "runai/node-pool"
 	kindPod          = "Pod"
+
+	// The values runai fed these identifiers with, kept so the assertions below
+	// mean exactly what they did there. The converter takes them as parameters,
+	// so the literals are the suite's vocabulary rather than this repository's.
+	defaultNodePoolName        = "default"
+	unexistingNodePoolSentinel = "runai-unexisting-node-pool"
+	annotationNodepools        = "runai-nodepools"
 )
 
 // testIdentifiers carries the runai-flavored vocabulary used by the test
@@ -30,9 +35,9 @@ const (
 // behavioral assertions stay valid).
 var testIdentifiers = converter.NodePoolIdentifiers{
 	NodePoolAssignmentLabelKey: labelKeyNodePool,
-	DefaultNodepoolName:        v1alpha1.DefaultNodePoolName,
-	UnexistingNodepoolSentinel: v1alpha1.UnexistingRunaiNodePool,
-	AnnotationNodepoolsKey:     constants.AnnotationNodepools,
+	DefaultNodepoolName:        defaultNodePoolName,
+	UnexistingNodepoolSentinel: unexistingNodePoolSentinel,
+	AnnotationNodepoolsKey:     annotationNodepools,
 }
 
 var _ = Describe("GetRequestedNodePools", func() {
@@ -61,24 +66,24 @@ var _ = Describe("GetRequestedNodePools", func() {
 
 	Describe("Pod Annotations", func() {
 		It("returns node pools from annotation if present and non-empty", func() {
-			annotations := map[string]string{constants.AnnotationNodepools: "np1 np2"}
+			annotations := map[string]string{annotationNodepools: "np1 np2"}
 			sources.PodAnnotations = annotations
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal([]string{"np1", "np2"}))
 		})
 		It("continues if annotation is present but empty", func() {
-			objectMeta.Annotations = map[string]string{constants.AnnotationNodepools: ""}
+			objectMeta.Annotations = map[string]string{annotationNodepools: ""}
 			sources.PodAnnotations = objectMeta.Annotations
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 		It("continues if annotation is missing", func() {
 			sources.PodAnnotations = map[string]string{}
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 
@@ -93,22 +98,9 @@ var _ = Describe("GetRequestedNodePools", func() {
 			readerClient client.Reader
 		)
 		scheme := runtime.NewScheme()
-		Expect(v1alpha1.AddToScheme(scheme)).To(Succeed())
 		Expect(kaiv1alpha1.AddToScheme(scheme)).To(Succeed())
 
 		BeforeEach(func() {
-			nodepoolA := &v1alpha1.NodePool{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: existingNodePoolName,
-				},
-				Spec: v1alpha1.NodePoolSpec{
-					LabelKey:   existingNodePoolKey,
-					LabelValue: existingNodePoolValue,
-				},
-			}
-			// kai.resources twin of the fixture, so these specs resolve the same node pool
-			// under both values of the compile-time UseKaiNodePools flag.
-			// TODO: drop the legacy nodepoolA once clusterconstants.UseKaiNodePools=true
 			kaiNodepoolA := &kaiv1alpha1.NodePool{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: existingNodePoolName,
@@ -118,7 +110,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 					LabelValue: existingNodePoolValue,
 				},
 			}
-			fakeClientBuilder := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(nodepoolA, kaiNodepoolA)
+			fakeClientBuilder := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(kaiNodepoolA)
 
 			fakeListFn := func(ctx context.Context, client client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
 				if ctx.Value("fail") == true {
@@ -180,7 +172,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 
 		Context("affinity conversion errors", func() {
@@ -206,7 +198,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 
 				result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+				Expect(result).To(Equal([]string{defaultNodePoolName}))
 			})
 			It("returns error if IgnoreConversionErrors is false", func() {
 				result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
@@ -221,12 +213,12 @@ var _ = Describe("GetRequestedNodePools", func() {
 			sources.AffinitySource.Affinity = nil
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 		It("continues if affinity is empty", func() {
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 
@@ -238,16 +230,16 @@ var _ = Describe("GetRequestedNodePools", func() {
 			Expect(result).To(Equal([]string{"npLabel"}))
 		})
 		It("continues if label is present but UnexistingRunaiNodePool", func() {
-			objectMeta.Labels = map[string]string{labelKeyNodePool: v1alpha1.UnexistingRunaiNodePool}
+			objectMeta.Labels = map[string]string{labelKeyNodePool: unexistingNodePoolSentinel}
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 		It("continues if label is missing", func() {
 			objectMeta.Labels = map[string]string{}
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 
@@ -264,13 +256,13 @@ var _ = Describe("GetRequestedNodePools", func() {
 			sources.Project = project
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 		It("continues if project is not set", func() {
 			sources.Project = nil
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 
@@ -278,13 +270,13 @@ var _ = Describe("GetRequestedNodePools", func() {
 		It("returns default node pool if all other sources fail", func() {
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 
 	Describe("Edge Cases", func() {
 		It("uses only the highest-priority source if multiple are set", func() {
-			objectMeta.Annotations = map[string]string{constants.AnnotationNodepools: "np1 np2"}
+			objectMeta.Annotations = map[string]string{annotationNodepools: "np1 np2"}
 			sources.PodAnnotations = objectMeta.Annotations
 			objectMeta.Labels = map[string]string{labelKeyNodePool: "npLabel"}
 			project.Spec.DefaultNodePools = []string{"npProj1"}
@@ -294,7 +286,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 			Expect(result).To(Equal([]string{"np1", "np2"}))
 		})
 		It("handles annotations/labels with extra spaces", func() {
-			objectMeta.Annotations = map[string]string{constants.AnnotationNodepools: " np1   np2  "}
+			objectMeta.Annotations = map[string]string{annotationNodepools: " np1   np2  "}
 			sources.PodAnnotations = objectMeta.Annotations
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
@@ -306,7 +298,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 			sources.PodAnnotations = nil
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 		It("returns default node pool if all sources are missing", func() {
 			objectMeta.Annotations = nil
@@ -316,7 +308,7 @@ var _ = Describe("GetRequestedNodePools", func() {
 			sources.AffinitySource = converter.AffinitySource{}
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal([]string{v1alpha1.DefaultNodePoolName}))
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
 	})
 })
@@ -334,7 +326,7 @@ var _ = Describe("NewNodePoolsSources", func() {
 	BeforeEach(func() {
 		affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{}}
 		readerClient = fakeclient.NewClientBuilder().Build()
-		podAnnots = map[string]string{constants.AnnotationNodepools: "np1"}
+		podAnnots = map[string]string{annotationNodepools: "np1"}
 	})
 
 	Describe("NewNodePoolsSources", func() {

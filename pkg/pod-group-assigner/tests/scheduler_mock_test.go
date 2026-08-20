@@ -7,10 +7,43 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/assigner"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// updatePodCondition sets the condition of its type on status, appending it when
+// absent, and reports whether anything actually changed. It is
+// k8s.io/kubernetes' podutil.UpdatePodCondition, reimplemented here because that
+// single import would pull the entire Kubernetes tree into this module for one
+// test helper.
+func updatePodCondition(status *corev1.PodStatus, condition *corev1.PodCondition) bool {
+	condition.LastTransitionTime = metav1.Now()
+
+	for i := range status.Conditions {
+		existing := &status.Conditions[i]
+		if existing.Type != condition.Type {
+			continue
+		}
+		// A condition that has not flipped keeps its original transition time,
+		// so the timestamp reports when the state last changed, not when it was
+		// last written.
+		if condition.Status == existing.Status {
+			condition.LastTransitionTime = existing.LastTransitionTime
+		}
+		unchanged := condition.Status == existing.Status &&
+			condition.Reason == existing.Reason &&
+			condition.Message == existing.Message &&
+			condition.LastProbeTime.Equal(&existing.LastProbeTime) &&
+			condition.LastTransitionTime.Equal(&existing.LastTransitionTime)
+
+		status.Conditions[i] = *condition
+		return !unchanged
+	}
+
+	status.Conditions = append(status.Conditions, *condition)
+	return true
+}
 
 type TestSchedulerMock struct {
 }
@@ -83,7 +116,7 @@ func markAsUnschedulable(pg types.NamespacedName, k8sClient client.Client) {
 
 	for i := range pods.Items {
 		pod := pods.Items[i]
-		if podutil.UpdatePodCondition(&pod.Status, condition) {
+		if updatePodCondition(&pod.Status, condition) {
 			Eventually(func() bool {
 				apiPod := &corev1.Pod{}
 
@@ -92,7 +125,7 @@ func markAsUnschedulable(pg types.NamespacedName, k8sClient client.Client) {
 					return false
 				}
 
-				_ = podutil.UpdatePodCondition(&apiPod.Status, condition)
+				_ = updatePodCondition(&apiPod.Status, condition)
 				err = k8sClient.Status().Update(apiCtx, apiPod)
 
 				return err == nil

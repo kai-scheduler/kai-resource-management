@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	runv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/run/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,12 +14,6 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-// UseKaiNodePools is a compile-time const, so only one branch of the node pool lookup in
-// convertNodeAffinityToNodePoolNames is reachable in any given build. Following the
-// nodepool-controller's project-reference specs, every fixture here is written to BOTH
-// CRDs with identical content, so these assertions hold — and keep holding — whichever
-// value the const has.
-// Delete the legacy fixtures alongside the else branch.
 var _ = Describe("convertNodeAffinityToNodePoolNames", func() {
 	const (
 		affinityLabelKey     = "affinity/key"
@@ -71,21 +64,9 @@ var _ = Describe("convertNodeAffinityToNodePoolNames", func() {
 		}
 
 		scheme := runtime.NewScheme()
-		Expect(runv1alpha1.AddToScheme(scheme)).To(Succeed())
 		Expect(kaiv1alpha1.AddToScheme(scheme)).To(Succeed())
 
-		// Same names and labels on both CRDs, so the expected result does not depend on
-		// which one the const selects.
 		readerClient = fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(
-			&runv1alpha1.NodePool{
-				ObjectMeta: metav1.ObjectMeta{Name: nodepoolName},
-				Spec:       runv1alpha1.NodePoolSpec{LabelKey: affinityLabelKey, LabelValue: affinityLabelValue},
-			},
-			&runv1alpha1.NodePool{
-				ObjectMeta: metav1.ObjectMeta{Name: deletingNodepoolName},
-				Spec:       runv1alpha1.NodePoolSpec{LabelKey: affinityLabelKey, LabelValue: deletingLabelValue},
-				Status:     runv1alpha1.NodePoolStatus{Phase: runv1alpha1.NodePoolDeleting},
-			},
 			&kaiv1alpha1.NodePool{
 				ObjectMeta: metav1.ObjectMeta{Name: nodepoolName},
 				Spec:       kaiv1alpha1.NodePoolSpec{LabelKey: affinityLabelKey, LabelValue: affinityLabelValue},
@@ -178,11 +159,9 @@ var _ = Describe("convertNodeAffinityToNodePoolNames", func() {
 		}),
 	)
 
-	// The listing itself is the only part that differs between the two CRDs, and both
-	// implementations are covered directly in the utils package's specs.
-	It("errors when the selected CRD has no node pools at all", func() {
+	// The listing itself is covered directly in the utils package's specs.
+	It("errors when there are no node pools at all", func() {
 		emptyScheme := runtime.NewScheme()
-		Expect(runv1alpha1.AddToScheme(emptyScheme)).To(Succeed())
 		Expect(kaiv1alpha1.AddToScheme(emptyScheme)).To(Succeed())
 		emptyClient := fakeclient.NewClientBuilder().WithScheme(emptyScheme).Build()
 
