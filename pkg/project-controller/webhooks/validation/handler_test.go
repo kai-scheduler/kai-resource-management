@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"testing"
 
-	. "github.com/onsi/ginkgo" // nolint:staticcheck // dot import for test framework is intentional
-	. "github.com/onsi/gomega" // nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/ginkgo/v2" // nolint:staticcheck // dot import for test framework is intentional
+	. "github.com/onsi/gomega"    // nolint:staticcheck // dot import for test framework is intentional
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,13 +23,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/webhooks/validation"
 )
 
 func TestValidationWebhook(t *testing.T) {
 	RegisterFailHandler(Fail)
-	test.RunTest(t, "Validation Webhook Tests", "../../../bin/test/results/validation_webhook_test_results.xml")
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Validation Webhook Tests")
 }
 
 const (

@@ -96,7 +96,7 @@ func main() {
 	printVersion()
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "Error running manager")
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic // exitAfterDefer
 	}
 }
 

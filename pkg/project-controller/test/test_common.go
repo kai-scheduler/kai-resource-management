@@ -4,14 +4,9 @@
 package test
 
 import (
-	"os"
 	"reflect"
-	"testing"
 	"unsafe"
 
-	"github.com/SemanticallyNull/golandreporter"
-	. "github.com/onsi/ginkgo" // nolint:staticcheck // dot import for test framework is intentional
-	"github.com/onsi/ginkgo/reporters"
 	// nolint:staticcheck // dot import for test framework is intentional
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -694,14 +689,6 @@ func ConfigForTests() *config.ProjectReconcilerConfig {
 		ProjectNamePrefix:              "runai",
 		LimitRangeName:                 RunaiLimitRangeName,
 		ResourceManualOverrideLabelKey: RunaiResourceManualOverrideLabel,
-	}
-}
-
-func RunTest(t *testing.T, testDescription string, reportFilePath string) {
-	if _, isCi := os.LookupEnv(CircleCiEnvVar); isCi {
-		RunSpecsWithDefaultAndCustomReporters(t, testDescription, []Reporter{reporters.NewJUnitReporter(reportFilePath)})
-	} else {
-		RunSpecsWithCustomReporters(t, testDescription, []Reporter{golandreporter.NewGolandReporter()})
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/reconcilers"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	cli "sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,39 +42,35 @@ var _ = Describe("Project Finalization", func() {
 	})
 
 	It("Adds the controller as finalizer", func() {
-		When("Adds the controller as finalizer on the project", func() {
 
-			// Given
-			Expect(client.Create(context.TODO(), &project)).To(Succeed())
+		// Given
+		Expect(client.Create(context.TODO(), &project)).To(Succeed())
 
-			// When
-			_ = reconciler.AddControllerAsFinalizerIfNeeded(context.TODO(), &project)
+		// When
+		_ = reconciler.AddControllerAsFinalizerIfNeeded(context.TODO(), &project)
 
-			// Then
-			var actualProject kaiv1alpha1.Project
-			Expect(client.Get(context.TODO(), cli.ObjectKey{Name: project.Name}, &actualProject)).To(Succeed())
-			Expect(actualProject.Finalizers).To(HaveLen(1))
-			Expect(actualProject.Finalizers[0]).To(Equal(config.FinalizerName()))
-		})
+		// Then
+		var actualProject kaiv1alpha1.Project
+		Expect(client.Get(context.TODO(), cli.ObjectKey{Name: project.Name}, &actualProject)).To(Succeed())
+		Expect(actualProject.Finalizers).To(HaveLen(1))
+		Expect(actualProject.Finalizers[0]).To(Equal(config.FinalizerName()))
 
 	})
 
-	It("Doesn't add the controller as finalizer", func() {
-		When("the finalizer entry already exists", func() {
+	It("Doesn't add the controller as finalizer when the entry already exists", func() {
 
-			// Given
-			project.Finalizers = []string{config.FinalizerName()}
-			Expect(client.Create(context.TODO(), &project)).To(Succeed())
+		// Given
+		project.Finalizers = []string{config.FinalizerName()}
+		Expect(client.Create(context.TODO(), &project)).To(Succeed())
 
-			// When
-			_ = reconciler.AddControllerAsFinalizerIfNeeded(context.TODO(), &project)
+		// When
+		_ = reconciler.AddControllerAsFinalizerIfNeeded(context.TODO(), &project)
 
-			// Then
-			var actualProject kaiv1alpha1.Project
-			Expect(client.Get(context.TODO(), cli.ObjectKey{Name: project.Name}, &actualProject)).To(Succeed())
-			Expect(actualProject.Finalizers).To(HaveLen(1))
-			Expect(actualProject.Finalizers[0]).To(Equal(config.FinalizerName()))
-		})
+		// Then
+		var actualProject kaiv1alpha1.Project
+		Expect(client.Get(context.TODO(), cli.ObjectKey{Name: project.Name}, &actualProject)).To(Succeed())
+		Expect(actualProject.Finalizers).To(HaveLen(1))
+		Expect(actualProject.Finalizers[0]).To(Equal(config.FinalizerName()))
 
 	})
 

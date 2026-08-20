@@ -12,7 +12,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,22 +71,20 @@ var _ = Describe("Namespace Deletion Handler", func() {
 		})
 	})
 
-	It("Deletes the related Namespace", func() {
-		When("The feature flag is set", func() {
+	It("Deletes the related Namespace when the feature flag is set", func() {
 
-			// Given
-			_ = os.Setenv(DeleteNamespaceFeatureFlag, "true")
-			handler = NewNamespaceDeletionHandler(client, true)
+		// Given
+		_ = os.Setenv(DeleteNamespaceFeatureFlag, "true")
+		handler = NewNamespaceDeletionHandler(client, true)
 
-			// When
-			_, err := handler.OnDelete(&project)
-			Expect(err).To(BeNil())
+		// When
+		_, err := handler.OnDelete(&project)
+		Expect(err).To(BeNil())
 
-			// Then
-			actualNamespace, err := handler.GetNamespace(TestNamespace.Name)
-			Expect(err).To(HaveOccurred())
-			Expect(actualNamespace).To(BeZero())
-		})
+		// Then
+		actualNamespace, err := handler.GetNamespace(TestNamespace.Name)
+		Expect(err).To(HaveOccurred())
+		Expect(actualNamespace).To(BeZero())
 	})
 
 	When("CreateNamespaces flag is off", func() {

@@ -10,7 +10,7 @@ import (
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,7 +30,8 @@ var _ = BeforeSuite(func() {
 
 func TestDeletionHandlers(t *testing.T) {
 	RegisterFailHandler(Fail)
-	test.RunTest(t, "Project Resource Deletion Handlers Tests", "../../../../../bin/test/results/project_resource_deletion_handlers_test_results.xml")
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Project Resource Deletion Handlers Tests")
 }
 
 type TestDeletionHandler struct {

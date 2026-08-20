@@ -9,7 +9,7 @@ import (
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/reconcilers"
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
