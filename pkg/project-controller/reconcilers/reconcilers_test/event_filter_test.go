@@ -86,7 +86,7 @@ var _ = Describe("Event Filter Tests", func() {
 
 			By("Blocking a manually overridden Project", func() {
 				project.Labels = map[string]string{RunaiResourceManualOverrideLabel: "true"}
-				Expect(FilterProjectEvent(namespace.DeepCopy())).To(BeFalse())
+				Expect(FilterProjectEvent(project.DeepCopy())).To(BeFalse())
 			})
 
 			By("Blocking a manually overridden Queue", func() {

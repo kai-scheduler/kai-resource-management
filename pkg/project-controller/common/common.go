@@ -208,6 +208,9 @@ func ContainsString(term string, list []string) bool {
 func DeleteTerm(term string, list []string) (result []string) {
 	if list != nil {
 		indexOfTerm := IndexOfString(term, list)
+		if indexOfTerm < 0 {
+			return list
+		}
 		list[indexOfTerm] = list[len(list)-1]
 		list[len(list)-1] = ""
 		result = list[:len(list)-1]

@@ -39,12 +39,12 @@ func NewLimitRangeReconciler(client client.Client, scheme *runtime.Scheme, proje
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 // Reconcile reconciles by means of triggering events on all Projects when a change is detected on the default limit range configmap.
-func (reconciler LimitRangeReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (reconciler LimitRangeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// The filter already makes sure the incoming event is for a configmap under the scheduler namespace, named default-limit-range
 	// So all that's left is just to trigger events for all Projects.
 	reconciler.Log.Info("Handling event for Configmap: ", "Configmap", req.String())
 	projectsList := kaiv1alpha1.ProjectList{}
-	if err := reconciler.List(context.Background(), &projectsList); err != nil {
+	if err := reconciler.List(ctx, &projectsList); err != nil {
 		reconciler.Log.Error(err, "Error while listing Projects during reconciliation of Configmap: ", "Configmap", req.String())
 		return ctrl.Result{}, err
 	}

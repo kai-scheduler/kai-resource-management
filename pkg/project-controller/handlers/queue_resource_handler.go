@@ -118,6 +118,7 @@ func (handler QueueResourceHandler) handleExisting(ctx context.Context,
 	if common.IsManuallyOverridden(existingQueue) {
 		handler.Log.Info("Queue already exists and is marked as manually overridden, it will not be updated",
 			common.LogQueueTag, existingQueue.Name, common.LogProjectTag, projectName)
+		return nil
 	}
 
 	return updateExistingQueue(ctx, handler.Client, handler.Log,

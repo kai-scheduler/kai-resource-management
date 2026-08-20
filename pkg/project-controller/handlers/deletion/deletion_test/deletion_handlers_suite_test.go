@@ -30,7 +30,6 @@ var _ = BeforeSuite(func() {
 
 func TestDeletionHandlers(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RegisterFailHandler(Fail)
 	RunSpecs(t, "Project Resource Deletion Handlers Tests")
 }
 

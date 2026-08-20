@@ -48,6 +48,5 @@ var _ = BeforeSuite(func() {
 
 func TestResourceHandlers(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RegisterFailHandler(Fail)
 	RunSpecs(t, "Project Resource Handlers Tests")
 }

@@ -33,6 +33,5 @@ var _ = BeforeSuite(func() {
 
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RegisterFailHandler(Fail)
 	RunSpecs(t, "Reconciler Tests")
 }

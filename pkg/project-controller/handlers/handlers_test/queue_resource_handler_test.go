@@ -152,6 +152,24 @@ var _ = Describe("Queue Resource Handler", func() {
 		})
 	})
 
+	// The handler logged that an overridden Queue "will not be updated" and then
+	// updated it anyway. Without this, that regression is silent: the log claims
+	// the right thing while the user's queue is overwritten.
+	It("Leaves a manually overridden Queue alone", func() {
+		Expect(k8sClient.Create(context.TODO(), &project)).To(Succeed())
+
+		overridden := queue.DeepCopy()
+		overridden.Labels[RunaiResourceManualOverrideLabel] = "true"
+		Expect(k8sClient.Create(context.TODO(), overridden)).To(Succeed())
+
+		_, err := handler.HandleResource(modifiedProject)
+		Expect(err).Should(Succeed())
+
+		var actual kaiv2.Queue
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{Name: overridden.Name}, &actual)).To(Succeed())
+		Expect(actual.Spec).To(Equal(overridden.Spec), "the overridden Queue's spec must survive HandleResource")
+	})
+
 	It("Validate naming of queues", func() {
 		By("Create another project with name identical to proj-nodepool different queue name", func() {
 			// When

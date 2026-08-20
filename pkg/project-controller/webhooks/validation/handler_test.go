@@ -28,7 +28,6 @@ import (
 
 func TestValidationWebhook(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RegisterFailHandler(Fail)
 	RunSpecs(t, "Validation Webhook Tests")
 }
 
