@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -51,18 +52,21 @@ func (pm *PodMutator) Handle(ctx context.Context, req admission.Request) admissi
 		namespace = pod.Namespace
 	}
 
-	// A namespace read failure is NOT swallowed - enforcement decides whether a pod is
-	// scheduled by KAI at all, and SchedulerName is immutable after creation, so a pod
-	// admitted without it can never be corrected.
-	enforced, err := pm.isSchedulerEnforcedForNamespace(ctx, namespace)
-	if err != nil {
-		log.Ctx(ctx).Error().Msgf("PodMutator: failed to resolve scheduler enforcement for pod <%s/%s>, err: <%s>",
-			namespace, pod.Name, err.Error())
+	// Naming the scheduler is opting in, enforced or not.
+	if pod.Spec.SchedulerName != config.Config().SchedulerName {
+		// A namespace read failure is NOT swallowed - enforcement decides whether a pod is
+		// scheduled by KAI at all, and SchedulerName is immutable after creation, so a pod
+		// admitted without it can never be corrected.
+		enforced, err := pm.isSchedulerEnforcedForNamespace(ctx, namespace)
+		if err != nil {
+			log.Ctx(ctx).Error().Msgf("PodMutator: failed to resolve scheduler enforcement for pod <%s/%s>, err: <%s>",
+				namespace, pod.Name, err.Error())
 
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-	if !enforced {
-		return admission.Allowed("pod is not managed by the resource-management package")
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		if !enforced {
+			return admission.Allowed("pod is not managed by the resource-management package")
+		}
 	}
 
 	log.Ctx(ctx).Info().Msgf("PodMutator: handling mutation of pod <%s/%s>", namespace, pod.Name)

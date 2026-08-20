@@ -5,6 +5,7 @@ package pod
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -13,11 +14,13 @@ import (
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func TestPodMutator(t *testing.T) {
@@ -148,6 +151,58 @@ var _ = Describe("PodMutator default node pools", func() {
 		mutator.mutateNodeAffinityForDefaultNodePools(context.Background(), pod, projectNamespace)
 
 		Expect(pod.Spec.Affinity).To(BeNil())
+	})
+})
+
+var _ = Describe("PodMutator admission gate", func() {
+	BeforeEach(func() {
+		DeferCleanup(config.SetForTest(config.PodGroupAssignerConfig{
+			NodePoolLabelKey:              nodePoolLabelKey,
+			NamespaceProjectLabelKey:      namespaceProjectLabelKey,
+			DefaultNodepoolName:           defaultNodepoolName,
+			SchedulerName:                 schedulerName,
+			EnforceSchedulerAnnotationKey: enforceAnnotationKey,
+		}))
+	})
+
+	handle := func(namespace *corev1.Namespace, podSchedulerName string) admission.Response {
+		mutator := newPodMutatorForTest(namespace, projectWithDefaultNodePools(projectName, defaultNodepoolName))
+		pod := newPod(nil, nil)
+		pod.Spec.SchedulerName = podSchedulerName
+
+		raw, err := json.Marshal(pod)
+		Expect(err).ToNot(HaveOccurred())
+
+		return mutator.Handle(context.Background(), admission.Request{
+			AdmissionRequest: admissionv1.AdmissionRequest{
+				Namespace: projectNamespace,
+				Object:    runtime.RawExtension{Raw: raw},
+			},
+		})
+	}
+
+	It("mutates a pod that names the scheduler even where the namespace does not enforce", func() {
+		response := handle(namespaceWithProject(projectNamespace, projectName), schedulerName)
+
+		Expect(response.Allowed).To(BeTrue())
+		Expect(response.Patches).ToNot(BeEmpty())
+	})
+
+	It("mutates a pod that does not name the scheduler where the namespace enforces", func() {
+		namespace := namespaceWithProject(projectNamespace, projectName)
+		namespace.Annotations = map[string]string{enforceAnnotationKey: "true"}
+
+		response := handle(namespace, "some-other-scheduler")
+
+		Expect(response.Allowed).To(BeTrue())
+		Expect(response.Patches).ToNot(BeEmpty())
+	})
+
+	It("leaves a pod alone when it names another scheduler and the namespace does not enforce", func() {
+		response := handle(namespaceWithProject(projectNamespace, projectName), "some-other-scheduler")
+
+		Expect(response.Allowed).To(BeTrue())
+		Expect(response.Patches).To(BeEmpty())
 	})
 })
 
