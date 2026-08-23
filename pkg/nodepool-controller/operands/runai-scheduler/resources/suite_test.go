@@ -1,0 +1,38 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
+package resources
+
+import (
+	"testing"
+
+	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+)
+
+var suite = "runai scheduler"
+
+func TestResources(t *testing.T) {
+	RegisterFailHandler(Fail)
+
+	RunSpecs(t, suite)
+}
+
+// Seed the package-level config singleton with runai-vocabulary values so
+// production code paths under test (which now read scheduler-name / metrics
+// namespace / default-nodepool-name from config.Get()) exercise the runai
+// variants by default. Specs that need KAI values override per-It via
+// config.SetForTest(...) + DeferCleanup (see kai_config_test.go).
+var _ = BeforeSuite(func() {
+	config.SetCurrent(&config.NodePoolControllerConfig{
+		NodePoolNameLabel:   kaiconstants.DefaultNodePoolLabelKey,
+		DefaultNodepoolName: kaiconstants.DefaultNodePoolName,
+		SchedulerName:       "runai-scheduler",
+		SchedulerNamespace:  "runai",
+		MetricsNamespace:    "runai",
+		FinalizerDomain:     "run.ai",
+	})
+})

@@ -45,6 +45,11 @@ linters:
     - gocritic
     - whitespace
   settings:
+    exhaustive:
+      # A default clause that handles the remaining values is the idiomatic Go
+      # way to be exhaustive; without this, every switch over an enum has to
+      # restate values it deliberately treats alike.
+      default-signifies-exhaustive: true
     gocritic:
       disabled-checks:
         # A single-case type switch reads better than an if with a type assertion
