@@ -143,8 +143,8 @@ var _ = Describe("NodePool duplicate-label validation", func() {
 	})
 
 	Describe("ValidateUpdate", func() {
-		// ValidateUpdate is a safety net that only rejects a changed labelKey/labelValue
-		// pair; the pair is meant to be immutable via the CRD. A no-op update passes.
+		// ValidateUpdate accepts everything: the CRD enforces that the pair is
+		// immutable, so there is nothing left for the webhook to reject.
 		It("allows a no-op update that keeps a non-default pool's pair", func() {
 			existing := nodePool("pool-a", "gpu", "a100")
 			v := validatorWith(existing)

@@ -153,7 +153,7 @@ func TestGetIndex(t *testing.T) {
 		},
 	} {
 		t.Run(testName, func(t *testing.T) {
-			outputIndex := indexOfStringInList(testData.listOfStrings, testData.stringToFind)
+			outputIndex := indexOf(testData.listOfStrings, testData.stringToFind)
 
 			if outputIndex != testData.expectedStringIndex {
 				t.Errorf("Wrong index: Expected: %v, got: %v", testData.expectedStringIndex, outputIndex)

@@ -14,11 +14,11 @@ import (
 )
 
 func IsItemInList[T any](list []T, item T) bool {
-	return indexOfStringInList(list, item) > -1
+	return indexOf(list, item) > -1
 }
 
 func DeleteFromList[T any](list []T, itemToRemove T) []T {
-	indexToRemove := indexOfStringInList(list, itemToRemove)
+	indexToRemove := indexOf(list, itemToRemove)
 
 	if indexToRemove >= len(list) || indexToRemove == -1 {
 		return list
@@ -31,7 +31,7 @@ func DeleteFromList[T any](list []T, itemToRemove T) []T {
 	return list
 }
 
-func indexOfStringInList[T any](list []T, item T) int {
+func indexOf[T any](list []T, item T) int {
 	for i, element := range list {
 		if reflect.DeepEqual(element, item) {
 			return i

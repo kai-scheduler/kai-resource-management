@@ -35,7 +35,19 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-func initLogging(debugLogLevel bool) {
+// bindZapFlags registers zap's flags before the single flag.Parse, so that the
+// zap flags are accepted rather than rejected as undefined.
+func bindZapFlags() *zap.Options {
+	opts := &zap.Options{
+		Development:     true,
+		StacktraceLevel: zapcore.LevelEnabler(zapcore.FatalLevel),
+		TimeEncoder:     zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")}
+	opts.BindFlags(flag.CommandLine)
+
+	return opts
+}
+
+func initLogging(debugLogLevel bool, zapOptions *zap.Options) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	if !debugLogLevel {
@@ -44,18 +56,16 @@ func initLogging(debugLogLevel bool) {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	opts := zap.Options{
-		Development:     true,
-		StacktraceLevel: zapcore.LevelEnabler(zapcore.FatalLevel),
-		TimeEncoder:     zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(zapOptions)))
 }
 
 func main() {
-	ops := app.InitOptions()
-	initLogging(ops.DebugLogLevel)
+	ops, npConfig := app.BindFlags()
+	zapOptions := bindZapFlags()
+	flag.Parse()
+	config.SetCurrent(npConfig)
+
+	initLogging(ops.DebugLogLevel, zapOptions)
 
 	log.Info().Msg("Run:AI NodePool Controller")
 

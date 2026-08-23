@@ -30,7 +30,7 @@ type Options struct {
 	WebhookCertDir                  string
 }
 
-func InitOptions() *Options {
+func BindFlags() (*Options, *config.NodePoolControllerConfig) {
 	options := &Options{}
 	flag.BoolVar(&options.DebugLogLevel, "debug", false, "Should use debug log level")
 	flag.StringVar(&options.DcgmExporterNamespace, "dcgm-exporter-namespace", defaultDcgmExporterNamespace, "Namespace of dcgm-exporter")
@@ -51,10 +51,7 @@ func InitOptions() *Options {
 	npConfig := &config.NodePoolControllerConfig{}
 	config.AddLabelFlags(flag.CommandLine, npConfig)
 
-	flag.Parse()
-	config.SetCurrent(npConfig)
-
-	return options
+	return options, npConfig
 }
 
 // ParseSchedulingShardArgs decodes the --scheduling-shard-args flag: a JSON map of KAI
