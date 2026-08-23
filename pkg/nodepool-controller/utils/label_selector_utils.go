@@ -1,10 +1,13 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
-	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
-
 	"k8s.io/apimachinery/pkg/labels"
+
+	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 func GetNodePoolNameFromLabels(labels map[string]string) string {

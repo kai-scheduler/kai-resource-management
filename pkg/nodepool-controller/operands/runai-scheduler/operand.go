@@ -1,15 +1,18 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package runai_scheduler
 
 import (
 	"context"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/utils"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // resourceFunctions returns the functions that build this operand's resources. The

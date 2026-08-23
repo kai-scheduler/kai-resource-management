@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
@@ -8,9 +11,8 @@ import (
 	"strings"
 
 	nrtv1alpha2 "github.com/k8stopologyawareschedwg/noderesourcetopology-api/pkg/apis/topology/v1alpha2"
-	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +21,8 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
 // osExit is a seam so the CRD-installed restart in watchForNrtCRD can be asserted in tests.

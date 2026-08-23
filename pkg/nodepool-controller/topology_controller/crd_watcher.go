@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package topology_controller
 
 import (
@@ -6,8 +9,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
 const (

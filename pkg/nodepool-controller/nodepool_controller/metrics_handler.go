@@ -1,18 +1,22 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
 	"context"
 	"sync"
 
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
 type MetricsHandler struct {

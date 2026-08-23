@@ -1,16 +1,20 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package managed_nodes_config
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 func (mncc *ManagedNodesConfigController) reconcileStatus(ctx context.Context, req MNCReconcileRequest, mnc *v1alpha1.ManagedNodesConfig, toBeExcludedNodes []v1.Node) error {

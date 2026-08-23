@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package tests
 
 import (
@@ -10,18 +13,12 @@ import (
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
-	managed_nodes_config "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
-	scheme_pkg "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/scheme"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,6 +26,13 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	managed_nodes_config "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
+	scheme_pkg "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/scheme"
 )
 
 var scheme *runtime.Scheme

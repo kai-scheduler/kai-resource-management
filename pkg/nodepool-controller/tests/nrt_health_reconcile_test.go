@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package tests
 
 import (
@@ -6,15 +9,16 @@ import (
 
 	nrtv1alpha2 "github.com/k8stopologyawareschedwg/noderesourcetopology-api/pkg/apis/topology/v1alpha2"
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
-	managed_nodes_config "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	managed_nodes_config "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
 )
 
 func nrtForReconcileTest(nodeName, zoneType, policy string) *nrtv1alpha2.NodeResourceTopology {

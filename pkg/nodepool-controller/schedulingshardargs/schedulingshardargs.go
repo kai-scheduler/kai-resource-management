@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 // Package schedulingshardargs documents the KAI scheduler arguments that
 // nodepool-controller writes into each SchedulingShard's spec.args
 // (kai.scheduler/v1 SchedulingShard). These keys are KAI scheduler CLI flag

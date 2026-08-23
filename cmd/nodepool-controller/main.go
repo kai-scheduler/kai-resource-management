@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -6,28 +9,25 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
-
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/topology_controller"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/app"
-	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/version"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
-	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/scheme"
-	nodepoolwebhook "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/webhook"
-
+	"go.uber.org/zap/zapcore"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/app"
+	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/version"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
+	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/scheme"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/topology_controller"
+	nodepoolwebhook "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/webhook"
 )
 
 var (

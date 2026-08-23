@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
@@ -8,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -17,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 )
 
 // SetControllerReference adds an owner as a controller owner reference to resource.

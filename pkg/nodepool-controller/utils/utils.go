@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
@@ -6,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/rs/zerolog/log"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/rs/zerolog/log"
 )
 
 func IsItemInList[T any](list []T, item T) bool {

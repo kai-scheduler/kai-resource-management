@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
@@ -6,9 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rs/zerolog/log"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/rs/zerolog/log"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 )
 
 const maxProjectNamesInMessage = 10

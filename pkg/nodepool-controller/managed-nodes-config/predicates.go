@@ -1,12 +1,16 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package managed_nodes_config
 
 import (
 	"reflect"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 type MNCPredicate struct {

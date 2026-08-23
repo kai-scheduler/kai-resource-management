@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
@@ -5,18 +8,18 @@ import (
 	"errors"
 	"fmt"
 
+	kaiv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-	"k8s.io/apimachinery/pkg/types"
-
-	kaiv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (npc *NodePoolController) reconcileNodesMatchingNodePoolNameNoLabel(ctx context.Context,

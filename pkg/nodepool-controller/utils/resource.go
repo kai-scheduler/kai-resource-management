@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
@@ -6,13 +9,12 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 )
 
 // CreateOrUpdateResources creates or updates a slice of resources

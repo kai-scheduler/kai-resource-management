@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
@@ -5,15 +8,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
+	ctrl_log "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	runai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
-	ctrl_log "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func (npc *NodePoolController) reconcileScheduler(ctx context.Context, nodePool *v1alpha1.NodePool) (err error) {

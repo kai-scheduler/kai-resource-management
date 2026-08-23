@@ -1,12 +1,16 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
 	"context"
+
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func ResourcesForNodePool(ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,

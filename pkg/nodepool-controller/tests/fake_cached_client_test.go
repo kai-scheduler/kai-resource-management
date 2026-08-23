@@ -1,14 +1,18 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package tests
 
 import (
 	"context"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	clientgocache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
 )
 
 type FakeNodeCachedClient struct {

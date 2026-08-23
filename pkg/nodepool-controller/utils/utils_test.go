@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
@@ -5,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -1,18 +1,20 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package webhook
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-
 	"github.com/rs/zerolog/log"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 // +kubebuilder:webhook:path=/validate-kai-resources-v1alpha1-nodepool,mutating=false,failurePolicy=fail,sideEffects=None,groups=kai.resources,resources=nodepools,verbs=create,versions=v1alpha1,name=nodepool-validation.kai.io,admissionReviewVersions=v1

@@ -1,3 +1,6 @@
+// Copyright 2026 NVIDIA CORPORATION
+// SPDX-License-Identifier: Apache-2.0
+
 package nodepool_controller
 
 import (
@@ -6,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,7 +19,6 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
-	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 func (npc *NodePoolController) addControllerAsFinalizerIfNeeded(ctx context.Context, nodePool *v1alpha1.NodePool) (err error) {
