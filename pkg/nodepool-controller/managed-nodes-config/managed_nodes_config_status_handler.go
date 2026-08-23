@@ -38,7 +38,7 @@ func (mncc *ManagedNodesConfigController) calculateStatus(ctx context.Context, r
 			return false, err
 		}
 
-		nodesList, err := mncc.NodePoolController.ListNodesWithRequirements(ctx, *toBeExcludedRequirment)
+		nodesList, err := mncc.ListNodesWithRequirements(ctx, *toBeExcludedRequirment)
 		if err != nil {
 			return false, err
 		}

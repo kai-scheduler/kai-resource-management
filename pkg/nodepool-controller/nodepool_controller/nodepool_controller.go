@@ -28,8 +28,6 @@ import (
 )
 
 const (
-	requeueTimeout = time.Second * 10
-
 	rateLimiterBaseDelay = 500 * time.Millisecond
 	rateLimiterMaxDelay  = 30 * time.Second
 
@@ -154,7 +152,7 @@ func (npc *NodePoolController) indexFields(ctx context.Context, mgr ctrl.Manager
 func (npc *NodePoolController) getNodePoolForRequest(ctx context.Context, req ctrl.Request, nodePool *v1alpha1.NodePool) (shouldContinue bool, err error) {
 	err = npc.Client.Get(ctx, req.NamespacedName, nodePool)
 	if err == nil {
-		return true, err
+		return true, nil
 	}
 
 	if errors.IsNotFound(err) {

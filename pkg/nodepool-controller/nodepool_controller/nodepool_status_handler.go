@@ -79,7 +79,7 @@ func (npc *NodePoolController) calculateNodePoolStatus(ctx context.Context,
 }
 
 func hasMNNVLLabel(labels map[string]string, labelKey string) bool {
-	for key, _ := range labels {
+	for key := range labels {
 		if key == labelKey {
 			return true
 		}
@@ -389,10 +389,6 @@ func nodePoolPhaseForNodeSituation(atLeastOneNodeReady, atLeastOneNodeUnschedula
 	return nodePoolPhase
 }
 
-func getNodePoolUnschedulableMessage(unschedulableNodes []string) string {
-	return getNodePoolStatusMessage(unschedulableNodes, common.UnschedulableNodesMessage)
-}
-
 func getNodePoolDeletingMessage(unschedulableNodes []string) string {
 	return getNodePoolStatusMessage(unschedulableNodes, common.NodesDrainedMessage)
 }
@@ -442,12 +438,7 @@ func isStatusEqual(left, right *v1alpha1.NodePoolStatus) bool {
 		return false
 	}
 
-	nodesInNodepoolEqual := isNodeInNodepoolEqual(left.Nodes, right.Nodes)
-	if !nodesInNodepoolEqual {
-		return false
-	}
-
-	return true
+	return isNodeInNodepoolEqual(left.Nodes, right.Nodes)
 }
 
 // isNodeInNodepoolEqual compares two arrays of NodeInNodePool structs.

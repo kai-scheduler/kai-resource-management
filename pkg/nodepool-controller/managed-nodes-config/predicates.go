@@ -16,38 +16,38 @@ import (
 type MNCPredicate struct {
 }
 
-func (M MNCPredicate) Create(e event.TypedCreateEvent[*v1alpha1.ManagedNodesConfig]) bool {
+func (m MNCPredicate) Create(e event.TypedCreateEvent[*v1alpha1.ManagedNodesConfig]) bool {
 	return true
 }
 
-func (M MNCPredicate) Delete(e event.TypedDeleteEvent[*v1alpha1.ManagedNodesConfig]) bool {
+func (m MNCPredicate) Delete(e event.TypedDeleteEvent[*v1alpha1.ManagedNodesConfig]) bool {
 	return true
 }
 
-func (M MNCPredicate) Update(e event.TypedUpdateEvent[*v1alpha1.ManagedNodesConfig]) bool {
+func (m MNCPredicate) Update(e event.TypedUpdateEvent[*v1alpha1.ManagedNodesConfig]) bool {
 	return filterMNCUpdates(e.ObjectOld, e.ObjectNew)
 }
 
-func (M MNCPredicate) Generic(e event.TypedGenericEvent[*v1alpha1.ManagedNodesConfig]) bool {
+func (m MNCPredicate) Generic(e event.TypedGenericEvent[*v1alpha1.ManagedNodesConfig]) bool {
 	return true
 }
 
 type NodePredicate struct {
 }
 
-func (M NodePredicate) Create(e event.TypedCreateEvent[*corev1.Node]) bool {
+func (m NodePredicate) Create(e event.TypedCreateEvent[*corev1.Node]) bool {
 	return true
 }
 
-func (M NodePredicate) Delete(e event.TypedDeleteEvent[*corev1.Node]) bool {
+func (m NodePredicate) Delete(e event.TypedDeleteEvent[*corev1.Node]) bool {
 	return true
 }
 
-func (M NodePredicate) Update(e event.TypedUpdateEvent[*corev1.Node]) bool {
+func (m NodePredicate) Update(e event.TypedUpdateEvent[*corev1.Node]) bool {
 	return filterNodeUpdatesForMNCController(e.ObjectOld, e.ObjectNew)
 }
 
-func (M NodePredicate) Generic(e event.TypedGenericEvent[*corev1.Node]) bool {
+func (m NodePredicate) Generic(e event.TypedGenericEvent[*corev1.Node]) bool {
 	return true
 }
 
@@ -55,6 +55,6 @@ func filterNodeUpdatesForMNCController(nodeOld, nodeNew *corev1.Node) bool {
 	return !reflect.DeepEqual(nodeOld.Labels, nodeNew.Labels) || nodeOld.Generation != nodeNew.Generation
 }
 
-func filterMNCUpdates(old, new *v1alpha1.ManagedNodesConfig) bool {
-	return new.GetName() == config.Get().ManagedNodesConfigName && old.Generation != new.Generation
+func filterMNCUpdates(mncOld, mncNew *v1alpha1.ManagedNodesConfig) bool {
+	return mncNew.GetName() == config.Get().ManagedNodesConfigName && mncOld.Generation != mncNew.Generation
 }

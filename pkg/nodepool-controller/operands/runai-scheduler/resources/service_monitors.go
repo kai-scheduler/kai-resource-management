@@ -38,9 +38,9 @@ func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 		return nil, err
 	}
 
-	serviceMonitor.ObjectMeta.Name = name
-	serviceMonitor.ObjectMeta.Namespace = namespace
-	serviceMonitor.ObjectMeta.Labels = map[string]string{
+	serviceMonitor.Name = name
+	serviceMonitor.Namespace = namespace
+	serviceMonitor.Labels = map[string]string{
 		"app": schedulerName,
 	}
 	serviceMonitor.Spec.JobLabel = schedulerName
@@ -52,8 +52,10 @@ func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 			"app": appName,
 		},
 	}
+	// BearerTokenFile is the path of the projected ServiceAccount token every pod
+	// already mounts, not an embedded credential.
 	serviceMonitor.Spec.Endpoints = []monitorv1.Endpoint{
-		{
+		{ //nolint:gosec // G101: a token path, not a hardcoded credential
 			Port:            "http-metrics",
 			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 		},

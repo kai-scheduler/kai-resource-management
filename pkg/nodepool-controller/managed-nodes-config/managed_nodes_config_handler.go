@@ -48,7 +48,6 @@ func (mncc *ManagedNodesConfigController) reconcileIncludedNodesThatShouldBeExcl
 			}
 			err = utils.AppendErrIfNotNil(err, innerErr)
 		}
-
 	}
 
 	return toBeExcludedNodes, err
@@ -74,7 +73,6 @@ func (mncc *ManagedNodesConfigController) reconcileExcludedNodesThatShouldBeIncl
 			innerErr = mncc.UpdateNodeLabels(ctx, node, map[string]string{}, config.Get().ShouldBeExcludedLabelKey)
 		}
 		err = utils.AppendErrIfNotNil(err, innerErr)
-
 	}
 
 	return err
@@ -89,7 +87,7 @@ func (mncc *ManagedNodesConfigController) reconcileMarkedToBeExcludedAndReverted
 	for _, includedWithLabelNode := range actuallyIncludedWithLabel.Items {
 		if _, found := includedWithLabelNode.Labels[config.Get().ShouldBeExcludedLabelKey]; found {
 			log.Info().Msgf("Found node <%v> that is going to be excluded but it shouldn't", includedWithLabelNode.Name)
-			innerErr := mncc.NodePoolController.UpdateNodeLabels(ctx, &includedWithLabelNode, map[string]string{}, config.Get().ShouldBeExcludedLabelKey)
+			innerErr := mncc.UpdateNodeLabels(ctx, &includedWithLabelNode, map[string]string{}, config.Get().ShouldBeExcludedLabelKey)
 			err = utils.AppendErrIfNotNil(err, innerErr)
 		}
 	}

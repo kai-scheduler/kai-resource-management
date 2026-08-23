@@ -6,7 +6,6 @@ package nodepool_controller
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -54,7 +53,7 @@ func (npc *NodePoolController) finalize(ctx context.Context, nodePool *v1alpha1.
 	if err != nil {
 		innerErr := npc.updateNodePoolStatusOnDeletionError(ctx, nodePool, resultNodes)
 		err = utils.AppendErrIfNotNil(err, innerErr)
-		return fmt.Errorf("errors encountered during deletion of nodepool <%v>, error: %v", nodePool.Name, err)
+		return fmt.Errorf("errors encountered during deletion of nodepool <%v>, error: %w", nodePool.Name, err)
 	}
 
 	phase, err := npc.updateNodePoolStatusOnDeletion(ctx, nodePool, resultNodes)
@@ -70,7 +69,7 @@ func (npc *NodePoolController) finalize(ctx context.Context, nodePool *v1alpha1.
 		}
 	} else {
 		nodePoolDeletingMsg = "; nodepool is in 'Deleting' phase"
-		unschedulableErr := errors.New(fmt.Sprintf("NodePool <%v> is in 'Deleting' phase", nodePool.Name))
+		unschedulableErr := fmt.Errorf("NodePool <%v> is in 'Deleting' phase", nodePool.Name)
 		err = utils.AppendErrIfNotNil(err, unschedulableErr)
 	}
 

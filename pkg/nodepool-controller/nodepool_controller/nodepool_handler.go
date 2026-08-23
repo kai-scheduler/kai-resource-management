@@ -5,7 +5,6 @@ package nodepool_controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	kaiv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
@@ -47,7 +46,7 @@ func (npc *NodePoolController) reconcileNodesMatchingNodePoolNameNoLabel(ctx con
 		schedulable, innerErr := npc.findAndChangeNodePoolForNode(ctx, node, nodePool.Name, nodePools)
 		err = utils.AppendErrIfNotNil(err, innerErr)
 		if !schedulable {
-			unschedulableErr := errors.New(fmt.Sprintf("Node <%v> is unschedulable", node.Name))
+			unschedulableErr := fmt.Errorf("node <%v> is unschedulable", node.Name)
 			err = utils.AppendErrIfNotNil(err, unschedulableErr)
 		}
 
@@ -76,7 +75,7 @@ func (npc *NodePoolController) reconcileNodesInDefaultNodePoolMatchingOtherNodeP
 		schedulable, innerErr := npc.ChangeNodePoolForNode(ctx, node, nodePool.Name, config.Get().DefaultNodepoolName)
 		err = utils.AppendErrIfNotNil(err, innerErr)
 		if !schedulable {
-			unschedulableErr := errors.New(fmt.Sprintf("Node <%v> is unschedulable", node.Name))
+			unschedulableErr := fmt.Errorf("node <%v> is unschedulable", node.Name)
 			err = utils.AppendErrIfNotNil(err, unschedulableErr)
 		}
 		resultNodes = append(resultNodes, node)
@@ -96,7 +95,6 @@ func (npc *NodePoolController) addOrUpdateNodePoolTopologyMismatchCondition(node
 	}
 	condition.SetConditionStatusValue(hasMismatch)
 	nodePool.SetNodePoolCondition(condition)
-	return
 }
 
 func (npc *NodePoolController) reconcileNodesMatchingNodePoolNameAndLabel(ctx context.Context,
@@ -157,7 +155,7 @@ func (npc *NodePoolController) reconcileNodesInDefaultNodePool(ctx context.Conte
 		schedulable, innerErr := npc.ChangeNodePoolForNode(ctx, node, foundNodePoolName, config.Get().DefaultNodepoolName)
 		err = utils.AppendErrIfNotNil(err, innerErr)
 		if !schedulable {
-			unschedulableErr := errors.New(fmt.Sprintf("Node <%v> is unschedulable", node.Name))
+			unschedulableErr := fmt.Errorf("node <%v> is unschedulable", node.Name)
 			err = utils.AppendErrIfNotNil(err, unschedulableErr)
 		}
 		resultNodes = append(resultNodes, node)
@@ -203,7 +201,7 @@ func (npc *NodePoolController) reconcileNodesNotInDefaultNodePool(ctx context.Co
 		schedulable, innerErr := npc.findAndChangeNodePoolForNode(ctx, node, nodeAssignedNodePool, nodePools)
 		err = utils.AppendErrIfNotNil(err, innerErr)
 		if !schedulable {
-			unschedulableErr := errors.New(fmt.Sprintf("Node <%v> is unschedulable", node.Name))
+			unschedulableErr := fmt.Errorf("node <%v> is unschedulable", node.Name)
 			err = utils.AppendErrIfNotNil(err, unschedulableErr)
 		}
 		resultNodes = append(resultNodes, node)
@@ -307,25 +305,4 @@ func (npc *NodePoolController) getTopologyByName(ctx context.Context, topologyNa
 	}
 
 	return topology, nil
-}
-
-// getNodePoolCondition gets a condition on a nodepool by conditionType
-func (npc *NodePoolController) getNodePoolCondition(nodepool *v1alpha1.NodePool, conditionType v1alpha1.NodePoolConditionType) *v1alpha1.NodePoolCondition {
-	predicate := func(condition v1alpha1.NodePoolCondition, conditionType v1alpha1.NodePoolConditionType) bool {
-		return condition.Type == conditionType
-	}
-	return getByPredicate(nodepool.Status.Conditions, conditionType, predicate)
-}
-
-type conditionTypePredicate[T any, D any] func(a T, b D) bool
-
-// getByPredicate gets object by a predicate
-func getByPredicate[T, D any](objsList []T, conditionType D, predicate conditionTypePredicate[T, D]) *T {
-	for i := range objsList {
-		obj := objsList[i]
-		if predicate(obj, conditionType) {
-			return &obj
-		}
-	}
-	return nil
 }

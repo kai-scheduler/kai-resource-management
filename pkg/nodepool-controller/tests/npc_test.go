@@ -2716,7 +2716,6 @@ func validateNodesNVLinkLabel(node corev1.Node, nodePool *v1alpha1.NodePool, g G
 		_, found := node.Annotations[nodepool_controller.GPUNetworkAccelerationLabelKey]
 		g.Expect(found).To(BeFalse())
 	}
-
 }
 
 func validateExpected(testCase *TestCase, k8sClient client.Client, g Gomega) {
@@ -2888,7 +2887,7 @@ func validateNodePoolConditions(nodePool *v1alpha1.NodePool, expectedConditions 
 				break
 			}
 		}
-		hasExpectConditions := expectedConditions != nil && len(expectedConditions) > 0
+		hasExpectConditions := len(expectedConditions) > 0
 		g.Expect(found).To(Equal(hasExpectConditions),
 			"Test name: <%v>, expected nodepool <%v> to have condition <%v>",
 			testName, nodePoolName, expectedCondition.Type)

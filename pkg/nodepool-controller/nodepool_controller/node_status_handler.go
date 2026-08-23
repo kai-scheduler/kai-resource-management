@@ -5,7 +5,6 @@ package nodepool_controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
@@ -73,7 +72,7 @@ func (npc *NodePoolController) validateNodeStatusInNodePoolWrapper(ctx context.C
 	}
 
 	if !schedulable {
-		unschedulableErr := errors.New(fmt.Sprintf("Node <%v> is unschedulable", node.Name))
+		unschedulableErr := fmt.Errorf("node <%v> is unschedulable", node.Name)
 		err = utils.AppendErrIfNotNil(err, unschedulableErr)
 	}
 

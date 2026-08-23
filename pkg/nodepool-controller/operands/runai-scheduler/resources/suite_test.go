@@ -4,24 +4,16 @@
 package resources
 
 import (
-	"context"
 	"testing"
 
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
-var (
-	k8sClient        client.Client
-	testEnv          *envtest.Environment
-	apiAccessContext context.Context
-	suite            = "runai scheduler"
-)
+var suite = "runai scheduler"
 
 func TestResources(t *testing.T) {
 	RegisterFailHandler(Fail)

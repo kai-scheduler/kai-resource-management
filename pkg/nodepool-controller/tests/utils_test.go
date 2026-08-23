@@ -77,10 +77,7 @@ func getNodePoolFromClient(nodePoolName string, k8sClient client.Client) (nodePo
 func eventuallyGetNodePoolFromClient(nodePoolName string, k8sClient client.Client) (nodePool *v1alpha1.NodePool) {
 	Eventually(func() bool {
 		nodePool = getNodePoolFromClient(nodePoolName, k8sClient)
-		if nodePool == nil {
-			return false
-		}
-		return true
+		return nodePool != nil
 	}, timeout*3, interval).Should(BeTrue())
 
 	return nodePool
@@ -242,7 +239,6 @@ func getPodObj(podName, podNamespace, nodeName, schedulerName string, labels, an
 }
 
 func getPodGroupObj(podGroupName, podGroupNamespace string, labels map[string]string) *v2alpha2.PodGroup {
-
 	return &v2alpha2.PodGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podGroupName,

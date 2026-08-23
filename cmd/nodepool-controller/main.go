@@ -93,9 +93,7 @@ func main() {
 	}
 
 	stopper := make(chan struct{})
-	defer func() {
-		close(stopper)
-	}()
+	defer close(stopper)
 	managerContext := ctrl.SetupSignalHandler()
 
 	nodePoolController := nodepool_controller.NewNodePoolController(
@@ -105,7 +103,7 @@ func main() {
 	err = nodePoolController.SetupWithManager(managerContext, mgr)
 	if err != nil {
 		setupLog.Error(err, "Error starting NodePoolController")
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic // exitAfterDefer
 	}
 
 	managedNodesConfigController := managed_nodes_config.NewManagedNodesConfigController(
@@ -155,8 +153,6 @@ func main() {
 		setupLog.Error(err, "Error running manager")
 		os.Exit(1)
 	}
-
-	<-stopper
 }
 
 func printVersion() {

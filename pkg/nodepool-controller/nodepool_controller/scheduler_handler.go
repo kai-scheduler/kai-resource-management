@@ -31,14 +31,14 @@ func (npc *NodePoolController) reconcileScheduler(ctx context.Context, nodePool 
 	err = utils.CreateOrUpdateResources(npc.Client, npc.Scheme, ctx,
 		logger, nodePool, createOrUpdateResources)
 	if err != nil {
-		err = fmt.Errorf("enabled scheduler for nodepool <%v> handling error: %v", nodePool.Name, err)
+		err = fmt.Errorf("enabled scheduler for nodepool <%v> handling error: %w", nodePool.Name, err)
 		return
 	}
 
 	// Delete resources of disabled operands
 	err = utils.DeleteResources(npc.Client, ctx, deleteResources)
 	if err != nil {
-		err = fmt.Errorf("disabled scheduler for nodepool <%v> cleanup error: %v", nodePool.Name, err)
+		err = fmt.Errorf("disabled scheduler for nodepool <%v> cleanup error: %w", nodePool.Name, err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (npc *NodePoolController) getNodePoolStatusByScheduler(ctx context.Context,
 
 	status, err := scheduler.Status(ctx, npc.Client, nodePool, npc.params)
 	if err != nil {
-		return schedulerReady, fmt.Errorf("get status of scheduler for nodepool <%v> error: %v", nodePool.Name, err)
+		return schedulerReady, fmt.Errorf("get status of scheduler for nodepool <%v> error: %w", nodePool.Name, err)
 	}
 
 	if !status.Ready {

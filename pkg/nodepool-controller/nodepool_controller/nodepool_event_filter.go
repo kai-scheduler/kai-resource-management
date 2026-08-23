@@ -43,18 +43,18 @@ func ControllerPredicateFuncs() predicate.Funcs {
 }
 
 func filterUpdateEvents(objectOld, objectNew client.Object) bool {
-	switch objectNew.(type) {
+	switch newTyped := objectNew.(type) {
 	case *monitorv1.ServiceMonitor:
 		return true
 	case *kaiv1.SchedulingShard:
 		return true
 	case *corev1.Node:
-		return common.FilterNodeUpdatesForNPController(objectOld.(*corev1.Node), objectNew.(*corev1.Node))
+		return common.FilterNodeUpdatesForNPController(objectOld.(*corev1.Node), newTyped)
 	case *v1alpha1.NodePool:
 		return true
 	case *v1alpha1.Project:
 		// only reconcile when the project's nodepool references change - ignore unrelated updates
-		return !getProjectNodePoolRefs(objectOld.(*v1alpha1.Project)).Equal(getProjectNodePoolRefs(objectNew.(*v1alpha1.Project)))
+		return !getProjectNodePoolRefs(objectOld.(*v1alpha1.Project)).Equal(getProjectNodePoolRefs(newTyped))
 	}
 	return false
 }

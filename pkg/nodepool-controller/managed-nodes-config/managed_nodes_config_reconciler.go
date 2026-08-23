@@ -49,7 +49,7 @@ func (mncc *ManagedNodesConfigController) Reconcile(ctx context.Context, req MNC
 func (mncc *ManagedNodesConfigController) reconcileManagedNodesConfig(ctx context.Context, req MNCReconcileRequest, mnc *v1alpha1.ManagedNodesConfig) (nodes []corev1.Node, err error) {
 	log.Info().Msgf("Reconciling Managed nodes config <%v>", req.Name)
 
-	allNodes, err := mncc.NodePoolController.ListNodesWithRequirements(ctx)
+	allNodes, err := mncc.ListNodesWithRequirements(ctx)
 	if err != nil {
 		return nodes, err
 	}
