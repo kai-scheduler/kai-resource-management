@@ -35,24 +35,24 @@ var (
 //
 // There is deliberately no override: an escape hatch is what turns a guard into
 // a formality. Clean the objects up or switch contexts.
-func runPreflight(ctx goctx.Context, cli client.Client) error {
+func runPreflight(ctx goctx.Context, k8sClient client.Client) error {
 	preflightOnce.Do(func() {
-		preflightErr = checkForeignObjects(ctx, cli)
+		preflightErr = checkForeignObjects(ctx, k8sClient)
 	})
 
 	return preflightErr
 }
 
 // foreign reports the names of objects in list that the suites do not own.
-type foreignFinder func(ctx goctx.Context, cli client.Client) (kind string, names []string, err error)
+type foreignFinder func(ctx goctx.Context, k8sClient client.Client) (kind string, names []string, err error)
 
-func checkForeignObjects(ctx goctx.Context, cli client.Client) error {
+func checkForeignObjects(ctx goctx.Context, k8sClient client.Client) error {
 	var problems []string
 
 	for _, find := range []foreignFinder{
 		foreignProjects, foreignDepartments, foreignNodePools, foreignQueues,
 	} {
-		kind, names, err := find(ctx, cli)
+		kind, names, err := find(ctx, k8sClient)
 		if err != nil {
 			return err
 		}
@@ -89,9 +89,9 @@ func listErr(kind string, err error) error {
 	return fmt.Errorf("preflight: listing %s: %w", kind, err)
 }
 
-func foreignProjects(ctx goctx.Context, cli client.Client) (string, []string, error) {
+func foreignProjects(ctx goctx.Context, k8sClient client.Client) (string, []string, error) {
 	list := &kaires.ProjectList{}
-	if err := listErr("Projects", cli.List(ctx, list)); err != nil {
+	if err := listErr("Projects", k8sClient.List(ctx, list)); err != nil {
 		return "", nil, err
 	}
 
@@ -105,9 +105,9 @@ func foreignProjects(ctx goctx.Context, cli client.Client) (string, []string, er
 	return "Project", names, nil
 }
 
-func foreignDepartments(ctx goctx.Context, cli client.Client) (string, []string, error) {
+func foreignDepartments(ctx goctx.Context, k8sClient client.Client) (string, []string, error) {
 	list := &kaires.DepartmentList{}
-	if err := listErr("Departments", cli.List(ctx, list)); err != nil {
+	if err := listErr("Departments", k8sClient.List(ctx, list)); err != nil {
 		return "", nil, err
 	}
 
@@ -123,9 +123,9 @@ func foreignDepartments(ctx goctx.Context, cli client.Client) (string, []string,
 
 // foreignNodePools tolerates the chart's own default pool, which every install
 // has and no test creates.
-func foreignNodePools(ctx goctx.Context, cli client.Client) (string, []string, error) {
+func foreignNodePools(ctx goctx.Context, k8sClient client.Client) (string, []string, error) {
 	list := &kaires.NodePoolList{}
-	if err := listErr("NodePools", cli.List(ctx, list)); err != nil {
+	if err := listErr("NodePools", k8sClient.List(ctx, list)); err != nil {
 		return "", nil, err
 	}
 
@@ -149,9 +149,9 @@ func foreignNodePools(ctx goctx.Context, cli client.Client) (string, []string, e
 // derived Queue is already governed by its owner's verdict and flagging it here
 // would reject every cluster mid-run. What is left, an ownerless Queue, was
 // written by hand or by something else, and is exactly what should stop a run.
-func foreignQueues(ctx goctx.Context, cli client.Client) (string, []string, error) {
+func foreignQueues(ctx goctx.Context, k8sClient client.Client) (string, []string, error) {
 	list := &kaiv2.QueueList{}
-	if err := listErr("Queues", cli.List(ctx, list)); err != nil {
+	if err := listErr("Queues", k8sClient.List(ctx, list)); err != nil {
 		return "", nil, err
 	}
 
