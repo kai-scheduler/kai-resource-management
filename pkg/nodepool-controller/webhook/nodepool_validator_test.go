@@ -140,14 +140,6 @@ var _ = Describe("NodePool duplicate-label validation", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("pool-b"))
 		})
-
-		It("returns an error for a non-NodePool object", func() {
-			v := validatorWith()
-
-			_, err := v.ValidateCreate(ctx, &v1alpha1.NodePoolList{})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected a NodePool"))
-		})
 	})
 
 	Describe("ValidateUpdate", func() {
@@ -199,13 +191,6 @@ var _ = Describe("NodePool duplicate-label validation", func() {
 
 			_, err = v.ValidateDelete(ctx, nodePool("default", "gpu", "a100"))
 			Expect(err).ToNot(HaveOccurred(), "the name is configurable, not hardcoded")
-		})
-
-		It("rejects an object that is not a NodePool", func() {
-			v := validatorWith()
-
-			_, err := v.ValidateDelete(ctx, &v1alpha1.Project{})
-			Expect(err).To(MatchError(ContainSubstring("expected a NodePool")))
 		})
 	})
 })

@@ -18,6 +18,12 @@ import (
 )
 
 func (mncc *ManagedNodesConfigController) reconcileStatus(ctx context.Context, req MNCReconcileRequest, mnc *v1alpha1.ManagedNodesConfig, toBeExcludedNodes []v1.Node) error {
+	if mnc.Name == "" {
+		// A nameless config is the in-memory placeholder getManagedNodesConfig
+		// substitutes when the CR is absent; the API server rejects a status write to it.
+		return nil
+	}
+
 	changed, err := mncc.calculateStatus(ctx, req, mnc, toBeExcludedNodes)
 	if err != nil {
 		log.Error().Msgf("Failed to calculate ManagedNodesConfig status. error %v", err)

@@ -52,8 +52,6 @@ func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 			"app": appName,
 		},
 	}
-	// BearerTokenFile is the path of the projected ServiceAccount token every pod
-	// already mounts, not an embedded credential.
 	serviceMonitor.Spec.Endpoints = []monitorv1.Endpoint{
 		{ //nolint:gosec // G101: a token path, not a hardcoded credential
 			Port:            "http-metrics",
