@@ -12,7 +12,7 @@ import (
 	kaischedulerv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	kairesourcesv1alpha1 "github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	kairesourcesv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

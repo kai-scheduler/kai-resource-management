@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands/runai-scheduler/resources"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
 )
 
 func TestRunaiSchedulerOperand(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"

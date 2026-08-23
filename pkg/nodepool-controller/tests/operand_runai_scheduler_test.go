@@ -6,19 +6,19 @@ import (
 	"time"
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/nodepool_controller"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 
-	runai_scheduler "github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands/runai-scheduler"
+	runai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands/runai-scheduler/resources"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

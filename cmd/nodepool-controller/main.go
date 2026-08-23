@@ -6,29 +6,28 @@ import (
 	"os"
 	"strings"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/managed-nodes-config"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/topology_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/managed-nodes-config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/topology_controller"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/cmd/app"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/cmd/version"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/cachedclient"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/nodepool_controller"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/nodepool_controller/metrics"
-	scheme_init "github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/scheme"
-	nodepoolwebhook "github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/webhook"
+	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/app"
+	"github.com/kai-scheduler/kai-resource-management/cmd/nodepool-controller/version"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
+	scheme_init "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/scheme"
+	nodepoolwebhook "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/webhook"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	_ "github.com/run-ai/runai/runai-common-packages/fips"
 )
 
 var (

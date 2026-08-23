@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
-	nodepoolutils "github.com/run-ai/runai/runai-cluster/common/node-pool-utils/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 )

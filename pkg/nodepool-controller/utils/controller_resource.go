@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"

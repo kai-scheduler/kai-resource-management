@@ -8,7 +8,7 @@ import (
 	grovev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	kaiv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"

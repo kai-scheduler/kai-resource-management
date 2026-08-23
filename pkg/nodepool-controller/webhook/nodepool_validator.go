@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"github.com/rs/zerolog/log"
 

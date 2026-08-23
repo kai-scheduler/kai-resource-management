@@ -3,7 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 	"maps"
 	"time"
 
@@ -18,10 +18,10 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/schedulingshardargs"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/schedulingshardargs"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
 const (

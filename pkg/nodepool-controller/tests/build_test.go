@@ -11,15 +11,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

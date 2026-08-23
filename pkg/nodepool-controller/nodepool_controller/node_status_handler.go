@@ -7,9 +7,9 @@ import (
 
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	"github.com/rs/zerolog/log"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"

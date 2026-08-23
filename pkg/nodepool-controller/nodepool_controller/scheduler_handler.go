@@ -7,11 +7,11 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/common"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands"
-	runai_scheduler "github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/operands/runai-scheduler"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/utils"
-	"github.com/run-ai/runai/runai-cluster/cluster/sdk/apis/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
+	runai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	ctrl_log "sigs.k8s.io/controller-runtime/pkg/log"
 )

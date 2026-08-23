@@ -3,7 +3,7 @@ package tests
 import (
 	"context"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/cachedclient"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/cachedclient"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"

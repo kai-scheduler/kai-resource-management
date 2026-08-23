@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 const (

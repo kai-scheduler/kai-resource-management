@@ -7,7 +7,7 @@ import (
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )

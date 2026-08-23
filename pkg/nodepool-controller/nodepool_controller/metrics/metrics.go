@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 // nodeNodePool is constructed lazily on first access because its Subsystem

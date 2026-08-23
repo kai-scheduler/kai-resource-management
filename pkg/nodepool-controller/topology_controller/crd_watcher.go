@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/run-ai/runai/runai-cluster/cluster/nodepool-controller/pkg/utils"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
