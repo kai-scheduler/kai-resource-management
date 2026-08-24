@@ -125,6 +125,12 @@ lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packag
 		echo "No Go packages to lint."; \
 	fi
 
+# For local use: no Docker, no credential for the private API module.
+.PHONY: lint-go-host
+lint-go-host: | $(GOCACHE) $(GOTMPDIR) ## Run the pinned golangci-lint on the host toolchain, without Docker.
+	$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) \
+		run -c $(GOLANGCI_LINTER_CONFIG_PATH)
+
 .PHONY: mod-check
 mod-check: | $(GOCACHE) $(GOTMPDIR) ## Verify go.mod and go.sum are tidy without changing them.
 	$(GO) mod tidy -diff

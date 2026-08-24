@@ -21,6 +21,7 @@ make help             # List supported targets
 make fmt-go           # Format Go files
 make vet-go           # Run go vet
 make lint-go          # Run the pinned golangci-lint version
+make lint-go-host     # Same linter, host toolchain: no Docker, no credential
 make lint             # Run formatting and static checks
 make test-chart       # Run chart unit tests in the pinned container
 make test             # Run non-e2e Go and Helm tests
@@ -36,7 +37,9 @@ make gen-license      # Add missing Apache-2.0 source headers
 so the public Go module proxy cannot serve it. Every Go command needs
 `GOPRIVATE` set to that exact module path, plus working GitHub git credentials.
 Commands that run Go inside a container (`make build`, `make lint-go`)
-additionally need `GOPATH_HOST_DIR` or `GIT_CONFIG_GLOBAL`.
+additionally need `GIT_CONFIG_GLOBAL`. Pointing `GOPATH_HOST_DIR` at your host
+`GOPATH` is not an alternative; it breaks `lint-go`. To lint without either,
+use `make lint-go-host`.
 
 Do not widen `GOPRIVATE` to `github.com/kai-scheduler/*`: it also disables
 checksum-database verification, and the sibling module
