@@ -1,0 +1,159 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# nodepool-controller is installed by the operator, so its chart values reach it
+# through the KRMConfig rather than through a Deployment this chart renders.
+suite: nodePoolController values reach the KRMConfig
+templates:
+  - templates/krm-config.yaml
+release:
+  name: krm
+  namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
+  image.registry: reg.example.com/kai
+tests:
+  - it: carries the image, replicas and resources
+    set:
+      nodePoolController.replicas: 3
+      nodePoolController.resources.limits.cpu: 900m
+    asserts:
+      - equal: {path: spec.nodePoolController.service.enabled, value: true}
+      - equal: {path: spec.nodePoolController.service.image.name, value: nodepool-controller}
+      - equal: {path: spec.nodePoolController.service.image.repository, value: reg.example.com/kai}
+      - equal: {path: spec.nodePoolController.replicas, value: 3}
+      - equal: {path: spec.nodePoolController.service.resources.limits.cpu, value: 900m}
+
+  # The chart renders the ValidatingWebhookConfiguration and mints its certificate, so
+  # this must agree with it or the controller serves a webhook nothing calls.
+  - it: carries the webhook toggle and its Secret name
+    set:
+      nodePoolController.webhook.certSecretName: custom-tls
+    asserts:
+      - equal: {path: spec.nodePoolController.webhooks.enableNodePoolValidation, value: true}
+      - equal: {path: spec.nodePoolController.webhooks.certSecretName, value: custom-tls}
+
+  - it: follows the webhook being turned off
+    set:
+      nodePoolController.webhook.nodepool: false
+    asserts:
+      - equal: {path: spec.nodePoolController.webhooks.enableNodePoolValidation, value: false}
+
+  # One chart value drives both: the container listens on the port the Service publishes.
+  - it: carries the metrics port as both port and targetPort
+    set:
+      nodePoolController.metrics.port: 9999
+      nodePoolController.metrics.name: custom
+    asserts:
+      - equal: {path: spec.nodePoolController.controllerService.metrics.port, value: 9999}
+      - equal: {path: spec.nodePoolController.controllerService.metrics.targetPort, value: 9999}
+      - equal: {path: spec.nodePoolController.controllerService.metrics.name, value: custom}
+
+  # This Service port is this controller's alone; no other KRM service publishes one.
+  - it: carries the node-pool metrics port
+    set:
+      nodePoolController.service.port: 8081
+      nodePoolController.service.targetPort: 8082
+    asserts:
+      - equal: {path: spec.nodePoolController.controllerService.nodePoolMetrics.port, value: 8081}
+      - equal: {path: spec.nodePoolController.controllerService.nodePoolMetrics.targetPort, value: 8082}
+
+  - it: carries the webhook ports
+    set:
+      nodePoolController.webhook.port: 8444
+      nodePoolController.webhook.targetPort: 9443
+    asserts:
+      - equal: {path: spec.nodePoolController.controllerService.webhook.port, value: 8444}
+      - equal: {path: spec.nodePoolController.controllerService.webhook.targetPort, value: 9443}
+
+  # Every key here is copied straight through, so a name the CR does not have would
+  # be pruned by the API server and the setting silently lost.
+  - it: carries every modelled argument under the names the CR uses
+    set:
+      nodePoolController.args.debug: true
+      nodePoolController.args.leaderElect: true
+      nodePoolController.args.schedulingShardArgs: '{"verbosity":"4"}'
+      nodePoolController.args.excludedNodepoolName: excluded
+      nodePoolController.args.managedNodesConfigName: managed-nodes
+      nodePoolController.args.toExcludeLabel: to-exclude
+      nodePoolController.args.unschedulableLabel: unschedulable
+      nodePoolController.args.groveTopologyAnnotation: grove-topology
+      nodePoolController.args.groveTopologyResourceVersionAnnotation: grove-topology-rv
+    asserts:
+      - equal: {path: spec.nodePoolController.args.debug, value: true}
+      - equal: {path: spec.nodePoolController.args.leaderElect, value: true}
+      - equal:
+          path: spec.nodePoolController.args.schedulingShardArgs
+          value: '{"verbosity":"4"}'
+      - equal: {path: spec.nodePoolController.args.excludedNodepoolName, value: excluded}
+      - equal: {path: spec.nodePoolController.args.managedNodesConfigName, value: managed-nodes}
+      - equal: {path: spec.nodePoolController.args.toExcludeLabel, value: to-exclude}
+      - equal: {path: spec.nodePoolController.args.unschedulableLabel, value: unschedulable}
+      - equal: {path: spec.nodePoolController.args.groveTopologyAnnotation, value: grove-topology}
+      - equal: {path: spec.nodePoolController.args.groveTopologyResourceVersionAnnotation, value: grove-topology-rv}
+
+  # The per-service override is the only way back off once the global setting is on.
+  - it: carries an explicit leaderElect false beside a global-on setting
+    set:
+      global.leaderElection: true
+      nodePoolController.args.leaderElect: false
+    asserts:
+      - equal: {path: spec.global.leaderElection, value: true}
+      - equal: {path: spec.nodePoolController.args.leaderElect, value: false}
+
+  # These two sit outside nodePoolController.args in values, but are flags like the rest.
+  - it: carries the metrics and DCGM namespaces from outside the args block
+    set:
+      nodePoolController.metrics.namespace: kai
+      nodePoolController.dcgmExporterNamespace: gpu-operator
+    asserts:
+      - equal: {path: spec.nodePoolController.args.metricsNamespace, value: kai}
+      - equal: {path: spec.nodePoolController.args.dcgmExporterNamespace, value: gpu-operator}
+
+  - it: carries qps and burst onto the shared client config, not into args
+    set:
+      nodePoolController.args.qps: 77
+      nodePoolController.args.burst: 777
+    asserts:
+      - equal: {path: spec.nodePoolController.service.k8sClientConfig.qps, value: 77}
+      - equal: {path: spec.nodePoolController.service.k8sClientConfig.burst, value: 777}
+      - notExists: {path: spec.nodePoolController.args.qps}
+      - notExists: {path: spec.nodePoolController.args.burst}
+
+  # Only the modelled keys are copied; anything else belongs in extraArgs, and
+  # silently passing it would be pruned by the API server anyway.
+  - it: leaves an unmodelled args key out of the CR
+    set:
+      nodePoolController.args.somethingElse: value
+    asserts:
+      - notExists: {path: spec.nodePoolController.args.somethingElse}
+
+  - it: omits an args key that is set to empty
+    set:
+      nodePoolController.args.excludedNodepoolName: ""
+    asserts:
+      - notExists: {path: spec.nodePoolController.args.excludedNodepoolName}
+
+  - it: passes extraArgs through
+    set:
+      nodePoolController.extraArgs: ["--unmodelled", "value"]
+    asserts:
+      - equal: {path: "spec.nodePoolController.extraArgs[0]", value: --unmodelled}
+      - equal: {path: "spec.nodePoolController.extraArgs[1]", value: value}
+
+  # An emitted empty value would take ownership of the field under server-side apply
+  # and stop the operator applying its own default.
+  - it: omits what is not set
+    asserts:
+      - notExists: {path: spec.nodePoolController.controllerService}
+      - notExists: {path: spec.nodePoolController.extraArgs}
+      - notExists: {path: spec.nodePoolController.args.metricsNamespace}
+      - notExists: {path: spec.nodePoolController.args.dcgmExporterNamespace}
+      - notExists: {path: spec.nodePoolController.args.schedulingShardArgs}
+
+  - it: disables the service rather than removing it when the component is off
+    set:
+      nodePoolController.enabled: false
+    asserts:
+      - equal: {path: spec.nodePoolController.service.enabled, value: false}

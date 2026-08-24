@@ -1,0 +1,3 @@
+kind: Changed
+body: |-
+  Install nodepool-controller through the krm-operator

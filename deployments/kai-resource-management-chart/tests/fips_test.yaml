@@ -12,7 +12,6 @@ release:
 tests:
   - it: defaults to off, leaving tags unsuffixed
     templates:
-      - templates/nodepool-controller/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - notMatchRegex:
@@ -29,7 +28,6 @@ tests:
       global.fipsMode: "on"
       kai-scheduler.global.fips: true
     templates:
-      - templates/nodepool-controller/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - matchRegex:
@@ -63,7 +61,6 @@ tests:
       global.fipsMode: only
       kai-scheduler.global.fips: true
     templates:
-      - templates/nodepool-controller/deployment.yaml
       - templates/krm-operator/deployment.yaml
     asserts:
       - contains:
@@ -92,12 +89,14 @@ tests:
       kai-scheduler.global.fips: true
       image.tag: "1.2.3"
       nodePoolController.image.tag: "4.5.6"
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
     templates:
-      - templates/nodepool-controller/deployment.yaml
+      - templates/krm-config.yaml
     asserts:
-      - matchRegex:
-          path: spec.template.spec.containers[0].image
-          pattern: :4\.5\.6-fips$
+      - equal:
+          path: spec.nodePoolController.service.image.tag
+          value: 4.5.6-fips
 
   - it: reaches the KRMConfig the deployer applies
     set:
@@ -125,7 +124,7 @@ tests:
       global.fipsMode: true
       kai-scheduler.global.fips: true
     templates:
-      - templates/nodepool-controller/deployment.yaml
+      - templates/krm-operator/deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env

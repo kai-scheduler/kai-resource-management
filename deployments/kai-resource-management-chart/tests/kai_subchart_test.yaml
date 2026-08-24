@@ -7,7 +7,7 @@ release:
   namespace: kai-resource-management
 templates:
   - charts/kai-scheduler/templates/services/operator.yaml
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-operator/deployment.yaml
   - charts/kai-scheduler/templates/default-shard.yaml
   - charts/kai-scheduler/templates/default-queue.yaml
 tests:
@@ -27,8 +27,8 @@ tests:
       # our component uses the chart's image.registry
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "^my\\.reg/nodepool-controller:"
-        template: templates/nodepool-controller/deployment.yaml
+          pattern: "^my\\.reg/krm-operator:"
+        template: templates/krm-operator/deployment.yaml
       # KAI stays on ghcr, NOT clobbered by our image.registry
       - matchRegex:
           path: spec.template.spec.containers[0].image

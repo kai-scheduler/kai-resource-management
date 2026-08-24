@@ -3,44 +3,50 @@
 
 suite: component enable/disable toggles
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-config.yaml
   - templates/krm-operator/deployment.yaml
 release:
   name: rm
   namespace: kai
+set:
+  image.registry: reg.example.com/kai
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
   - it: renders the operator by default
-    set:
-      image.registry: reg.example.com/kai
     asserts:
       - hasDocuments:
           count: 1
         template: templates/krm-operator/deployment.yaml
 
-  - it: renders the chart-deployed controllers by default
-    set:
-      image.registry: reg.example.com/kai
+  # The operator installs all three, so the toggles reach it through the CR rather
+  # than deciding whether this chart renders a Deployment.
+  - it: enables every service by default
     asserts:
-      - hasDocuments:
-          count: 1
-        template: templates/nodepool-controller/deployment.yaml
-  - it: omits nodepool-controller when disabled
+      - equal: {path: spec.nodePoolController.service.enabled, value: true}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.projectController.service.enabled, value: true}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.podGroupAssigner.service.enabled, value: true}
+        template: templates/krm-config.yaml
+
+  - it: disables nodepool-controller without touching the others
     set:
-      image.registry: reg.example.com/kai
       nodePoolController.enabled: false
     asserts:
-      - hasDocuments:
-          count: 0
-        template: templates/nodepool-controller/deployment.yaml
+      - equal: {path: spec.nodePoolController.service.enabled, value: false}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.projectController.service.enabled, value: true}
+        template: templates/krm-config.yaml
 
+  # Nothing reconciles the CR then, but the CR is still rendered: it is the record
+  # of what was asked for, and the operator picks it up when it comes back.
   - it: omits the operator when disabled
     set:
-      image.registry: reg.example.com/kai
       krmOperator.enabled: false
     asserts:
       - hasDocuments:
           count: 0
         template: templates/krm-operator/deployment.yaml
-      - hasDocuments:
-          count: 1
-        template: templates/nodepool-controller/deployment.yaml
+      - equal: {path: spec.nodePoolController.service.enabled, value: true}
+        template: templates/krm-config.yaml
