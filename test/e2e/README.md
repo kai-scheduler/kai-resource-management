@@ -14,32 +14,40 @@ Ginkgo suites that run against a live cluster with the chart installed.
 **These mutate the cluster `KUBECONFIG` points at.** They are not part of
 `make test`.
 
+One command builds a kind cluster, installs the chart into it and runs the
+suites:
+
 ```bash
-kind create cluster --name krm-test --config hack/kind-config.yaml
-kubectl apply --server-side -f \
-  https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.88.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-
-make build
-for image in krm-operator project-controller nodepool-controller pod-group-assigner helm-hooks; do
-  kind load docker-image --name krm-test registry/local/kai-resource-management/$image:0.0.0
-done
-
-helm package deployments/kai-resource-management-chart -d /tmp
-helm install krm /tmp/kai-resource-management-0.0.0.tgz \
-  -n kai-resource-management --create-namespace \
-  --values ./hack/e2e-values.yaml --wait
-
-make test-e2e
+hack/run-e2e-kind.sh
 ```
 
-Pass ginkgo flags with `GINKGO_FLAGS`, for example
-`make test-e2e GINKGO_FLAGS="--label-filter=flows"`.
+The cluster is deleted afterwards. While working on a spec, keep it and skip the
+rebuild on the next run:
+
+```bash
+hack/run-e2e-kind.sh --preserve-cluster     # first run
+hack/run-e2e-kind.sh --preserve-cluster --skip-build
+```
+
+`hack/setup-e2e-cluster.sh` does the cluster half on its own, if you want a
+cluster to poke at without running anything: add `--skip-krm-install` to get one
+with no chart on it. Both scripts take `-h`.
+
+Against a cluster that is already set up, the suites alone are:
+
+```bash
+make test-e2e
+make test-e2e GINKGO_FLAGS="--label-filter=flows"
+```
+
+`CLUSTER_NAME` (default `krm-e2e`) and `K8S_VERSION` override the defaults.
 
 The cluster needs more than one node: `hack/kind-config.yaml` gives three
 workers so node pools can own different nodes at the same time, and test pods
-carry no control-plane toleration.
+carry no control-plane toleration. `hack/e2e-values.yaml` lowers the resource
+requests so everything fits on a small machine.
 
-CI runs the same thing on every pull request; see the `e2e-tests` job and
+CI runs the same suites on every pull request; see the `e2e-tests` job and
 `.github/actions/setup-e2e-cluster`.
 
 ## Safety contract
