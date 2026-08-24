@@ -106,6 +106,7 @@ tests:
           path: rules[0].resourceNames
           value:
             - departments.kai.resources
+            - krmconfigs.kai.resources
             - managednodesconfigs.kai.resources
             - nodepools.kai.resources
             - projects.kai.resources
