@@ -25,7 +25,7 @@ const DefaultNodePoolName = "default"
 
 var (
 	preflightOnce sync.Once
-	preflightErr  error
+	errPreflight  error
 )
 
 // runPreflight refuses to touch a cluster that holds resource-management objects
@@ -37,10 +37,10 @@ var (
 // a formality. Clean the objects up or switch contexts.
 func runPreflight(ctx goctx.Context, k8sClient client.Client) error {
 	preflightOnce.Do(func() {
-		preflightErr = checkForeignObjects(ctx, k8sClient)
+		errPreflight = checkForeignObjects(ctx, k8sClient)
 	})
 
-	return preflightErr
+	return errPreflight
 }
 
 // foreign reports the names of objects in list that the suites do not own.

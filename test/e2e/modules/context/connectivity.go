@@ -22,7 +22,7 @@ import (
 
 var (
 	connectOnce      sync.Once
-	connectErr       error
+	errConnect       error
 	kubeConfig       *rest.Config
 	kubeClientset    *kubernetes.Clientset
 	controllerClient client.Client
@@ -52,29 +52,29 @@ func buildScheme() (*runtime.Scheme, error) {
 // connect builds the clients once per process from the ambient KUBECONFIG.
 func connect() error {
 	connectOnce.Do(func() {
-		testScheme, connectErr = buildScheme()
-		if connectErr != nil {
-			connectErr = fmt.Errorf("building scheme: %w", connectErr)
+		testScheme, errConnect = buildScheme()
+		if errConnect != nil {
+			errConnect = fmt.Errorf("building scheme: %w", errConnect)
 			return
 		}
 
-		kubeConfig, connectErr = config.GetConfig()
-		if connectErr != nil {
-			connectErr = fmt.Errorf("loading kubeconfig: %w", connectErr)
+		kubeConfig, errConnect = config.GetConfig()
+		if errConnect != nil {
+			errConnect = fmt.Errorf("loading kubeconfig: %w", errConnect)
 			return
 		}
 
-		kubeClientset, connectErr = kubernetes.NewForConfig(kubeConfig)
-		if connectErr != nil {
-			connectErr = fmt.Errorf("building the clientset: %w", connectErr)
+		kubeClientset, errConnect = kubernetes.NewForConfig(kubeConfig)
+		if errConnect != nil {
+			errConnect = fmt.Errorf("building the clientset: %w", errConnect)
 			return
 		}
 
-		controllerClient, connectErr = client.New(kubeConfig, client.Options{Scheme: testScheme})
-		if connectErr != nil {
-			connectErr = fmt.Errorf("building the controller-runtime client: %w", connectErr)
+		controllerClient, errConnect = client.New(kubeConfig, client.Options{Scheme: testScheme})
+		if errConnect != nil {
+			errConnect = fmt.Errorf("building the controller-runtime client: %w", errConnect)
 		}
 	})
 
-	return connectErr
+	return errConnect
 }
