@@ -123,6 +123,15 @@ tests:
           path: data["krm-config.yaml"]
           pattern: "serviceMonitor:"
 
+  - it: carries leader election once it is turned on
+    set:
+      global.leaderElection: true
+    template: templates/hooks/post/krm-config-deployer/configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["krm-config.yaml"]
+          pattern: "leaderElection: true"
+
   - it: turns the accounting monitor off in the CR without turning the rest off
     set:
       serviceMonitor.accounting: false

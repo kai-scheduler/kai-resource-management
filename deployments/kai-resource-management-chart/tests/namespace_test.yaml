@@ -3,19 +3,21 @@
 
 suite: install namespace is the single source of truth
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-config.yaml
 release:
   name: krm
   namespace: my-ns
+set:
+  image.registry: reg.example.com/kai
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
-  - it: nodepool-controller renders under the release namespace and omits vocabulary flags
-    set:
-      image.registry: reg.example.com/kai
-    template: templates/nodepool-controller/deployment.yaml
+  # The operator deploys every service into this namespace and passes it on as
+  # --scheduler-namespace; the chart hardcodes no namespace anywhere.
+  - it: sends the operator the release namespace and no vocabulary it was not given
     asserts:
       - equal:
-          path: metadata.namespace
+          path: spec.namespace
           value: my-ns
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --nodepool-label-key
+      - notExists:
+          path: spec.global.nodePoolLabelKey

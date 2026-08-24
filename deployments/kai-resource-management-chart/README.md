@@ -82,7 +82,7 @@ The main configuration groups are:
 | `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
-| `nodePoolController` | Node-pool controller deployment, arguments, and webhook. |
+| `nodePoolController` | Node-pool controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhook this chart still renders. |
 | `projectController` | Project controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhooks this chart still renders. |
 | `podGroupAssigner` | PodGroup assigner deployment, arguments, and webhooks. |
 
@@ -107,21 +107,22 @@ kubectl get krmconfig krm-config -o jsonpath='{.status.conditions}' | jq
 `Ready` summarises the rest; `Deployed`, `Available`, `DependenciesFulfilled`
 and `Reconciling` say which part is outstanding.
 
-**It installs project-controller and pod-group-assigner.** nodepool-controller is
-still deployed by this chart directly; it becomes an operand under its own change.
+**It installs all three services.** For each one the operator creates the
+Deployment, its ServiceAccount and Service, any ConfigMap the service reads, and
+its ServiceMonitors. This chart still renders every service's RBAC, its admission
+webhook configurations and the TLS Secrets they serve with.
 
-For project-controller the operator creates the Deployment, its ServiceAccount and
-Service, the two ConfigMaps the controller reads, and its ServiceMonitor. This
-chart still renders that controller's RBAC, its `ValidatingWebhookConfiguration`
-and the TLS Secret it serves with.
+nodepool-controller gets two ServiceMonitors on one endpoint. The
+node-to-nodepool metrics are read by two Prometheuses, and the
+`kai.scheduler/accounting` label routes a ServiceMonitor to exactly one of them,
+so reaching both takes two. `serviceMonitor.accounting` drops the second.
 
-That split has one consequence worth knowing. The Deployment mounts a Secret this
-chart owns, and the operator's webhook toggles come from
-`projectController.webhook.*` — the same values that decide whether this chart
-renders the webhook configuration at all. Setting the CR's toggles directly,
-rather than through the chart, can leave the two disagreeing: a webhook that is
-served but never called, or a controller waiting on a certificate that was never
-minted.
+That split has one consequence worth knowing. Each Deployment mounts a Secret this
+chart owns, and the operator's webhook toggles come from that service's
+`webhook.*` values — the same ones that decide whether this chart renders the
+webhook configuration at all. Setting the CR's toggles directly, rather than
+through the chart, can leave the two disagreeing: a webhook that is served but
+never called, or a controller waiting on a certificate that was never minted.
 
 ### How the KRMConfig is created
 

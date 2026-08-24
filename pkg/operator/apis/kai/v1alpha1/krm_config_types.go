@@ -269,24 +269,6 @@ type Profiling struct {
 	APIPort *int32 `json:"apiPort,omitempty"`
 }
 
-// NodePoolController configures the nodepool-controller service.
-//
-// The controller's own flag surface is added by RUN-42108, when it becomes an
-// operand. Until then this carries only what every service shares.
-type NodePoolController struct {
-	// Service is the common deployment configuration: enablement, image, resources.
-	// +optional
-	Service *kaicommon.Service `json:"service,omitempty"`
-
-	// Replicas overrides global.replicaCount for this service.
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
-
-	// VPA overrides global.vpa for this service.
-	// +optional
-	VPA *kaicommon.VPASpec `json:"vpa,omitempty"`
-}
-
 // KRMConfigStatus is the observed state of the installation.
 type KRMConfigStatus struct {
 	// Conditions report reconciliation progress and readiness.

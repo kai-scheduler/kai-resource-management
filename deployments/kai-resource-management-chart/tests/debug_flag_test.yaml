@@ -1,30 +1,31 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
+# Every service is installed by the operator, so debug reaches each binary through
+# the KRMConfig. One key name across all three: the flag is --debug everywhere.
 suite: unified --debug flag
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-config.yaml
 release:
   name: krm
   namespace: kai-resource-management
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
-  - it: emits --debug, never --log-level, when args.debug is true
+  - it: carries debug for every service under the same key
     set:
       nodePoolController.args.debug: true
+      projectController.args.debug: true
       podGroupAssigner.args.debug: true
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --debug
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --log-level
+      - equal: {path: spec.nodePoolController.args.debug, value: true}
+      - equal: {path: spec.projectController.args.debug, value: true}
+      - equal: {path: spec.podGroupAssigner.args.debug, value: true}
 
-  - it: emits no debug flag by default
+  # False is emitted rather than omitted: values.yaml sets it, so the CR is explicit.
+  - it: carries an explicit false by default
     asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --debug
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --log-level
+      - equal: {path: spec.nodePoolController.args.debug, value: false}
+      - equal: {path: spec.projectController.args.debug, value: false}
+      - equal: {path: spec.podGroupAssigner.args.debug, value: false}
