@@ -175,8 +175,8 @@ func WithNodeAffinity(pairs ...NodeSelectorPair) PodOption {
 	}
 }
 
-// Pod builds a pod that tolerates the control-plane taint, because a kind
-// cluster is a single control-plane node and nothing would schedule otherwise.
+// Pod builds a pod that runs on a worker node. It carries no control-plane
+// toleration, so test workloads and the controllers under test stay apart.
 func Pod(name, namespace string, options ...PodOption) *corev1.Pod {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -185,11 +185,6 @@ func Pod(name, namespace string, options ...PodOption) *corev1.Pod {
 			Labels:    constant.OwnerLabels(),
 		},
 		Spec: corev1.PodSpec{
-			Tolerations: []corev1.Toleration{{
-				Key:      "node-role.kubernetes.io/control-plane",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
-			}},
 			Containers: []corev1.Container{{
 				Name:  "main",
 				Image: PauseImage,
