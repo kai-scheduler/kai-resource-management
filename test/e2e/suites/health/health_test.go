@@ -15,12 +15,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 	testcontext "github.com/kai-scheduler/kai-resource-management/test/e2e/modules/context"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
-
-// releaseNamespace is where the chart installs its controllers.
-const releaseNamespace = "kai-resource-management"
 
 var _ = Describe("Installation", Label("health"), func() {
 	var (
@@ -41,7 +39,7 @@ var _ = Describe("Installation", Label("health"), func() {
 			} {
 				deployment := &appsv1.Deployment{}
 				Expect(k8sClient.Get(ctx,
-					client.ObjectKey{Namespace: releaseNamespace, Name: name}, deployment)).
+					client.ObjectKey{Namespace: constant.ReleaseNamespace, Name: name}, deployment)).
 					To(Succeed(), "deployment %q is missing", name)
 
 				Expect(deployment.Status.AvailableReplicas).To(BeNumerically(">=", 1),
@@ -50,13 +48,13 @@ var _ = Describe("Installation", Label("health"), func() {
 		})
 	})
 
-	Context("of the default node pool the chart creates", func() {
-		// The catch-all pool. On a kind cluster its one node matches nothing
-		// else, so the pool is Ready rather than Empty.
+	Context("of the default node nodePool the chart creates", func() {
+		// The catch-all node pool. On a kind cluster its one node matches nothing
+		// else, so the node pool is Ready rather than Empty.
 		It("reconciles to Ready with a scheduling shard behind it", func() {
-			pool := wait.ForNodePoolPhase(ctx, k8sClient,
+			nodePool := wait.ForNodePoolPhase(ctx, k8sClient,
 				testcontext.DefaultNodePoolName, kaires.NodePoolReady)
-			Expect(pool.Status.Nodes).ToNot(BeEmpty(), "the default pool claimed no nodes")
+			Expect(nodePool.Status.Nodes).ToNot(BeEmpty(), "the default node pool claimed no nodes")
 
 			shard := wait.ForSchedulingShardReady(ctx, k8sClient, testcontext.DefaultNodePoolName)
 			Expect(shard.OwnerReferences).To(ContainElement(HaveField("Kind", "NodePool")))

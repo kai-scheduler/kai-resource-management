@@ -56,9 +56,9 @@ var _ = Describe("Preflight", func() {
 		})
 
 		It("accepts the chart's own default nodepool", func() {
-			pool := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: DefaultNodePoolName}}
+			nodePool := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: DefaultNodePoolName}}
 
-			Expect(checkForeignObjects(ctx, clusterWith(pool))).To(Succeed())
+			Expect(checkForeignObjects(ctx, clusterWith(nodePool))).To(Succeed())
 		})
 
 		It("accepts objects carrying the ownership label", func() {
@@ -101,9 +101,9 @@ var _ = Describe("Preflight", func() {
 		})
 
 		It("refuses on a nodepool that is neither the default nor ours", func() {
-			pool := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "production-gpu"}}
+			nodePool := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "production-gpu"}}
 
-			Expect(checkForeignObjects(ctx, clusterWith(pool))).
+			Expect(checkForeignObjects(ctx, clusterWith(nodePool))).
 				To(MatchError(ContainSubstring("NodePool: production-gpu")))
 		})
 

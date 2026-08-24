@@ -18,6 +18,10 @@ const (
 	// RunLabelKey carries the id of the process that created the resource, so a
 	// run only ever deletes its own objects even when two run at once.
 	RunLabelKey = "kai.resources/e2e-run"
+
+	// ReleaseNamespace is where the chart is installed, and so where the
+	// controllers and the objects they create in their own namespace live.
+	ReleaseNamespace = "kai-resource-management"
 )
 
 // Polling budgets. Controllers here reconcile in well under a second once their

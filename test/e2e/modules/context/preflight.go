@@ -20,7 +20,7 @@ import (
 )
 
 // DefaultNodePoolName is the one NodePool the chart creates for itself. It is
-// the catch-all for nodes no other pool claims and is expected on any install.
+// the catch-all for nodes no other node pool claims and is expected on any install.
 const DefaultNodePoolName = "default"
 
 var (
@@ -121,7 +121,7 @@ func foreignDepartments(ctx goctx.Context, k8sClient client.Client) (string, []s
 	return "Department", names, nil
 }
 
-// foreignNodePools tolerates the chart's own default pool, which every install
+// foreignNodePools tolerates the chart's own default nodePool, which every install
 // has and no test creates.
 func foreignNodePools(ctx goctx.Context, k8sClient client.Client) (string, []string, error) {
 	list := &kaires.NodePoolList{}
@@ -131,11 +131,11 @@ func foreignNodePools(ctx goctx.Context, k8sClient client.Client) (string, []str
 
 	var names []string
 	for i := range list.Items {
-		pool := &list.Items[i]
-		if pool.Name == DefaultNodePoolName || ownedByTests(pool.Labels) {
+		nodePool := &list.Items[i]
+		if nodePool.Name == DefaultNodePoolName || ownedByTests(nodePool.Labels) {
 			continue
 		}
-		names = append(names, pool.Name)
+		names = append(names, nodePool.Name)
 	}
 
 	return "NodePool", names, nil

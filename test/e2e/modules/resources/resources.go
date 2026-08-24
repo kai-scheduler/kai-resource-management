@@ -29,8 +29,8 @@ func objectMeta(name string) metav1.ObjectMeta {
 	}
 }
 
-// NodePool builds a pool selecting nodes by labelKey=labelValue. The webhook
-// requires a non-empty pair on every pool but the default one.
+// NodePool builds a nodePool selecting nodes by labelKey=labelValue. The webhook
+// requires a non-empty pair on every node pool but the default one.
 func NodePool(name, labelKey, labelValue string) *kaires.NodePool {
 	return &kaires.NodePool{
 		ObjectMeta: objectMeta(name),
@@ -41,7 +41,7 @@ func NodePool(name, labelKey, labelValue string) *kaires.NodePool {
 	}
 }
 
-// GeneratedNodePool builds a pool whose name and node-label value are unique to
+// GeneratedNodePool builds a nodePool whose name and node-label value are unique to
 // this call, so parallel specs never collide on the webhook's duplicate-pair rule.
 func GeneratedNodePool(prefix, labelKey string) *kaires.NodePool {
 	name := utils.GenerateName(prefix)
@@ -63,8 +63,8 @@ func WithEnforceScheduler(enforce bool) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.EnforceKaiScheduler = enforce }
 }
 
-// Project builds a project with one queue per node pool, and those same pools as
-// its defaults. The validating webhook requires every default pool to have a
+// Project builds a project with one queue per node nodePool, and those same pools as
+// its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than
 // passed separately.
 func Project(name string, nodePools []string, options ...ProjectOption) *kaires.Project {
@@ -82,7 +82,7 @@ func Project(name string, nodePools []string, options ...ProjectOption) *kaires.
 	return project
 }
 
-// Department builds a department with one queue per node pool. A project naming
+// Department builds a department with one queue per node nodePool. A project naming
 // it as parent inherits those queues as the parents of its own.
 func Department(name string, nodePools []string) *kaires.Department {
 	return &kaires.Department{
@@ -93,21 +93,21 @@ func Department(name string, nodePools []string) *kaires.Department {
 	}
 }
 
-// queueConfigs names one queue per pool as "<owner>-<pool>", which keeps the
+// queueConfigs names one queue per node pool as "<owner>-<node pool>", which keeps the
 // queue a spec expects derivable from what it created.
 func queueConfigs(owner string, nodePools []string) []kaires.QueueConfig {
 	queues := make([]kaires.QueueConfig, 0, len(nodePools))
-	for _, pool := range nodePools {
+	for _, nodePool := range nodePools {
 		queues = append(queues, kaires.QueueConfig{
-			Name:     QueueName(owner, pool),
-			Nodepool: pool,
+			Name:     QueueName(owner, nodePool),
+			Nodepool: nodePool,
 		})
 	}
 
 	return queues
 }
 
-// QueueName is the name the controller gives the queue an owner has for a pool.
+// QueueName is the name the controller gives the queue an owner has for a node pool.
 func QueueName(owner, nodePool string) string {
 	return fmt.Sprintf("%s-%s", owner, nodePool)
 }
@@ -132,26 +132,26 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 	}
 }
 
-// NodeSelectorPair is one node pool expressed the way a node carries it: the
-// label key the pool selects on, and the value it selects.
+// NodeSelectorPair is one node nodePool expressed the way a node carries it: the
+// label key the node pool selects on, and the value it selects.
 type NodeSelectorPair struct {
 	Key   string
 	Value string
 }
 
-// NodeSelectorForNodePool returns the node label a pool selects its nodes by, so
-// a pod can require that pool's nodes without restating the pair.
+// NodeSelectorForNodePool returns the node label a nodePool selects its nodes by, so
+// a pod can require that node pool's nodes without restating the pair.
 func NodeSelectorForNodePool(nodePool *kaires.NodePool) NodeSelectorPair {
 	return NodeSelectorPair{Key: nodePool.Spec.LabelKey, Value: nodePool.Spec.LabelValue}
 }
 
 // WithNodeAffinity requires nodes matching any one of the given pools, so the
-// node pool is derived from the affinity rather than requested by name.
+// node nodePool is derived from the affinity rather than requested by name.
 //
 // Each pair becomes its own nodeSelectorTerm. Terms are OR-ed by Kubernetes
 // while expressions within one term are AND-ed, so several pools have to be
 // separate terms - putting them in one term would demand a single node carry
-// every pool's label at once, which no node does.
+// every node pool's label at once, which no node does.
 func WithNodeAffinity(pairs ...NodeSelectorPair) PodOption {
 	return func(pod *corev1.Pod) {
 		terms := make([]corev1.NodeSelectorTerm, 0, len(pairs))

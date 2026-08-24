@@ -1,0 +1,18 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# Chart values for e2e runs. Not shipped defaults - only what a throwaway
+# cluster needs to differ on.
+
+kai-scheduler:
+  scheduler:
+    # Every node pool gets its own scheduler, so a suite that creates pools
+    # multiplies this. The limits stay at the chart's own values; only the
+    # requests come down, since those are what has to fit on the node.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 700m
+        memory: 512Mi

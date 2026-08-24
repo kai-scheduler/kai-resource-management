@@ -275,6 +275,7 @@ jobs:
         run: |
           helm install krm /mnt/images/kai-resource-management-$PACKAGE_VERSION.tgz \
             --namespace kai-resource-management --create-namespace \
+            --values ./hack/e2e-values.yaml \
             --set image.tag=$PACKAGE_VERSION \
             --wait --timeout 10m
 

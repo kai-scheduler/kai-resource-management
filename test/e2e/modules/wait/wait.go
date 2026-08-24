@@ -15,6 +15,7 @@ import (
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/onsi/gomega"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,25 +41,25 @@ func ForProjectReady(ctx goctx.Context, k8sClient client.Client, name string) *k
 	return project
 }
 
-// ForNodePoolPhase waits for a pool to settle on the expected phase. Ready and
-// Empty are both healthy - Empty simply means no node matches the pool's labels -
+// ForNodePoolPhase waits for a nodePool to settle on the expected phase. Ready and
+// Empty are both healthy - Empty simply means no node matches the node pool's labels -
 // so the caller says which one it expects rather than the helper guessing.
 func ForNodePoolPhase(
 	ctx goctx.Context, k8sClient client.Client, name string, phase kaires.NodePoolPhase,
 ) *kaires.NodePool {
-	pool := &kaires.NodePool{}
+	nodePool := &kaires.NodePool{}
 
 	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
-		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, pool)).To(gomega.Succeed())
-		g.Expect(pool.Status.Phase).To(gomega.Equal(phase),
-			"nodepool %q: %s", name, pool.Status.Message)
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, nodePool)).To(gomega.Succeed())
+		g.Expect(nodePool.Status.Phase).To(gomega.Equal(phase),
+			"nodepool %q: %s", name, nodePool.Status.Message)
 	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
 
-	return pool
+	return nodePool
 }
 
 // ForSchedulingShardReady waits for the shard nodepool-controller derives from a
-// pool to be reconciled by the KAI operator, not merely to exist. Ready is what
+// node pool to be reconciled by the KAI operator, not merely to exist. Ready is what
 // says the scheduler deployment behind it actually came up.
 func ForSchedulingShardReady(
 	ctx goctx.Context, k8sClient client.Client, name string,
@@ -91,6 +92,17 @@ func ForQueue(ctx goctx.Context, k8sClient client.Client, name string) *kaiv2.Qu
 	getObject(ctx, k8sClient, types.NamespacedName{Name: name}, queue, "queue "+name)
 
 	return queue
+}
+
+// ForServiceMonitor waits for a service monitor in the release namespace.
+func ForServiceMonitor(
+	ctx goctx.Context, k8sClient client.Client, name string,
+) *monitoringv1.ServiceMonitor {
+	monitor := &monitoringv1.ServiceMonitor{}
+	key := types.NamespacedName{Namespace: constant.ReleaseNamespace, Name: name}
+	getObject(ctx, k8sClient, key, monitor, "service monitor "+name)
+
+	return monitor
 }
 
 // ForNamespace waits for the namespace project-controller creates for a project.
