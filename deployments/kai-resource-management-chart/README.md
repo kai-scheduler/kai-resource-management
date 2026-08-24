@@ -226,12 +226,6 @@ explicitly to whatever that scheduler uses.
 Its ClusterRole is maintained by hand rather than generated, and must be
 extended whenever the operator is taught to own a new kind.
 
-> **Temporary:** the `KRMConfig` CRD is rendered from `templates/krm-operator/`
-> rather than shipped in `crds/`, because the type still lives in this
-> repository instead of the API module. Unlike `crds/`, a templated CRD is
-> deleted by `helm uninstall`, taking any `KRMConfig` with it. This moves to
-> `crds/` when the type moves to the API module.
-
 ## Admission webhooks
 
 All three controllers serve admission webhooks. The chart declares the webhook
@@ -412,6 +406,11 @@ helm uninstall kai-resource-management --namespace "${KRM_NAMESPACE}"
 Helm intentionally retains CRDs installed from `crds/`, and Kubernetes therefore
 retains their custom resources. Back up and delete those resources and CRDs only
 when permanent data removal is intended.
+
+The `krm-config` CR is the one exception: when this chart created it, the
+post-delete hook deletes it, so a reinstall starts from the chart's values
+rather than from a CR the previous release left behind. Its CRD is retained
+like every other.
 
 Helm does not track hook resources in the release manifest, so on OpenShift the
 SecurityContextConstraints and its grant also survive uninstallation. Remove them

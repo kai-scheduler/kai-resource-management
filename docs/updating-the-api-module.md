@@ -2,8 +2,8 @@
 
 Audience: maintainers changing the `kai.resources` CRD contracts.
 
-The `kai.resources` types — currently Project, Department, NodePool and
-ManagedNodesConfig, in `v1alpha1` — are owned by
+The `kai.resources` types — currently Project, Department, NodePool,
+ManagedNodesConfig and KRMConfig, in `v1alpha1` — are owned by
 [`github.com/kai-scheduler/kai-resource-management-api`][api]. This repository
 consumes them and never defines them. Nothing here generates CRDs; `crds/` is a
 copy of the manifests released by that module.

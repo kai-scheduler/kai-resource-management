@@ -21,6 +21,7 @@ make help             # List supported targets
 make fmt-go           # Format Go files
 make vet-go           # Run go vet
 make lint-go          # Run the pinned golangci-lint version
+make lint-go-host     # Same linter, host toolchain: no Docker, no credential
 make lint             # Run formatting and static checks
 make test-chart       # Run chart unit tests in the pinned container
 make test             # Run non-e2e Go and Helm tests
@@ -36,7 +37,9 @@ make gen-license      # Add missing Apache-2.0 source headers
 so the public Go module proxy cannot serve it. Every Go command needs
 `GOPRIVATE` set to that exact module path, plus working GitHub git credentials.
 Commands that run Go inside a container (`make build`, `make lint-go`)
-additionally need `GOPATH_HOST_DIR` or `GIT_CONFIG_GLOBAL`.
+additionally need `GIT_CONFIG_GLOBAL`. Pointing `GOPATH_HOST_DIR` at your host
+`GOPATH` is not an alternative; it breaks `lint-go`. To lint without either,
+use `make lint-go-host`.
 
 Do not widen `GOPRIVATE` to `github.com/kai-scheduler/*`: it also disables
 checksum-database verification, and the sibling module
@@ -203,18 +206,10 @@ Do not add `controller-gen` to this repository, and do not generate Kubernetes
 clientsets, informers or listers. The API module deliberately ships none;
 controller-runtime's client with `AddToScheme` is the intended path.
 
-> **Temporary exception — `KRMConfig`.** The `KRMConfig` type lives in
-> `pkg/operator/apis/` while its shape settles through review. Its deepcopy and
-> its CRD manifest under `templates/krm-operator/` are generated with
-> `controller-gen` v0.20.1 run out of tree, matching the API module's pin; this
-> repository ships no generation target, and neither file is ever hand-edited.
-> The manifest is in `templates/` rather than `crds/`, which `sync-crds-check`
-> compares against the pinned module in full. When `KRMConfig` moves to the API
-> module, delete `pkg/operator/apis/`, the generated manifest, and this exception.
-
 When adding a CRD to the API module, also add it to `resourceNames` in
 `templates/rbac/crd-manager.yaml`, otherwise the pre-install hook cannot apply
-it. `make crd-rbac-check` enforces this.
+it. `make crd-rbac-check` enforces this, as does a chart test that pins the
+list.
 
 ## Testing
 

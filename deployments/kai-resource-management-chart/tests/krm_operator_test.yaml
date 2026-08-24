@@ -1,12 +1,11 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-suite: krm-operator deployment, RBAC and CRD
+suite: krm-operator deployment and RBAC
 templates:
   - templates/krm-operator/deployment.yaml
   - templates/krm-operator/serviceaccount.yaml
   - templates/krm-operator/clusterrole.yaml
-  - templates/krm-operator/kai.resources_krmconfigs.yaml
 release:
   name: rm
   namespace: kai
@@ -179,23 +178,6 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
-
-  # TEMPORARY: the CRD is chart-templated only while KRMConfig lives in this
-  # repository. It moves to crds/ when it ships from the API module.
-  - it: installs the KRMConfig CRD as a cluster-scoped singleton kind
-    template: templates/krm-operator/kai.resources_krmconfigs.yaml
-    asserts:
-      - isKind:
-          of: CustomResourceDefinition
-      - equal:
-          path: metadata.name
-          value: krmconfigs.kai.resources
-      - equal:
-          path: spec.scope
-          value: Cluster
-      - equal:
-          path: spec.names.kind
-          value: KRMConfig
 
   # The services are deployed beside the operator, and only the pod knows which
   # namespace the chart was installed into.

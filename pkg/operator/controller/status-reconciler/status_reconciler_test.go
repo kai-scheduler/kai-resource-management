@@ -7,6 +7,7 @@ import (
 	"context"
 	"testing"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,8 +17,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
 
 func TestStatusReconciler(t *testing.T) {
@@ -88,7 +87,7 @@ var _ = Describe("StatusReconciler", func() {
 		reconciler = New(runtimeClient, deployable)
 	})
 
-	conditionOf := func(conditionType krmv1alpha1.ConditionType) *metav1.Condition {
+	conditionOf := func(conditionType krmv1alpha1.KRMConfigConditionType) *metav1.Condition {
 		stored := &krmv1alpha1.KRMConfig{}
 		Expect(runtimeClient.Get(ctx,
 			types.NamespacedName{Name: krmv1alpha1.KRMConfigSingletonName}, stored)).To(Succeed())
@@ -104,7 +103,7 @@ var _ = Describe("StatusReconciler", func() {
 		It("reports that reconciliation is in progress", func() {
 			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			reconciling := conditionOf(krmv1alpha1.ConditionTypeReconciling)
+			reconciling := conditionOf(krmv1alpha1.KRMConfigConditionTypeReconciling)
 			Expect(reconciling).ToNot(BeNil())
 			Expect(reconciling.Status).To(Equal(metav1.ConditionTrue))
 			Expect(reconciling.ObservedGeneration).To(Equal(int64(1)))
@@ -117,7 +116,7 @@ var _ = Describe("StatusReconciler", func() {
 
 			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeDeployed).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDeployed).Status).To(Equal(metav1.ConditionFalse))
 		})
 
 		It("leaves the caller's spec alone", func() {
@@ -144,13 +143,13 @@ var _ = Describe("StatusReconciler", func() {
 		// Otherwise the status patch triggers the reconcile that writes it again.
 		It("does nothing when it already ran for this generation", func() {
 			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
-			afterFirst := conditionOf(krmv1alpha1.ConditionTypeReconciling).LastTransitionTime
+			afterFirst := conditionOf(krmv1alpha1.KRMConfigConditionTypeReconciling).LastTransitionTime
 
 			deployable.deployed = false
 			Expect(reconciler.UpdateStartReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReconciling).LastTransitionTime).To(Equal(afterFirst))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeDeployed).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReconciling).LastTransitionTime).To(Equal(afterFirst))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDeployed).Status).To(Equal(metav1.ConditionTrue))
 		})
 	})
 
@@ -158,11 +157,11 @@ var _ = Describe("StatusReconciler", func() {
 		It("reports ready when everything is deployed and available", func() {
 			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeDeployed).Status).To(Equal(metav1.ConditionTrue))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeAvailable).Status).To(Equal(metav1.ConditionTrue))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeDependenciesFulfilled).Status).To(Equal(metav1.ConditionTrue))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionTrue))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReconciling).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDeployed).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeAvailable).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReconciling).Status).To(Equal(metav1.ConditionFalse))
 		})
 
 		It("is not ready while the services are unavailable", func() {
@@ -170,9 +169,9 @@ var _ = Describe("StatusReconciler", func() {
 
 			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeAvailable).Status).To(Equal(metav1.ConditionFalse))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Reason).To(Equal(string(krmv1alpha1.ReasonNotReady)))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeAvailable).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Reason).To(Equal(string(krmv1alpha1.KRMConfigReasonNotReady)))
 		})
 
 		// Ready is what Helm --wait and kstatus watch, so it must not claim the
@@ -182,9 +181,9 @@ var _ = Describe("StatusReconciler", func() {
 
 			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeAvailable).Status).To(Equal(metav1.ConditionTrue))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Message).To(
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeAvailable).Status).To(Equal(metav1.ConditionTrue))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Message).To(
 				Equal("FakeOperand is missing the prometheus operator"))
 		})
 
@@ -193,7 +192,7 @@ var _ = Describe("StatusReconciler", func() {
 
 			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			Expect(conditionOf(krmv1alpha1.ConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeReady).Status).To(Equal(metav1.ConditionFalse))
 		})
 
 		It("names what is missing rather than only logging it", func() {
@@ -201,7 +200,7 @@ var _ = Describe("StatusReconciler", func() {
 
 			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
 
-			fulfilled := conditionOf(krmv1alpha1.ConditionTypeDependenciesFulfilled)
+			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
 			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
 			Expect(fulfilled.Message).To(Equal("FakeOperand is missing the prometheus operator"))
 		})

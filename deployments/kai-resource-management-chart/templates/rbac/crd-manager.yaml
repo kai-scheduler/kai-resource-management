@@ -25,6 +25,7 @@ rules:
   resources: ["customresourcedefinitions"]
   resourceNames:
     - departments.kai.resources
+    - krmconfigs.kai.resources
     - managednodesconfigs.kai.resources
     - nodepools.kai.resources
     - projects.kai.resources

@@ -6,10 +6,10 @@ package statusreconciler
 import (
 	"context"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 )
 
@@ -74,7 +74,7 @@ func (r *StatusReconciler) ReconcileStatus(ctx context.Context, krmConfig *krmv1
 
 func (r *StatusReconciler) hasReconcilingConditionForGeneration(krmConfig *krmv1alpha1.KRMConfig) bool {
 	for _, existingCondition := range krmConfig.Status.Conditions {
-		if existingCondition.Type == string(krmv1alpha1.ConditionTypeReconciling) {
+		if existingCondition.Type == string(krmv1alpha1.KRMConfigConditionTypeReconciling) {
 			return existingCondition.ObservedGeneration == krmConfig.GetGeneration()
 		}
 	}
@@ -120,38 +120,38 @@ func (r *StatusReconciler) reconcileCondition(
 func (r *StatusReconciler) getDeployedCondition(ctx context.Context, generation int64) metav1.Condition {
 	deployed, err := r.deployable.IsDeployed(ctx, r.Client)
 	if err != nil {
-		return newCondition(krmv1alpha1.ConditionTypeDeployed, false,
-			krmv1alpha1.ReasonNotDeployed, err.Error(), generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeDeployed, false,
+			krmv1alpha1.KRMConfigReasonNotDeployed, err.Error(), generation)
 	}
 	if deployed {
-		return newCondition(krmv1alpha1.ConditionTypeDeployed, true,
-			krmv1alpha1.ReasonDeployed, "Resources deployed", generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeDeployed, true,
+			krmv1alpha1.KRMConfigReasonDeployed, "Resources deployed", generation)
 	}
-	return newCondition(krmv1alpha1.ConditionTypeDeployed, false,
-		krmv1alpha1.ReasonNotDeployed, "Resources not deployed yet", generation)
+	return newCondition(krmv1alpha1.KRMConfigConditionTypeDeployed, false,
+		krmv1alpha1.KRMConfigReasonNotDeployed, "Resources not deployed yet", generation)
 }
 
 func (r *StatusReconciler) getReconcilingCondition(generation int64, reconciling bool) metav1.Condition {
 	if reconciling {
-		return newCondition(krmv1alpha1.ConditionTypeReconciling, true,
-			krmv1alpha1.ReasonReconciling, "Reconciliation in progress", generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeReconciling, true,
+			krmv1alpha1.KRMConfigReasonReconciling, "Reconciliation in progress", generation)
 	}
-	return newCondition(krmv1alpha1.ConditionTypeReconciling, false,
-		krmv1alpha1.ReasonReconciled, "Reconciliation completed successfully", generation)
+	return newCondition(krmv1alpha1.KRMConfigConditionTypeReconciling, false,
+		krmv1alpha1.KRMConfigReasonReconciled, "Reconciliation completed successfully", generation)
 }
 
 func (r *StatusReconciler) getAvailableCondition(ctx context.Context, generation int64) metav1.Condition {
 	available, err := r.deployable.IsAvailable(ctx, r.Client)
 	if err != nil {
-		return newCondition(krmv1alpha1.ConditionTypeAvailable, false,
-			krmv1alpha1.ReasonNotAvailable, err.Error(), generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeAvailable, false,
+			krmv1alpha1.KRMConfigReasonNotAvailable, err.Error(), generation)
 	}
 	if available {
-		return newCondition(krmv1alpha1.ConditionTypeAvailable, true,
-			krmv1alpha1.ReasonAvailable, "System available", generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeAvailable, true,
+			krmv1alpha1.KRMConfigReasonAvailable, "System available", generation)
 	}
-	return newCondition(krmv1alpha1.ConditionTypeAvailable, false,
-		krmv1alpha1.ReasonNotAvailable, "System not available", generation)
+	return newCondition(krmv1alpha1.KRMConfigConditionTypeAvailable, false,
+		krmv1alpha1.KRMConfigReasonNotAvailable, "System not available", generation)
 }
 
 func (r *StatusReconciler) getDependenciesFulfilledCondition(
@@ -161,15 +161,15 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 
 	missingDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
 	if err != nil {
-		return newCondition(krmv1alpha1.ConditionTypeDependenciesFulfilled, false,
-			krmv1alpha1.ReasonDependenciesMissing, err.Error(), generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
+			krmv1alpha1.KRMConfigReasonDependenciesMissing, err.Error(), generation)
 	}
 	if len(missingDependencies) > 0 {
-		return newCondition(krmv1alpha1.ConditionTypeDependenciesFulfilled, false,
-			krmv1alpha1.ReasonDependenciesMissing, missingDependencies, generation)
+		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
+			krmv1alpha1.KRMConfigReasonDependenciesMissing, missingDependencies, generation)
 	}
-	return newCondition(krmv1alpha1.ConditionTypeDependenciesFulfilled, true,
-		krmv1alpha1.ReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
+	return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, true,
+		krmv1alpha1.KRMConfigReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
 }
 
 // readyCondition summarises the others, so a consumer watching only Ready — Helm
@@ -179,18 +179,18 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 func readyCondition(generation int64, conditions ...metav1.Condition) metav1.Condition {
 	for _, condition := range conditions {
 		if condition.Status != metav1.ConditionTrue {
-			return newCondition(krmv1alpha1.ConditionTypeReady, false,
-				krmv1alpha1.ReasonNotReady, condition.Message, generation)
+			return newCondition(krmv1alpha1.KRMConfigConditionTypeReady, false,
+				krmv1alpha1.KRMConfigReasonNotReady, condition.Message, generation)
 		}
 	}
-	return newCondition(krmv1alpha1.ConditionTypeReady, true,
-		krmv1alpha1.ReasonReady, "System is ready", generation)
+	return newCondition(krmv1alpha1.KRMConfigConditionTypeReady, true,
+		krmv1alpha1.KRMConfigReasonReady, "System is ready", generation)
 }
 
 func newCondition(
-	conditionType krmv1alpha1.ConditionType,
+	conditionType krmv1alpha1.KRMConfigConditionType,
 	met bool,
-	reason krmv1alpha1.ConditionReason,
+	reason krmv1alpha1.KRMConfigConditionReason,
 	message string,
 	generation int64,
 ) metav1.Condition {
