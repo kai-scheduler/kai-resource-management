@@ -7,7 +7,8 @@ RED_CONSOLE = "\033[0;31m"
 GREEN_CONSOLE = "\033[0;32m"
 BASE_CONSOLE = "\033[0m"
 CONSOLE_PREFIX = "[$(shell date +'%Y-%m-%d %H:%M:%S')]"
-FAILURE_MESSAGE_HANDLER = ($(ECHO_COMMAND) $(RED_CONSOLE) "$(CONSOLE_PREFIX) Failed to run make target $@" $(BASE_CONSOLE); exit 1)
+# Braces, not a subshell: exit 1 must leave the recipe's own shell.
+FAILURE_MESSAGE_HANDLER = { $(ECHO_COMMAND) $(RED_CONSOLE) "$(CONSOLE_PREFIX) Failed to run make target $@" $(BASE_CONSOLE); exit 1; }
 SUCCESS_MESSAGE_HANDLER = ($(ECHO_COMMAND) $(GREEN_CONSOLE) "$(CONSOLE_PREFIX) Successfully ran make target" $(BASE_CONSOLE))
 
 DOCKER_SOCK_PATH = /var/run/docker.sock
