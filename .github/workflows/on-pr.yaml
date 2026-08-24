@@ -176,8 +176,29 @@ jobs:
           # cache above is the one that matters.
           cache: false
 
+      # /mnt is the larger disk.
+      - name: Move Docker data to /mnt
+        run: |
+          sudo systemctl stop docker
+          sudo mkdir -p /mnt/docker-data
+          echo '{"data-root": "/mnt/docker-data"}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl start docker
+          docker info | grep "Docker Root Dir"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Create the image cache directory
+        run: |
+          sudo mkdir -p /mnt/images
+          sudo chown -R $USER:$USER /mnt/images
+
+      # Consumed by the e2e job.
+      - name: Cache the images and the chart
+        uses: actions/cache@v6
+        with:
+          path: /mnt/images
+          key: images-${{ github.sha }}
 
       - name: Extract package version
         id: package_version
@@ -189,13 +210,25 @@ jobs:
           echo $PACKAGE_VERSION
 
       - name: Build service images
-        run: make build VERSION=$PACKAGE_VERSION
+        shell: bash
+        run: |
+          make build VERSION=$PACKAGE_VERSION \
+            DOCKER_BUILDX_ADDITIONAL_ARGS="--load --cache-from type=gha --cache-to type=gha,mode=max"
+
+          images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION" || true)
+          if [ -z "$images" ]; then
+            echo "make build tagged no images with $PACKAGE_VERSION" >&2
+            docker images >&2
+            exit 1
+          fi
+          docker save $images | gzip > /mnt/images/docker_images.tgz
 
       - name: Build Helm chart
         run: |
           helm dependency build ./deployments/kai-resource-management-chart
           mkdir -p ./bin/charts
           helm package ./deployments/kai-resource-management-chart -d ./bin/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
+          cp ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz /mnt/images/
 
   skip-build-and-test-message:
     name: Skip Build and Test Message
@@ -206,3 +239,103 @@ jobs:
       - name: Skip message
         run: |
           echo "Skipping build and test since only documentation files (.md or docs/) were changed."
+
+  e2e-tests:
+    name: Run E2E Tests
+    needs: [ build, check-build-and-test-required ]
+    if: needs.check-build-and-test-required.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: ${{ needs.build.outputs.package_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # --- BEGIN private API module access ---------------------------------
+      # TEMPORARY: the suites compile against kai-resource-management-api, which
+      # is private. Remove with the other copies once the repositories are public.
+      - name: Mint a token for the private API module
+        uses: actions/create-github-app-token@v2
+        id: apptoken
+        with:
+          app-id: ${{ secrets.KAI_MODULE_READER_APP_ID }}
+          private-key: ${{ secrets.KAI_MODULE_READER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: kai-resource-management-api
+
+      - name: Configure Go and git for the private API module
+        env:
+          TOKEN: ${{ steps.apptoken.outputs.token }}
+        run: |
+          MODULE="github.com/kai-scheduler/kai-resource-management-api"
+          echo "GOPRIVATE=$MODULE" >> "$GITHUB_ENV"
+          git config --global \
+            url."https://x-access-token:${TOKEN}@$MODULE".insteadOf \
+            "https://$MODULE"
+      # --- END private API module access -----------------------------------
+
+      - name: Setup e2e cluster
+        uses: ./.github/actions/setup-e2e-cluster
+        with:
+          package_version: ${{ needs.build.outputs.package_version }}
+
+      - name: Install KAI Resource Management
+        run: |
+          helm install krm /mnt/images/kai-resource-management-$PACKAGE_VERSION.tgz \
+            --namespace kai-resource-management --create-namespace \
+            --values ./hack/e2e-values.yaml \
+            --set image.tag=$PACKAGE_VERSION \
+            --wait --timeout 10m
+
+      - name: Run e2e tests
+        run: make test-e2e GINKGO_FLAGS="--output-dir=. --json-report=e2e-report.json"
+
+      - name: Report skipped specs
+        if: always()
+        run: |
+          jq -r '.[].SpecReports[] | select(.State == "skipped")
+            | ([.ContainerHierarchyTexts[], .LeafNodeText] | join(" > "))' \
+            e2e-report.json 2>/dev/null || echo "No skipped specs."
+
+      - name: Dump controller logs
+        if: failure()
+        run: |
+          kubectl -n kai-resource-management get pods -o wide || true
+          for deploy in krm-operator project-controller nodepool-controller pod-group-assigner; do
+            echo "===== $deploy ====="
+            kubectl -n kai-resource-management logs deploy/$deploy --tail=200 || true
+          done
+
+      - name: Uninstall KAI Resource Management
+        run: |
+          helm uninstall krm -n kai-resource-management
+          echo "Waiting up to 60 seconds for pods to terminate..."
+          for i in {1..12}; do
+            REMAINING=$(kubectl get pods -n kai-resource-management --no-headers 2>/dev/null \
+              | grep -v Terminating | wc -l)
+            if [ "$REMAINING" -eq 0 ]; then
+              echo "All pods gone or terminating."
+              exit 0
+            fi
+            echo "$REMAINING pod(s) still running... (attempt $i/12)"
+            sleep 5
+          done
+          echo "Pods did not terminate within 60 seconds; uninstall is incomplete."
+          kubectl get pods -n kai-resource-management
+          exit 1
+
+  cleanup-images-cache:
+    name: Cleanup Images Cache
+    needs: [ e2e-tests, check-build-and-test-required ]
+    # No always(): a failed e2e must keep the cache so "Re-run failed jobs" can
+    # restore the images. Stale entries fall to GitHub's own cache eviction.
+    if: success() && needs.check-build-and-test-required.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete the images cache
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh cache delete "images-${{ github.sha }}" --repo ${{ github.repository }}
