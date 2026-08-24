@@ -9,14 +9,15 @@ suite: admission webhooks and their TLS certs
 templates:
   - templates/pod-group-assigner/webhook.yaml
   - templates/nodepool-controller/webhook.yaml
-  - templates/nodepool-controller/deployment.yaml
-  - templates/nodepool-controller/service.yaml
+  - templates/krm-config.yaml
   - templates/project-controller/webhook.yaml
 release:
   name: rm
   namespace: kai
 set:
   image.registry: reg.example.com/kai
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
   - it: renders a TLS Secret per controller, minted by the chart
     asserts:
@@ -144,23 +145,33 @@ tests:
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
 
-  - it: mounts the cert as a required Secret and serves on the port the Service targets
-    # Not optional: the chart creates the Secret, so a missing one is a real failure rather
-    # than a webhook that silently never answers.
+  - it: an overridden Secret name reaches the operand that mounts it
+    # The chart mints the Secret and the operator mounts it, so the two only meet
+    # through this name. That it is mounted at all is asserted in the operand's Go tests.
+    set:
+      nodePoolController.webhook.certSecretName: custom-tls
     asserts:
       - equal:
-          path: spec.template.spec.volumes[?(@.name=="webhook-certs")].secret.secretName
-          value: nodepool-controller-tls-secret
-        template: templates/nodepool-controller/deployment.yaml
-      - contains: {path: "spec.template.spec.containers[0].args", content: "8443"}
-        template: templates/nodepool-controller/deployment.yaml
+          path: spec.nodePoolController.webhooks.certSecretName
+          value: custom-tls
+        template: templates/krm-config.yaml
 
-  - it: passes each chart-deployed controller the flag that registers its handler
+  # Unset means the operator applies its own default, which is the same name this
+  # chart mints. Emitting it would claim the field under server-side apply instead.
+  - it: says nothing about the Secret name when it is left alone
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-nodepool-validation-webhook=true
-        template: templates/nodepool-controller/deployment.yaml
+      - notExists:
+          path: spec.nodePoolController.webhooks.certSecretName
+        template: templates/krm-config.yaml
+
+  - it: gates the handler on the same value that renders the configuration
+    # One value with two readers: this chart decides whether the webhook is registered
+    # at all, and the operand decides whether the controller serves it.
+    asserts:
+      - equal:
+          path: spec.nodePoolController.webhooks.enableNodePoolValidation
+          value: true
+        template: templates/krm-config.yaml
   - it: drops only its own webhook when a gate is turned off
     set:
       projectController.webhook.department: false
@@ -195,16 +206,10 @@ tests:
         template: templates/nodepool-controller/webhook.yaml
       - hasDocuments: {count: 0}
         template: templates/project-controller/webhook.yaml
-      - notExists: {path: spec.template.spec.volumes}
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --enable-nodepool-validation-webhook=false
-        template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.ports
-          content: {name: webhook, protocol: TCP, port: 443, targetPort: 8443}
-        template: templates/nodepool-controller/service.yaml
+      - equal:
+          path: spec.nodePoolController.webhooks.enableNodePoolValidation
+          value: false
+        template: templates/krm-config.yaml
 
   - it: defers to the OpenShift service-CA instead of minting its own cert
     set:

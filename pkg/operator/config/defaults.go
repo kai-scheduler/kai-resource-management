@@ -106,15 +106,6 @@ func setGlobalDefaults(global *krmv1alpha1.GlobalConfig) {
 	global.ServiceMonitor.Accounting = kaicommon.SetDefault(global.ServiceMonitor.Accounting, ptr.To(true))
 }
 
-func setNodePoolControllerDefaults(
-	nodePoolController *krmv1alpha1.NodePoolController, global *krmv1alpha1.GlobalConfig,
-) {
-	nodePoolController.Service = setServiceDefaults(
-		nodePoolController.Service, NodePoolControllerImageName, nodePoolControllerResources())
-	nodePoolController.Replicas = kaicommon.SetDefault(nodePoolController.Replicas, global.ReplicaCount)
-	nodePoolController.VPA = kaicommon.SetDefault(nodePoolController.VPA, global.VPA)
-}
-
 func setPortMappingDefaults(
 	portMapping *krmv1alpha1.PortMapping, name string, port, targetPort int32,
 ) *krmv1alpha1.PortMapping {

@@ -1,49 +1,41 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
-suite: nodepool ServiceMonitors (primary + accounting)
+# The operator builds the ServiceMonitors, so these chart values reach it through
+# the KRMConfig. That the nodepool-controller gets two monitors on one endpoint,
+# and which of them carries the accounting label, is asserted in the operand's own
+# Go tests.
+suite: serviceMonitor values reach the KRMConfig
 templates:
-  - templates/nodepool-controller/servicemonitor.yaml
+  - templates/krm-config.yaml
 release:
   name: rm
   namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
-  - it: renders both the primary and accounting ServiceMonitors by default
-    set:
-      image.registry: reg.example.com/kai
+  # Both are on by default, and the CR says nothing: an emitted value would take
+  # ownership of the field under server-side apply and defeat the operator's default.
+  - it: says nothing while both monitors are wanted
     asserts:
-      - hasDocuments:
-          count: 2
+      - notExists:
+          path: spec.global.serviceMonitor
 
-  - it: the accounting ServiceMonitor carries the kai.scheduler/accounting label
+  - it: turns every monitor off
     set:
-      image.registry: reg.example.com/kai
-    documentSelector:
-      path: metadata.name
-      value: nodepool-controller-accounting
-    asserts:
-      - equal:
-          path: metadata.labels["kai.scheduler/accounting"]
-          value: "true"
-      - equal:
-          path: spec.namespaceSelector.matchNames[0]
-          value: kai
-
-  - it: drops the accounting ServiceMonitor when serviceMonitor.accounting is false
-    set:
-      image.registry: reg.example.com/kai
-      serviceMonitor.accounting: false
-    asserts:
-      - hasDocuments:
-          count: 1
-      - equal:
-          path: metadata.name
-          value: nodepool-controller
-
-  - it: omits all ServiceMonitors when serviceMonitor.create is false
-    set:
-      image.registry: reg.example.com/kai
       serviceMonitor.create: false
     asserts:
-      - hasDocuments:
-          count: 0
+      - equal:
+          path: spec.global.serviceMonitor.enabled
+          value: false
+
+  - it: turns off only the accounting monitor
+    set:
+      serviceMonitor.accounting: false
+    asserts:
+      - equal:
+          path: spec.global.serviceMonitor.accounting
+          value: false
+      - notExists:
+          path: spec.global.serviceMonitor.enabled

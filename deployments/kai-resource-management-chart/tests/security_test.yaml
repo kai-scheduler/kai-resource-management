@@ -1,14 +1,20 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
+# The operator is the only service this chart still renders a Deployment for; the
+# other three get the same hardening applied by the operator, from the context
+# carried on the KRMConfig. The operand's own Go tests assert that end.
 suite: container securityContext hardening and image helper
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-operator/deployment.yaml
+  - templates/krm-config.yaml
 release:
   name: krm
   namespace: kai-resource-management
 tests:
   - it: applies KAI's hardened container securityContext by default (non-OpenShift)
+    templates:
+      - templates/krm-operator/deployment.yaml
     set:
       image.registry: reg.example.com/kai
     asserts:
@@ -27,6 +33,8 @@ tests:
 
   # runAsUser matches the uid the SCC pins, so the manifest and the SCC agree.
   - it: applies the same hardening on OpenShift
+    templates:
+      - templates/krm-operator/deployment.yaml
     set:
       image.registry: reg.example.com/kai
       openshift: true
@@ -45,6 +53,8 @@ tests:
           content: all
 
   - it: never sets a pod-level securityContext
+    templates:
+      - templates/krm-operator/deployment.yaml
     set:
       image.registry: reg.example.com/kai
       openshift: true
@@ -53,6 +63,8 @@ tests:
           path: spec.template.spec.securityContext
 
   - it: merges a user-supplied global.securityContext over the hardened defaults
+    templates:
+      - templates/krm-operator/deployment.yaml
     set:
       image.registry: reg.example.com/kai
       global.securityContext.runAsUser: 2000
@@ -65,9 +77,35 @@ tests:
           value: false
 
   - it: renders the image without a leading slash when no registry is set
+    templates:
+      - templates/krm-operator/deployment.yaml
     set:
       image.registry: ""
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: nodepool-controller:0.0.0
+          value: krm-operator:0.0.0
+
+  # Left unset the operator applies its own hardened default, so the CR must stay
+  # silent rather than claim the field under server-side apply.
+  - it: carries a securityContext override to the services, and nothing otherwise
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+      global.securityContext.runAsUser: 2000
+    asserts:
+      - equal:
+          path: spec.global.securityContext.runAsUser
+          value: 2000
+
+  - it: says nothing about the securityContext by default
+    templates:
+      - templates/krm-config.yaml
+    set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
+    asserts:
+      - notExists:
+          path: spec.global.securityContext

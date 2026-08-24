@@ -1454,6 +1454,132 @@ spec:
                 description: NodePoolController configures the nodepool-controller
                   service.
                 properties:
+                  args:
+                    description: |-
+                      Args holds the controller's own command line flags. An unset field means the
+                      flag is not passed at all and the binary's own default applies.
+                    properties:
+                      dcgmExporterNamespace:
+                        description: DcgmExporterNamespace is the namespace of the
+                          DCGM exporter Service.
+                        type: string
+                      debug:
+                        description: Debug raises the controller's log verbosity.
+                        type: boolean
+                      excludedNodepoolName:
+                        description: ExcludedNodepoolName is the reserved node pool
+                          unmanaged nodes are moved into.
+                        type: string
+                      groveTopologyAnnotation:
+                        description: |-
+                          GroveTopologyAnnotation is the annotation key linking a topology to its Grove
+                          topology.
+                        type: string
+                      groveTopologyResourceVersionAnnotation:
+                        description: |-
+                          GroveTopologyResourceVersionAnnotation is the annotation key tracking the
+                          synced Grove topology resource version.
+                        type: string
+                      leaderElect:
+                        description: |-
+                          LeaderElect overrides global.leaderElection for this service. Unset means
+                          leader election follows global.leaderElection, or a replica count above one.
+                        type: boolean
+                      managedNodesConfigName:
+                        description: ManagedNodesConfigName is the singleton ManagedNodesConfig
+                          the controller reconciles.
+                        type: string
+                      metricsNamespace:
+                        description: |-
+                          MetricsNamespace prefixes every Prometheus metric the controller emits or
+                          queries, including the queue-allocation metric names written into each
+                          SchedulingShard.
+                        type: string
+                      schedulingShardArgs:
+                        description: |-
+                          SchedulingShardArgs is a JSON-encoded map of cluster-wide KAI scheduler args
+                          merged into every SchedulingShard the controller writes. Empty means no
+                          overrides, so each shard runs on the scheduler's own defaults.
+                        type: string
+                      toExcludeLabel:
+                        description: |-
+                          ToExcludeLabel is the node label key marking a node pending graceful drain
+                          before exclusion.
+                        type: string
+                      unschedulableLabel:
+                        description: |-
+                          UnschedulableLabel is the node label key marking a node the controller made
+                          unschedulable.
+                        type: string
+                    type: object
+                  controllerService:
+                    description: |-
+                      ControllerService describes the ports the controller listens on and the
+                      Service publishes. Named to avoid colliding with Service above.
+                    properties:
+                      metrics:
+                        description: Metrics is the Prometheus metrics port, and the
+                          one both ServiceMonitors scrape.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                      nodePoolMetrics:
+                        description: |-
+                          NodePoolMetrics is a second port the Service publishes, which no other KRM
+                          service has. Published but not scraped by either ServiceMonitor.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                      webhook:
+                        description: Webhook is the admission webhook port.
+                        properties:
+                          name:
+                            description: Name is the port name, which a ServiceMonitor
+                              endpoint refers to.
+                            type: string
+                          port:
+                            description: Port is the port the Service publishes.
+                            format: int32
+                            type: integer
+                          targetPort:
+                            description: TargetPort is the port the container listens
+                              on.
+                            format: int32
+                            type: integer
+                        type: object
+                    type: object
+                  extraArgs:
+                    description: |-
+                      ExtraArgs are appended verbatim after every other flag, so a flag repeated
+                      here overrides the one built above it. The escape hatch for a flag this API
+                      does not model yet.
+                    items:
+                      type: string
+                    type: array
                   replicas:
                     description: Replicas overrides global.replicaCount for this service.
                     format: int32
@@ -2624,6 +2750,28 @@ spec:
                             - Auto
                             type: string
                         type: object
+                    type: object
+                  webhooks:
+                    description: |-
+                      Webhooks configures the admission webhook the controller serves. The webhook
+                      configuration itself and its TLS certificate stay with the Helm chart; this
+                      toggle must agree with it, or the controller serves a webhook nothing calls,
+                      or the API server calls one nothing serves.
+                    properties:
+                      certSecretName:
+                        description: |-
+                          CertSecretName is the TLS Secret the controller mounts. The Helm chart mints
+                          it, or on OpenShift the service-CA operator does.
+                        type: string
+                      enableNodePoolValidation:
+                        description: |-
+                          EnableNodePoolValidation serves the NodePool validating webhook, which rejects
+                          a NodePool created without a unique label key and value, and refuses to delete
+                          the default node pool, which nothing recreates.
+
+                          The binary defaults this to true and would then start a TLS server with no
+                          certificate mounted, so the operand always passes it explicitly.
+                        type: boolean
                     type: object
                 type: object
               podGroupAssigner:

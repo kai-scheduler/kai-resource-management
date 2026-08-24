@@ -5,7 +5,7 @@ Components:
   ✓ krm-operator (reconciles KRMConfig)
 {{- end }}
 {{- if .Values.nodePoolController.enabled }}
-  ✓ nodepool-controller
+  ✓ nodepool-controller (installed by krm-operator)
 {{- end }}
 {{- if .Values.projectController.enabled }}
   ✓ project-controller (installed by krm-operator)

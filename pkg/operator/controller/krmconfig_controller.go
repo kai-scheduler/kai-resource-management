@@ -19,14 +19,14 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"
+	nodepoolcontroller "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/nodepool-controller"
 	podgroupassigner "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/pod-group-assigner"
 	projectcontroller "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/project-controller"
 )
 
-// KRMConfigReconcilerOperands is the ordered set of services this operator
-// installs. nodepool-controller is added by its own ticket; until then the chart
-// still deploys it directly.
+// KRMConfigReconcilerOperands is the ordered set of services this operator installs.
 var KRMConfigReconcilerOperands = []operands.Operand{
+	&nodepoolcontroller.NodePoolController{},
 	&projectcontroller.ProjectController{},
 	&podgroupassigner.PodGroupAssigner{},
 }

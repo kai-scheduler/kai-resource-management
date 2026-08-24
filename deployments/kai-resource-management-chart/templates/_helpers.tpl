@@ -194,6 +194,7 @@ spec:
     {{- trim $globalBody | nindent 4 }}
   {{- end }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "nodePoolController" "comp" .Values.nodePoolController) }}
+  {{- include "kai-resource-management.krm-config-nodepool-controller" $ }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "projectController" "comp" .Values.projectController) }}
   {{- include "kai-resource-management.krm-config-project-controller" $ }}
   {{- include "kai-resource-management.krm-config-service" (dict "root" $ "key" "podGroupAssigner" "comp" .Values.podGroupAssigner) }}
@@ -311,6 +312,99 @@ chart's own Deployment uses - one source, two consumers. Usage:
     {{- if $comp.replicas }}
     replicas: {{ $comp.replicas }}
     {{- end }}
+{{- end -}}
+
+{{/*
+The nodepool-controller keys the generic service block does not cover, emitted as
+siblings of it. Values are read from the same nodePoolController.* keys the chart's
+own RBAC and webhook templates use, so a setting has one home and two readers.
+*/}}
+{{- define "kai-resource-management.krm-config-nodepool-controller" -}}
+{{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "nodePoolController" "args" (($.Values.nodePoolController | default dict).args | default dict)) }}
+{{- $comp := .Values.nodePoolController | default dict -}}
+{{- $metrics := $comp.metrics | default dict -}}
+{{- $svc := $comp.service | default dict -}}
+{{- $webhook := $comp.webhook | default dict -}}
+{{- $args := $comp.args | default dict -}}
+    {{- if or $metrics.port $metrics.name $svc.port $svc.targetPort $webhook.port $webhook.targetPort }}
+    controllerService:
+      {{- if or $metrics.port $metrics.name }}
+      metrics:
+        {{- with $metrics.port }}
+        # One chart value drives both: the container listens on the port the Service publishes.
+        port: {{ . | int }}
+        targetPort: {{ . | int }}
+        {{- end }}
+        {{- with $metrics.name }}
+        name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if or $svc.port $svc.targetPort }}
+      nodePoolMetrics:
+        {{- with $svc.port }}
+        port: {{ . | int }}
+        {{- end }}
+        {{- with $svc.targetPort }}
+        targetPort: {{ . | int }}
+        {{- end }}
+      {{- end }}
+      {{- if or $webhook.port $webhook.targetPort }}
+      webhook:
+        {{- with $webhook.port }}
+        port: {{ . | int }}
+        {{- end }}
+        {{- with $webhook.targetPort }}
+        targetPort: {{ . | int }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if or (hasKey $webhook "nodepool") $webhook.certSecretName }}
+    webhooks:
+      {{- if hasKey $webhook "nodepool" }}
+      enableNodePoolValidation: {{ $webhook.nodepool }}
+      {{- end }}
+      {{- with $webhook.certSecretName }}
+      certSecretName: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- $argsBody := include "kai-resource-management.krm-config-nodepool-controller-args" (dict
+        "args" $args "metricsNamespace" $metrics.namespace "dcgmExporterNamespace" $comp.dcgmExporterNamespace) }}
+    {{- if trim $argsBody }}
+    args:
+      {{- trim $argsBody | nindent 6 }}
+    {{- end }}
+    {{- with $comp.extraArgs }}
+    extraArgs:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end -}}
+
+{{/*
+The typed args of the KRMConfig, taken from nodePoolController.args. Only these keys
+are modelled; anything else set there is ignored, and belongs in extraArgs. qps and
+burst are deliberately absent: they live on service.k8sClientConfig. metricsNamespace
+and dcgmExporterNamespace are passed in because their chart values sit outside args.
+*/}}
+{{- define "kai-resource-management.krm-config-nodepool-controller-args" -}}
+{{- $args := .args -}}
+{{- range $key := list "debug" "leaderElect" "schedulingShardArgs" "excludedNodepoolName"
+    "managedNodesConfigName" "toExcludeLabel" "unschedulableLabel"
+    "groveTopologyAnnotation" "groveTopologyResourceVersionAnnotation" }}
+{{- if hasKey $args $key }}
+{{- $value := index $args $key }}
+{{- if kindIs "bool" $value }}
+{{ $key }}: {{ $value }}
+{{- else if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+{{ $key }}: {{ toString $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with .metricsNamespace }}
+metricsNamespace: {{ . | quote }}
+{{- end }}
+{{- with .dcgmExporterNamespace }}
+dcgmExporterNamespace: {{ . | quote }}
+{{- end }}
 {{- end -}}
 
 {{/*

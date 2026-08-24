@@ -111,8 +111,8 @@ commonArgs:
   schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
 
 # KRM operator. Reconciles the cluster-scoped, singleton KRMConfig and deploys the
-# services described by it. It currently deploys nothing: the three controllers are
-# installed by their own templates below until they become operands.
+# three services described by it. Their RBAC and admission webhooks stay with this
+# chart; everything else each service needs is created by the operator.
 krmOperator:
   enabled: true
   image:
@@ -152,18 +152,21 @@ crdUpgrader:
     name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
+# The krm-operator installs this controller; these values reach it through the KRMConfig.
+# Its RBAC and admission webhook are still rendered by this chart.
 nodePoolController:
   enabled: true
   image:
     name: nodepool-controller
     # registry / tag / pullPolicy fall back to global.
-  # replicas: 1
-  # resources: { limits: {cpu, memory}, requests: {cpu, memory} }  # defaults in template
+  # replicas / resources: the operator's defaults apply when unset.
   args:
     debug: false
   # Namespace of the DCGM exporter Service. Omitted by default so the binary's own default
   # applies; set to override.
   # dcgmExporterNamespace: ""
+  # Flags the KRMConfig does not model, appended after every other argument.
+  extraArgs: []
   webhook:
     # Validate NodePools: on create, reject a missing or duplicate label key/value
     # pair; on delete, refuse to remove defaultNodePool.name, the catch-all that

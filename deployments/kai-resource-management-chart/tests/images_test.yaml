@@ -1,29 +1,32 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
+# The services are installed by the operator, so image resolution lands in the
+# KRMConfig as a repository/name/tag triple rather than in a rendered Deployment.
 suite: image resolution
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-config.yaml
 release:
   name: rm
   namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
   - it: uses image.registry + component name + chart appVersion tag
     set:
       image.registry: reg.example.com/kai
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: reg.example.com/kai/nodepool-controller:0.0.0
+      - equal: {path: spec.nodePoolController.service.image.repository, value: reg.example.com/kai}
+      - equal: {path: spec.nodePoolController.service.image.name, value: nodepool-controller}
+      - equal: {path: spec.nodePoolController.service.image.tag, value: 0.0.0}
 
   - it: honors image.tag over the chart appVersion
     set:
       image.registry: reg.example.com/kai
       image.tag: "2.26.0"
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: reg.example.com/kai/nodepool-controller:2.26.0
+      - equal: {path: spec.nodePoolController.service.image.tag, value: 2.26.0}
 
   # Tag resolution only; the full FIPS surface is covered by fips_test.yaml.
   - it: appends -fips when global.fipsMode is enabled
@@ -33,9 +36,7 @@ tests:
       global.fipsMode: "on"
       kai-scheduler.global.fips: true
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: reg.example.com/kai/nodepool-controller:2.26.0-fips
+      - equal: {path: spec.nodePoolController.service.image.tag, value: 2.26.0-fips}
 
   - it: per-component image overrides win
     set:
@@ -43,6 +44,12 @@ tests:
       nodePoolController.image.registry: other.example.com/x
       nodePoolController.image.tag: custom
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: other.example.com/x/nodepool-controller:custom
+      - equal: {path: spec.nodePoolController.service.image.repository, value: other.example.com/x}
+      - equal: {path: spec.nodePoolController.service.image.tag, value: custom}
+
+  - it: resolves each service the same way
+    set:
+      image.registry: reg.example.com/kai
+    asserts:
+      - equal: {path: spec.projectController.service.image.name, value: project-controller}
+      - equal: {path: spec.podGroupAssigner.service.image.name, value: pod-group-assigner}

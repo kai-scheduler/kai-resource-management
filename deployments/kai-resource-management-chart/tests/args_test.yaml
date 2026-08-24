@@ -1,37 +1,21 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
+# Only the vocabulary that still renders into a template is asserted here. Every
+# service is operator-installed, so the rest is covered by each service's
+# krm_config_*_test.yaml, shared_args_test.yaml, and the operands' Go tests.
 suite: controller args exposed as chart values
 templates:
-  - templates/nodepool-controller/deployment.yaml
+  - templates/krm-config.yaml
   - templates/pod-group-assigner/webhook.yaml
 release:
   name: rm
   namespace: kai
 set:
   image.registry: reg.example.com/kai
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
 tests:
-  - it: kai-scheduler.global.nodePoolLabelKey cascades --nodepool-label-key to all three controllers
-    set:
-      kai-scheduler.global.nodePoolLabelKey: custom/np
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --nodepool-label-key
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: custom/np
-        template: templates/nodepool-controller/deployment.yaml
-  - it: kai-scheduler.podgrouper.queueLabelKey cascades --queue-label-key to project + pod-group-assigner, not nodepool
-    set:
-      kai-scheduler.podgrouper.queueLabelKey: custom/queue
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --queue-label-key
-        template: templates/nodepool-controller/deployment.yaml
-
   - it: the webhook namespaceSelector defaults to the controllers' namespace-project label
     asserts:
       - equal:
@@ -52,10 +36,15 @@ tests:
   - it: commonArgs.namespaceProjectLabelKey moves the selector and the flag together
     # The selector must name the label project-controller actually writes on project
     # namespaces. If it lagged behind an override the webhooks would simply never match -
-    # silently, since a selector miss produces no admission error.
+    # silently, since a selector miss produces no admission error. This is the one place
+    # the two ends are asserted together: the selector renders here, the flag on the CR.
     set:
       commonArgs.namespaceProjectLabelKey: acme/project
     asserts:
+      - equal:
+          path: spec.global.namespaceProjectLabelKey
+          value: acme/project
+        template: templates/krm-config.yaml
       - equal:
           path: webhooks[0].namespaceSelector.matchExpressions[0].key
           value: acme/project
@@ -70,114 +59,3 @@ tests:
         documentSelector:
           path: metadata.name
           value: kai-pod-mutation
-  - it: commonArgs.schedulerName reaches nodepool-controller and pod-group-assigner, not project-controller
-    # Both binaries must target the same scheduler: nodepool-controller stamps it on
-    # SchedulingShards, pod-group-assigner writes it on pods when enforcement applies.
-    set:
-      commonArgs.schedulerName: my-scheduler
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-name
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: my-scheduler
-        template: templates/nodepool-controller/deployment.yaml
-  - it: nodepool-controller pins --scheduler-namespace to the release namespace
-    template: templates/nodepool-controller/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-namespace
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: kai
-
-  - it: global.leaderElection true renders --leader-elect on all three controllers
-    set:
-      global.leaderElection: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/nodepool-controller/deployment.yaml
-  - it: explicit args.leaderElect false overrides a global-on setting (issue 1 regression)
-    set:
-      global.leaderElection: true
-      nodePoolController.args.leaderElect: false
-      projectController.args.leaderElect: false
-      podGroupAssigner.args.leaderElect: false
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/nodepool-controller/deployment.yaml
-  - it: nodepool-controller metrics.namespace / schedulingShardArgs / excludedNodepoolName render
-    set:
-      nodePoolController.metrics.namespace: kai
-      nodePoolController.args.schedulingShardArgs: '{"v":"2"}'
-      nodePoolController.args.excludedNodepoolName: kai-excluded
-    template: templates/nodepool-controller/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --metrics-namespace
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduling-shard-args
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --excluded-nodepool-name
-
-  - it: arbitrary <comp>.args keys cascade generically as camelCase -> --kebab-case flags
-    # Proves any go-operator flag is settable from values without a template edit — required
-    # for using this chart as a subchart of a parent that drives the full arg surface.
-    set:
-      nodePoolController.args.unschedulableLabel: acme/unschedulable
-      nodePoolController.args.toExcludeLabel: acme/exclude
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --unschedulable-label
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --to-exclude-label
-        template: templates/nodepool-controller/deployment.yaml
-  - it: defaultNodePool.name is the single source for --default-nodepool-name on all three controllers
-    set:
-      defaultNodePool.name: my-default
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --default-nodepool-name
-        template: templates/nodepool-controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: my-default
-        template: templates/nodepool-controller/deployment.yaml
-  - it: vocabulary/operational flags are omitted by default (render-when-set)
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --nodepool-label-key
-        template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --scheduler-name
-        template: templates/nodepool-controller/deployment.yaml
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --qps
-        template: templates/nodepool-controller/deployment.yaml
-  - it: commonArgs.enforceSchedulerAnnotationKey reaches both sides of the enforcement contract
-    # project-controller writes the annotation, pod-group-assigner reads it back; a single
-    # shared value keeps the two keys from drifting apart.
-    set:
-      commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].args
-          content: --enforce-scheduler-annotation-key
-        template: templates/nodepool-controller/deployment.yaml

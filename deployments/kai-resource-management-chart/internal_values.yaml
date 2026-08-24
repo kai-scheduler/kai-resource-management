@@ -7,10 +7,10 @@
 # the templates apply via `| default` plus the per-controller args, so they
 # don't clutter values.yaml. To change any of these, add the key to values.yaml (or --set it).
 #
-# Every key under a controller's `args:` renders generically as a CLI flag: the camelCase
-# key becomes a --kebab-case flag, emitted only when non-empty. So any controller flag is
-# settable from values with no template change — this is what lets a parent chart drive the
-# full arg surface. `debug`/`leaderElect` are presence/bool flags handled inline. The
+# Every service is installed by the krm-operator, so a key under a controller's `args:`
+# reaches its binary through the KRMConfig rather than through a template. Only the keys
+# listed below are modelled on the CR; anything else set there is ignored and belongs in
+# that service's `extraArgs`, which is appended verbatim after every other flag. The
 # node-pool / queue label keys are NOT here: they are shared vocabulary sourced from the
 # kai-scheduler subchart (kai-scheduler.global.nodePoolLabelKey / podgrouper.queueLabelKey).
 
@@ -50,27 +50,30 @@ krmOperator:
     qps: ""                  # --qps (default 50)
     burst: ""                # --burst (default 300)
 
+# Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
+# operator applies its own default for whatever is left unset, and those defaults are
+# in pkg/operator/config, not in a template.
 nodePoolController:
-  replicas: 1
+  replicas: 1                       # unset ⇒ global.replicaCount
   metrics:
-    port: 9400
-    name: metrics
+    port: 9400                      # also the container port; reaches the CR as both port and targetPort
+    name: metrics                   # the port name both ServiceMonitors scrape
     namespace: ""                   # --metrics-namespace (empty ⇒ binary default "kai")
+  # The extra "np-metrics" Service port, which no other KRM service has. The Service
+  # type is always ClusterIP: the operator owns that field under server-side apply.
   service:
-    type: ClusterIP
-    port: 8080          # "np-metrics" service port
+    port: 8080
     targetPort: 8080
   dcgmExporterNamespace: ""         # --dcgm-exporter-namespace
   webhook:
     port: 443                       # Service port the API server dials
     targetPort: 8443                # container --webhook-port
     certSecretName: nodepool-controller-tls-secret
-  # Per-controller args (empty ⇒ binary default). camelCase key ⇒ --kebab-case flag:
   args:
     debug: false                    # --debug (presence)
     # leaderElect: false            # --leader-elect override; unset ⇒ global.leaderElection / replicas>1
-    qps: ""                         # --qps   (binary default 50)
-    burst: ""                       # --burst (binary default 300)
+    qps: ""                         # --qps   (default 50); reaches the CR as service.k8sClientConfig.qps
+    burst: ""                       # --burst (default 300); reaches the CR as service.k8sClientConfig.burst
     schedulingShardArgs: ""         # --scheduling-shard-args (JSON map merged into every SchedulingShard)
     excludedNodepoolName: ""        # --excluded-nodepool-name
     managedNodesConfigName: ""      # --managed-nodes-config-name

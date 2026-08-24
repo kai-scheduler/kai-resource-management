@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Shared vocabulary must agree across every service, so commonArgs is the single
-# source and a per-service copy is refused rather than quietly ignored.
+# source and a per-service copy is refused rather than quietly ignored. Every
+# service is operator-installed, so the shared keys travel on spec.global.
 suite: commonArgs is the only source of shared vocabulary
 release:
   name: krm
@@ -10,10 +11,12 @@ release:
 set:
   image.registry: reg.example.com/kai
 tests:
-  - it: refuses a shared key under a chart-rendered controller
+  - it: refuses a shared key under nodepool-controller
     templates:
-      - templates/nodepool-controller/deployment.yaml
+      - templates/krm-config.yaml
     set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
       nodePoolController.args.schedulerName: np-override
     asserts:
       - failedTemplate:
@@ -43,29 +46,15 @@ tests:
 
   - it: still lets a service set its own non-shared args
     templates:
-      - templates/nodepool-controller/deployment.yaml
+      - templates/krm-config.yaml
     set:
+      krmConfigDeployer.enabled: false
+      krmConfig.render: true
       nodePoolController.args.toExcludeLabel: acme/exclude
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --to-exclude-label
+      - equal: {path: spec.nodePoolController.args.toExcludeLabel, value: acme/exclude}
 
-  - it: carries the shared vocabulary from commonArgs to the chart-rendered controller
-    templates:
-      - templates/nodepool-controller/deployment.yaml
-    set:
-      commonArgs.schedulerName: shared-scheduler
-      commonArgs.finalizerDomain: acme.io
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: shared-scheduler
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: acme.io
-
-  - it: carries it to the operator-installed services through spec.global
+  - it: carries every shared key to the services through spec.global
     templates:
       - templates/krm-config.yaml
     set:
@@ -73,9 +62,15 @@ tests:
       krmConfig.render: true
       commonArgs.schedulerName: shared-scheduler
       commonArgs.projectLabelKey: acme/project
+      commonArgs.finalizerDomain: acme.io
+      commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
     asserts:
       - equal: {path: spec.global.schedulerName, value: shared-scheduler}
       - equal: {path: spec.global.projectLabelKey, value: acme/project}
+      - equal: {path: spec.global.finalizerDomain, value: acme.io}
+      # project-controller writes the annotation, pod-group-assigner reads it back; a
+      # single shared value keeps the two keys from drifting apart.
+      - equal: {path: spec.global.enforceSchedulerAnnotationKey, value: acme/enforce-scheduler-name}
 
   - it: defaultNodePool.name is the single source for the default node pool
     templates:
