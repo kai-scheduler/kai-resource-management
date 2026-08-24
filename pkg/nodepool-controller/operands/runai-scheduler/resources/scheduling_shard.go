@@ -12,6 +12,7 @@ import (
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	usagedbapi "github.com/kai-scheduler/KAI-scheduler/pkg/scheduler/cache/usagedb/api"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rs/zerolog/log"
 	"github.com/xhit/go-str2duration/v2"
@@ -24,7 +25,6 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/schedulingshardargs"
 )
 
 const (

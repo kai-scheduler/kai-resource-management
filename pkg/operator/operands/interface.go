@@ -6,9 +6,8 @@ package operands
 import (
 	"context"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
 
 // ResourceFunc builds one object of an operand's desired state. Returning a nil

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -25,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/common"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"

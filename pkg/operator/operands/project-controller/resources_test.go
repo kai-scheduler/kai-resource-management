@@ -6,12 +6,11 @@ package projectcontroller
 import (
 	"context"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
-
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 )
 
 var _ = Describe("buildArgsList", func() {

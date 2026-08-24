@@ -8,12 +8,12 @@ import (
 	"errors"
 	"slices"
 
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/config"
 	statusreconciler "github.com/kai-scheduler/kai-resource-management/pkg/operator/controller/status-reconciler"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"

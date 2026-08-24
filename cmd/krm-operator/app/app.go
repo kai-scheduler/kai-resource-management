@@ -4,6 +4,7 @@
 package app
 
 import (
+	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -21,7 +22,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/kai-scheduler/kai-resource-management/cmd/krm-operator/config"
-	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management/pkg/operator/apis/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/controller"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 )
