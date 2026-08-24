@@ -63,9 +63,11 @@ make test
 The root Makefile is the supported command interface. Component-specific
 Makefiles are not allowed.
 
-End-to-end infrastructure is developed separately. Do not add cluster-mutating
-tests without the centralized safety preflight described in
-[test/e2e/README.md](test/e2e/README.md).
+End-to-end suites run against a live cluster and are not part of `make test`.
+`hack/run-e2e-kind.sh` builds a kind cluster, installs the chart and runs them.
+Every suite must go through the safety preflight described in
+[test/e2e/README.md](test/e2e/README.md), which refuses to run against a cluster
+holding objects the tests did not create.
 
 ## Pull request titles
 

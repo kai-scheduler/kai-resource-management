@@ -1,0 +1,35 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# Chart values for e2e runs, not shipped defaults.
+#
+# Only requests come down, none below 50m: a request is a share of a contended
+# node, not a cap, so lower would starve the controllers the suites wait on.
+# kai-scheduler's other services already request 50m or nothing.
+
+krmOperator:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+nodePoolController:
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: 900m, memory: 1Gi }
+
+projectController:
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 300m, memory: 2Gi }
+
+podGroupAssigner:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 200m, memory: 512Mi }
+
+kai-scheduler:
+  scheduler:
+    # One scheduler per node pool, so a suite creating several multiplies this.
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: 700m, memory: 512Mi }

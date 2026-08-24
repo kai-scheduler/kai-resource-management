@@ -115,6 +115,12 @@ test-go: | $(GOCACHE) $(GOTMPDIR) ## Run Go tests directly; optionally set TEST_
 		echo "No Go packages to test."; \
 	fi
 
+# Kept out of `make test`: these mutate whatever KUBECONFIG points at.
+.PHONY: test-e2e
+test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECONFIG; destructive.
+	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --randomize-all \
+		--randomize-suites --trace -vv $(GINKGO_FLAGS) ./test/e2e/suites
+
 .PHONY: lint-go
 lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.
 	@packages="$$( $(GO) list ./... )"; \

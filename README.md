@@ -32,7 +32,7 @@ KAI Resource Management is intended to provide:
 | `pkg/` | Shared Go packages used by repository binaries and integrations. |
 | `docs/` | User, administrator, reference, and developer documentation. |
 | `hack/` | Development, generation, and repository-maintenance scripts. |
-| `test/e2e/` | Reserved for the separately developed end-to-end test suites. |
+| `test/e2e/` | End-to-end suites and the framework that runs them against a cluster. |
 | `.agents/` | Repository-owned agent skills and other shared agent assets. |
 
 The repository intentionally uses one root `go.mod` and one root `Makefile`.

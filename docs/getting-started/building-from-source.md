@@ -168,6 +168,10 @@ make test-go
 make test-go TEST_TARGETS=./pkg/<name>/...
 ```
 
+The end-to-end suites need a cluster, so they are excluded from `make test`.
+`hack/run-e2e-kind.sh` builds a kind cluster, installs the chart into it and
+runs them; see [test/e2e/README.md](../../test/e2e/README.md).
+
 `SERVICE_NAMES` in the root Makefile lists the services that are built. Add each
 new service there when its `cmd/<name>/main.go` entry point is introduced. The
 aggregate and single-service build commands follow the same interface as KAI

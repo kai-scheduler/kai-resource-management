@@ -1,0 +1,95 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+name: Setup E2E Cluster
+description: Sets up a Kind cluster with prerequisites for e2e testing
+
+inputs:
+  package_version:
+    description: Version the build job tagged the images and the chart with
+    required: true
+  k8s_version:
+    description: kindest/node image tag
+    required: false
+    default: 'v1.34.0'
+  cluster_name:
+    description: Name of the kind cluster
+    required: false
+    default: 'krm-e2e'
+  go_version:
+    description: Go toolchain to install
+    required: false
+    default: '1.26.3'
+
+runs:
+  using: composite
+  steps:
+    # /mnt is the larger disk.
+    - name: Move Docker data to /mnt
+      shell: bash
+      run: |
+        sudo systemctl stop docker
+        sudo mkdir -p /mnt/docker-data
+        echo '{"data-root": "/mnt/docker-data"}' | sudo tee /etc/docker/daemon.json
+        sudo systemctl start docker
+        docker info | grep "Docker Root Dir"
+
+    - name: Create the image cache directory
+      shell: bash
+      run: |
+        sudo mkdir -p /mnt/images
+        sudo chown -R $USER:$USER /mnt/images
+
+    - name: Restore the images and the chart
+      uses: actions/cache/restore@v6
+      with:
+        path: /mnt/images
+        key: images-${{ github.sha }}
+        fail-on-cache-miss: true
+
+    - name: Create the kind cluster
+      uses: helm/kind-action@v1.14.0
+      with:
+        cluster_name: ${{ inputs.cluster_name }}
+        version: v0.32.0
+        node_image: kindest/node:${{ inputs.k8s_version }}
+        config: hack/kind-config.yaml
+
+    # The chart renders ServiceMonitors, so the type must exist. The operator is not needed.
+    - name: Install the ServiceMonitor CRD
+      shell: bash
+      run: |
+        kubectl apply --server-side -f \
+          https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.88.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+
+    - name: Load the images into kind
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ inputs.package_version }}
+      run: |
+        docker load < /mnt/images/docker_images.tgz
+
+        images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION" || true)
+        if [ -z "$images" ]; then
+          echo "the archive held no images tagged $PACKAGE_VERSION" >&2
+          exit 1
+        fi
+        for image in $images; do
+          kind load docker-image --name ${{ inputs.cluster_name }} "$image"
+        done
+
+    # The chart tarball stays; the install step needs it.
+    - name: Free the disk the images took
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ inputs.package_version }}
+      run: |
+        docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION" | xargs -r docker rmi -f
+        rm -f /mnt/images/docker_images.tgz
+        df -h /mnt | tail -1
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: true
