@@ -210,10 +210,18 @@ jobs:
           echo $PACKAGE_VERSION
 
       - name: Build service images
+        shell: bash
         run: |
-          make build VERSION=$PACKAGE_VERSION
-          docker save $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PACKAGE_VERSION) \
-            | gzip > /mnt/images/docker_images.tgz
+          make build VERSION=$PACKAGE_VERSION \
+            DOCKER_BUILDX_ADDITIONAL_ARGS="--load --cache-from type=gha --cache-to type=gha,mode=max"
+
+          images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION" || true)
+          if [ -z "$images" ]; then
+            echo "make build tagged no images with $PACKAGE_VERSION" >&2
+            docker images >&2
+            exit 1
+          fi
+          docker save $images | gzip > /mnt/images/docker_images.tgz
 
       - name: Build Helm chart
         run: |

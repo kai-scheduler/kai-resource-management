@@ -10,6 +10,7 @@ import (
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,5 +72,11 @@ var _ = AfterSuite(func() {
 
 	if testNodePool != nil {
 		Expect(client.IgnoreNotFound(testClient.Delete(ctx, testNodePool))).To(Succeed())
+
+		// nodepool-controller finalizes it, and only once the node has left.
+		// Returning early leaves it Terminating for the next run to trip over.
+		Eventually(func() error {
+			return testClient.Get(ctx, types.NamespacedName{Name: testNodePool.Name}, &kaires.NodePool{})
+		}).Should(MatchError(ContainSubstring("not found")))
 	}
 })

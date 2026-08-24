@@ -48,7 +48,7 @@ var _ = Describe("Installation", Label("health"), func() {
 		})
 	})
 
-	Context("of the default node nodePool the chart creates", func() {
+	Context("of the default node pool the chart creates", func() {
 		// The catch-all node pool. On a kind cluster its one node matches nothing
 		// else, so the node pool is Ready rather than Empty.
 		It("reconciles to Ready with a scheduling shard behind it", func() {

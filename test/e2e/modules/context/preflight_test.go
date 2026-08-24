@@ -19,9 +19,9 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 )
 
-// This suite runs under `make test`, not against a cluster: the guard that stops
-// the e2e suites touching a real cluster is itself worth testing, and it must be
-// seen to refuse and not only to pass.
+// Runs against no cluster, so `go test ./test/e2e/modules/...` is enough. It sits
+// outside `make test` with the rest of test/e2e, as it does in KAI-scheduler. The
+// guard is worth testing because it must be seen to refuse, not only to pass.
 func TestPreflight(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "E2E Preflight Suite")

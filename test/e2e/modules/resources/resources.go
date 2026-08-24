@@ -63,7 +63,7 @@ func WithEnforceScheduler(enforce bool) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.EnforceKaiScheduler = enforce }
 }
 
-// Project builds a project with one queue per node nodePool, and those same pools as
+// Project builds a project with one queue per node pool, and those same pools as
 // its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than
 // passed separately.
@@ -82,7 +82,7 @@ func Project(name string, nodePools []string, options ...ProjectOption) *kaires.
 	return project
 }
 
-// Department builds a department with one queue per node nodePool. A project naming
+// Department builds a department with one queue per node pool. A project naming
 // it as parent inherits those queues as the parents of its own.
 func Department(name string, nodePools []string) *kaires.Department {
 	return &kaires.Department{
@@ -132,7 +132,7 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 	}
 }
 
-// NodeSelectorPair is one node nodePool expressed the way a node carries it: the
+// NodeSelectorPair is one node pool expressed the way a node carries it: the
 // label key the node pool selects on, and the value it selects.
 type NodeSelectorPair struct {
 	Key   string
@@ -146,7 +146,7 @@ func NodeSelectorForNodePool(nodePool *kaires.NodePool) NodeSelectorPair {
 }
 
 // WithNodeAffinity requires nodes matching any one of the given pools, so the
-// node nodePool is derived from the affinity rather than requested by name.
+// node pool is derived from the affinity rather than requested by name.
 //
 // Each pair becomes its own nodeSelectorTerm. Terms are OR-ed by Kubernetes
 // while expressions within one term are AND-ed, so several pools have to be

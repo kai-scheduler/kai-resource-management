@@ -68,7 +68,13 @@ runs:
         PACKAGE_VERSION: ${{ inputs.package_version }}
       run: |
         docker load < /mnt/images/docker_images.tgz
-        for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION"); do
+
+        images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep "$PACKAGE_VERSION" || true)
+        if [ -z "$images" ]; then
+          echo "the archive held no images tagged $PACKAGE_VERSION" >&2
+          exit 1
+        fi
+        for image in $images; do
           kind load docker-image --name ${{ inputs.cluster_name }} "$image"
         done
 

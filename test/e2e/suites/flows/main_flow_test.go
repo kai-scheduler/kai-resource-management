@@ -47,6 +47,9 @@ var _ = Describe("The main flow", Ordered, Label("flows"), func() {
 			}).Should(MatchError(ContainSubstring("not found")))
 
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, department))).To(Succeed())
+			Eventually(func() error {
+				return testClient.Get(ctx, types.NamespacedName{Name: department.Name}, &kaires.Department{})
+			}).Should(MatchError(ContainSubstring("not found")))
 		})
 	})
 
