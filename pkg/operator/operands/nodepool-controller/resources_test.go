@@ -58,6 +58,20 @@ var _ = Describe("Deployment", func() {
 			"--finalizer-domain", "kai.resources"))
 	})
 
+	// Verbosity is a switch, not a level: --log-level is not a flag this binary has.
+	It("passes --debug only when asked, and never --log-level", func() {
+		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--debug"))
+		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--log-level"))
+
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.NodePoolController.Args.Debug = ptr.To(true)
+
+		args := buildArgsList(krmConfig)
+
+		Expect(args).To(ContainElement("--debug"))
+		Expect(args).ToNot(ContainElement("--log-level"))
+	})
+
 	// The shared vocabulary on spec.global is offered to every service, but this
 	// binary defines flags for only some of it. Passing one it has no flag for would
 	// make it exit on an unknown argument.
