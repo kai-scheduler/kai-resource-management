@@ -1,0 +1,30 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Conventional Commits, so Validate PR Title passes on bot pull requests.
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Security updates only. Bumping k8s.io/* moves the Kubernetes API surface
+    # the controllers and the chart's CRDs are built against, which is a
+    # deliberate change rather than a bot one.
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      kubernetes:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"

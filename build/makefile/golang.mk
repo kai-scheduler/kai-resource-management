@@ -33,22 +33,6 @@ endif
 ifneq ($(GOSUMDB),)
 DOCKER_GO_CACHING_VOLUME_AND_ENV += -e GOSUMDB=$(GOSUMDB)
 endif
-# --- BEGIN private API module access ---------------------------------------
-# TEMPORARY: needed only while kai-resource-management-api is a private
-# repository. The containers resolve modules against their own GOPATH volume,
-# not the host module cache, so they must be able to fetch it themselves.
-# Remove both blocks once the repositories are public.
-ifneq ($(GOPRIVATE),)
-DOCKER_GO_CACHING_VOLUME_AND_ENV += -e GOPRIVATE=$(GOPRIVATE)
-endif
-# Credentials travel via GIT_CONFIG_GLOBAL rather than $(HOME)/.gitconfig: the
-# container runs as a numeric uid with no passwd entry, so HOME is "/" and git
-# would look for "//.gitconfig". Mounted read-only outside the repo mount so a
-# credential can never land in the checkout.
-ifneq ($(GIT_CONFIG_GLOBAL),)
-DOCKER_GO_CACHING_VOLUME_AND_ENV += -v $(GIT_CONFIG_GLOBAL):/tmp/gitconfig:ro -e GIT_CONFIG_GLOBAL=/tmp/gitconfig
-endif
-# --- END private API module access -----------------------------------------
 
 DOCKER_GO_BASE_COMMAND = $(DOCKER_COMMAND) -e CGO_ENABLED=$(CGO_ENABLED) -e GO111MODULE=on $(DOCKER_GO_CACHING_VOLUME_AND_ENV)
 # Links the binaries against the CMVP-validated Go Cryptographic Module. The
@@ -131,7 +115,6 @@ lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packag
 		echo "No Go packages to lint."; \
 	fi
 
-# For local use: no Docker, no credential for the private API module.
 .PHONY: lint-go-host
 lint-go-host: | $(GOCACHE) $(GOTMPDIR) ## Run the pinned golangci-lint on the host toolchain, without Docker.
 	$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) \
