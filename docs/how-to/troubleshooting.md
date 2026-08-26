@@ -270,15 +270,25 @@ kubectl -n kai-resource-management logs deploy/pod-group-assigner --tail=100
 
 ### PodGroup is on the wrong node pool
 
-Work back up the resolution order — the first source that produces anything wins:
+Work back up the resolution order — the first source that produces anything wins. The
+numbers below are positions in that five-source order, so they are the ones you can inspect
+from the pod and the project. Source 3 is skipped deliberately: it is a label on the
+PodGroup, not on the pod.
 
 ```bash
-# 1. annotation on the pod
+# source 1 — annotation on the pod
 kubectl get pod <pod> -n <ns> -o jsonpath='{.metadata.annotations}' | jq
-# 2. node affinity on the pod
+# source 2 — node affinity on the pod
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.affinity.nodeAffinity}' | jq
-# 4. the project's defaults
+# source 4 — the project's defaults
 kubectl get project research -o jsonpath='{.spec.defaultNodePools}'
+```
+
+To check source 3, read the node pool label on the PodGroup itself:
+
+```bash
+kubectl get podgroup -n <ns> \
+  -o custom-columns=NAME:.metadata.name,POOL:'.metadata.labels.kai\.scheduler/node-pool'
 ```
 
 See [placing workloads across node pools](place-workloads-across-node-pools.md).

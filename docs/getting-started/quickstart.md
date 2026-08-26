@@ -106,8 +106,12 @@ invent that label** — in most clusters a suitable one is already there.
 Look at what your nodes already carry:
 
 ```bash
+# Prefer a worker node; fall back to the only node on a single-node cluster,
+# where that node is the control plane.
 NODE=$(kubectl get nodes -o name \
   -l '!node-role.kubernetes.io/control-plane' | head -1 | cut -d/ -f2)
+[ -z "$NODE" ] && NODE=$(kubectl get nodes -o name | head -1 | cut -d/ -f2)
+echo "using ${NODE}"
 
 kubectl get "node/${NODE}" -o jsonpath='{.metadata.labels}' | jq
 ```
