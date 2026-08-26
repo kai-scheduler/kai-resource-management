@@ -1,0 +1,281 @@
+# KAI Resource Management
+Copyright 2026 NVIDIA CORPORATION
+
+The base code for `.github/scripts/dco_check.py` was derived from christophebedard/dco-check, which is licensed under the Apache License, Version 2.0.
+Copyright (c) The christophebedard/dco-check Authors.
+This project includes components derived from christophebedard/dco-check, originally developed by christophebedard/dco-check Authors.
+
+This project also includes software components licensed under various open-source licenses. The following licenses apply to the components used in this project:
+
+## MIT License
+
+- MIT License
+
+## Apache License
+
+- Apache License 2.0
+
+## BSD Licenses
+
+- BSD 3-clause "New" or "Revised" License
+
+## ISC License
+
+- ISC License
+
+These licenses apply to the components used in this project and are in compliance with the corresponding open-source licensing terms. For further information on each specific license, please refer to the official documentation or contact the original authors of the components.
+
+---
+
+This NOTICE file is provided for informational purposes and is added to all components of the **KAI Resource Management** project, including those that do not directly use the above licenses, to ensure compliance and transparency. It does not modify any license agreements or legal obligations associated with the project components.
+
+To obtain source code for software provided under licenses
+that require redistribution of source code, including GPL, LGPL,
+AGPL, MPL, EPL - contact oss-requests@nvidia.com.
+This offer is valid for a period of three (3) years from the
+date of the distribution of this product by NVIDIA CORPORATION.
+
+---
+
+## The following components are included in this product:
+
+github.com/beorn7/perks
+Licensed under the MIT License
+Copyright (C) 2013 Blake Mizerany
+
+github.com/cespare/xxhash/v2
+Licensed under the MIT License
+Copyright (c) 2016 Caleb Spare
+
+github.com/davecgh/go-spew
+Licensed under the ISC License
+Copyright (c) 2012-2016 Dave Collins <dave@davec.name>
+
+github.com/emicklei/go-restful/v3
+Licensed under the MIT License
+Copyright (c) 2012,2013 Ernest Micklei
+
+github.com/evanphx/json-patch/v5
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2014, Evan Phoenix
+
+github.com/fsnotify/fsnotify
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright © 2012 The Go Authors. All rights reserved.
+
+github.com/fxamacker/cbor/v2
+Licensed under the MIT License
+Copyright (c) 2019-present Faye Amacker
+
+github.com/go-logr/logr
+Licensed under the Apache License 2.0
+Copyright 2021 The logr Authors.
+
+github.com/go-logr/zapr
+Licensed under the Apache License 2.0
+Copyright 2023 The logr Authors.
+
+github.com/go-openapi/jsonpointer
+Licensed under the Apache License 2.0
+Copyright 2013 sigu-399 ( https://github.com/sigu-399 )
+
+github.com/go-openapi/jsonreference
+Licensed under the Apache License 2.0
+Copyright 2013 sigu-399 ( https://github.com/sigu-399 )
+
+github.com/go-openapi/swag
+Licensed under the Apache License 2.0
+Copyright 2015 go-swagger maintainers
+
+github.com/google/btree
+Licensed under the Apache License 2.0
+Copyright 2014 Google Inc.
+
+github.com/google/gnostic-models
+Licensed under the Apache License 2.0
+Copyright 2017 Google LLC. All Rights Reserved.
+
+github.com/google/uuid
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2009,2014 Google Inc. All rights reserved.
+
+github.com/josharian/intern
+Licensed under the MIT License
+Copyright (c) 2019 Josh Bleecher Snyder
+
+github.com/json-iterator/go
+Licensed under the MIT License
+Copyright (c) 2016 json-iterator
+
+github.com/kai-scheduler/api
+Licensed under the Apache License 2.0
+Copyright 2025 NVIDIA CORPORATION
+
+github.com/kai-scheduler/kai-resource-management-api
+Licensed under the Apache License 2.0
+Copyright 2026 NVIDIA CORPORATION
+
+github.com/mailru/easyjson
+Licensed under the MIT License
+Copyright (c) 2016 Mail.Ru Group
+
+github.com/modern-go/concurrent
+Licensed under the Apache License 2.0
+Copyright 2018 Modern Go Programming
+
+github.com/modern-go/reflect2
+Licensed under the Apache License 2.0
+Copyright 2018 Modern Go Programming
+
+github.com/munnerz/goautoneg
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2011, Open Knowledge Foundation Ltd.
+
+github.com/pmezard/go-difflib
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2013, Patrick Mezard
+
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring
+Licensed under the Apache License 2.0
+Copyright 2018 The prometheus-operator Authors
+
+github.com/prometheus/client_golang
+Licensed under the Apache License 2.0
+Copyright 2014 The Prometheus Authors
+
+github.com/prometheus/client_model
+Licensed under the Apache License 2.0
+Copyright 2013 Prometheus Team
+
+github.com/prometheus/common
+Licensed under the Apache License 2.0
+Copyright 2013 The Prometheus Authors
+
+github.com/prometheus/procfs
+Licensed under the Apache License 2.0
+Copyright 2019 The Prometheus Authors
+
+github.com/spf13/pflag
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2012 Alex Ogier. All rights reserved.
+
+github.com/x448/float16
+Licensed under the MIT License
+Copyright (c) 2019 Montgomery Edwards⁴⁴⁸ and Faye Amacker
+
+go.uber.org/multierr
+Licensed under the MIT License
+Copyright (c) 2017-2021 Uber Technologies, Inc.
+
+go.uber.org/zap
+Licensed under the MIT License
+Copyright (c) 2016-2017 Uber Technologies, Inc.
+
+go.yaml.in/yaml/v2
+Licensed under the Apache License 2.0
+Copyright 2011-2016 Canonical Ltd. (includes libyaml portions under the MIT License, Copyright (c) 2006-2010 Kirill Simonov)
+
+go.yaml.in/yaml/v3
+Licensed under the Apache License 2.0
+Copyright (c) 2006-2010 Kirill Simonov
+
+golang.org/x/net
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/oauth2
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/sync
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/sys
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/term
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/text
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/time
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+gomodules.xyz/jsonpatch/v2
+Licensed under the Apache License 2.0
+Copyright (c) 2015 The Authors
+
+google.golang.org/protobuf
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2018 The Go Authors. All rights reserved.
+
+gopkg.in/evanphx/json-patch.v4
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2014, Evan Phoenix
+
+gopkg.in/inf.v0
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2012 Péter Surányi. Portions Copyright (c) 2009 The Go
+
+gopkg.in/yaml.v3
+Licensed under the Apache License 2.0
+Copyright (c) 2006-2010 Kirill Simonov; Copyright (c) 2011-2019 Canonical Ltd.
+
+k8s.io/api
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/apiextensions-apiserver
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/apimachinery
+Licensed under the Apache License 2.0
+Copyright 2014 The Kubernetes Authors.
+
+k8s.io/autoscaler/vertical-pod-autoscaler
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/client-go
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/klog/v2
+Licensed under the Apache License 2.0
+Copyright 2021 The Kubernetes Authors.
+
+k8s.io/kube-openapi
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/utils
+Licensed under the Apache License 2.0
+Copyright 2017 The Kubernetes Authors.
+
+sigs.k8s.io/controller-runtime
+Licensed under the Apache License 2.0
+Copyright 2018 The Kubernetes Authors.
+
+sigs.k8s.io/json
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors. (includes portions under the BSD 3-Clause License, Copyright 2010 The Go Authors)
+
+sigs.k8s.io/randfill
+Licensed under the Apache License 2.0
+Copyright 2014 The gofuzz Authors
+
+sigs.k8s.io/structured-merge-diff/v6
+Licensed under the Apache License 2.0
+Copyright 2018 The Kubernetes Authors.
+
+sigs.k8s.io/yaml
+Licensed under the MIT License
+Copyright (c) 2014 Sam Ghods
+
