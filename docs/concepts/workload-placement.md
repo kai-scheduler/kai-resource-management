@@ -89,7 +89,7 @@ first source that yields anything wins:
 
 | # | Source | Set by |
 | --- | --- | --- |
-| 1 | The `kai.scheduler/node-pools` annotation on the pod — a space-separated list | The workload author, explicitly |
+| 1 | The `kai.scheduler/node-pools` annotation on the pod — a space-separated list | The workload author, explicitly. Note it does not affect the pod's node affinity |
 | 2 | The pod's required node affinity, matched against every node pool's label pair | The author, or step 1 of admission |
 | 3 | A node pool label on the PodGroup itself | Tooling that assigns directly |
 | 4 | The project's `defaultNodePools`, in order | The project spec |
@@ -174,7 +174,9 @@ spec:
 ```
 
 ```yaml
-# The annotation — names node pools directly, in preference order
+# The annotation — names node pools directly, in preference order.
+# Set matching node affinity alongside it: admission does not read this, so on its
+# own it moves the queue assignment without moving where the pod may land.
 metadata:
   annotations:
     kai.scheduler/node-pools: "h100 a100"

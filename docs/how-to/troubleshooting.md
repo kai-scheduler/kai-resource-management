@@ -295,9 +295,10 @@ Common causes, in rough order of likelihood:
 | Cause | Check |
 | --- | --- |
 | The queue is at its `limit` | `kubectl get project research -o jsonpath='{.status.nodePoolsQuotaStatuses}' \| jq` — compare `requested` against `allocated` |
-| The queue has no quota at all | Every resource field defaults to `0`, and `0` is a real ceiling |
+| The queue has no quota for the resource requested | Every resource field defaults to `0`, and `0` is a real ceiling. A GPU-only queue rejects a pod requesting CPU |
 | The node pool has no capacity | `kubectl get nodepool <pool> -o jsonpath='{.status.nodes}' \| jq` |
 | Node affinity matches no node | Admission added the project's `defaultNodePools` as required affinity |
+| The pod is annotated for one node pool and has affinity for another | The `kai.scheduler/node-pools` annotation moves the queue assignment but not the affinity. See below |
 | The node pool is unschedulable | Its phase |
 
 A workload with only one candidate node pool waits there indefinitely rather than being
@@ -310,6 +311,46 @@ resolution falls through to the last resort.
 
 Remember the default node pool is the **absence** of the node-pool label, so a node or queue
 showing nothing under `kai.scheduler/node-pool` is in `default`, not unassigned.
+
+### `OverLimit: ... Limit is 0 cores`
+
+```text
+Warning  Unschedulable  kai-scheduler  OverLimit: research-a100 quota has reached the
+allowable limit of CPU cores. Limit is 0 cores, currently 0 cores allocated and
+workload requested 0.05 cores.
+```
+
+The queue has no quota for the resource the pod asked for. Almost always a queue that sets
+`gpu` and leaves `cpu` and `memory` unset — they default to `0`, and a `limit` of `0` is a
+real ceiling of zero, not an absent one.
+
+```bash
+kubectl get queue research-a100 -o jsonpath='{.spec.resources}' | jq
+```
+
+Set the missing resources on the project's queue, using `-1` for "no ceiling".
+
+### The pod is annotated for one node pool but will not schedule there
+
+```text
+Warning  Unschedulable  kai-scheduler  no nodes with enough resources were found:
+1 node(s) didn't match Pod's node affinity/selector.
+```
+
+Compare the two halves — they disagree:
+
+```bash
+kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.affinity.nodeAffinity}' | jq
+kubectl get podgroup -n <ns> -o custom-columns=\
+NAME:.metadata.name,POOL:'.metadata.labels.kai\.scheduler/node-pool'
+```
+
+The `kai.scheduler/node-pools` annotation sets the node pool the workload is *charged to*,
+but admission does not read it — it still applies the project's `defaultNodePools` as
+required node affinity. So the PodGroup moves and the pod's affinity does not.
+
+Set matching node affinity as well, or use affinity alone. See
+[placing workloads across node pools](place-workloads-across-node-pools.md#by-node-affinity--recommended).
 
 ## Webhooks
 

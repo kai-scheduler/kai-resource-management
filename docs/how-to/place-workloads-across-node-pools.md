@@ -12,8 +12,8 @@ below that produces anything wins outright; the rest are not consulted.
 
 | # | Source | Where it is set | Use it for |
 | --- | --- | --- | --- |
-| 1 | `kai.scheduler/node-pools` annotation | On the pod | One workload that needs a specific node pool, or a specific fallback order |
-| 2 | Required node affinity | On the pod | Expressing hardware requirements portably |
+| 1 | `kai.scheduler/node-pools` annotation | On the pod | A specific fallback order. Only alongside matching affinity — see below |
+| 2 | Required node affinity | On the pod | Expressing hardware requirements portably. **The one to reach for** |
 | 3 | Node pool label | On the PodGroup | Tooling that assigns directly |
 | 4 | `defaultNodePools` | On the project | The normal case — every workload in the project |
 | 5 | The `default` node pool | Nothing | The final fallback |
@@ -41,11 +41,18 @@ spec:
       nodepool: h100
       resources:
         gpu: { deserved: 4, limit: 8, overQuotaWeight: 1 }
+        cpu: { deserved: 16000, limit: -1, overQuotaWeight: 1 }
+        memory: { deserved: 64000, limit: -1, overQuotaWeight: 1 }
     - name: research-a100
       nodepool: a100
       resources:
         gpu: { deserved: 8, limit: 16, overQuotaWeight: 1 }
+        cpu: { deserved: 16000, limit: -1, overQuotaWeight: 1 }
+        memory: { deserved: 64000, limit: -1, overQuotaWeight: 1 }
 ```
+
+Set `cpu` and `memory` too, not just `gpu`: an unset `limit` is `0`, which is a real ceiling
+of zero, and a GPU-only queue rejects every pod that requests CPU.
 
 **Order is preference.** Work goes to `h100` when it can, and falls back to `a100` when it
 cannot.
@@ -62,30 +69,11 @@ pods physically cannot land outside those node pools.
 
 ## Override for one workload
 
-### By annotation — names node pools directly
+**Prefer node affinity.** Two mechanisms exist, and only one of them settles both halves of
+the question. A workload's placement has to agree on two things — which node pool it is
+*charged to*, and which nodes it may *land on* — and the annotation sets only the first.
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: needs-h100
-  namespace: kai-research
-  annotations:
-    kai.scheduler/node-pools: "h100 a100"
-spec:
-  schedulerName: kai-scheduler
-  containers:
-    - name: workload
-      image: registry.k8s.io/pause:3.9
-```
-
-Space-separated, in preference order. This is the highest-precedence source, so it
-overrides the project's defaults entirely.
-
-Use it when the workload author knows something the project default cannot express — a job
-that must have H100s, or one that should prefer the cheaper node pool.
-
-### By node affinity — portable
+### By node affinity — recommended
 
 ```yaml
 spec:
@@ -100,10 +88,10 @@ spec:
                 values: ["NVIDIA-H100-80GB-HBM3"]
 ```
 
-The assigner matches these expressions against each node pool's label pair and derives the
-candidate list from that. This is the better choice when the manifest also has to work on
-a cluster without KRM: it is ordinary Kubernetes affinity, and it means the same thing
-either way.
+This settles both halves at once. Kubernetes uses the affinity to pick the node, and the
+pod group assigner matches the same expressions against each node pool's label pair to pick
+the node pool and queue — so the two cannot disagree. It is also ordinary Kubernetes
+affinity, which means the manifest still says the right thing on a cluster without KRM.
 
 Constraints:
 
@@ -117,6 +105,33 @@ Constraints:
 
 Because setting a pod's own node affinity counts as expressing a preference, admission
 leaves it alone rather than adding the project's defaults on top.
+
+### By annotation — only alongside matching affinity
+
+```yaml
+metadata:
+  annotations:
+    kai.scheduler/node-pools: "h100 a100"
+```
+
+Space-separated, in preference order. It is the highest-precedence source **for the node
+pool and queue the workload is charged to**, overriding the project's defaults.
+
+> **It does not touch the pod's node affinity**, and that asymmetry will strand a workload.
+> Admission does not read this annotation; it still applies the project's `defaultNodePools`
+> as required affinity. So on a project defaulting to `h100`, a pod annotated for `a100`
+> gets a PodGroup on `a100` and node affinity for `h100`, and never schedules:
+>
+> ```text
+> Warning  Unschedulable  kai-scheduler  no nodes with enough resources were found:
+> 1 node(s) didn't match Pod's node affinity/selector.
+> ```
+>
+> If you use the annotation, set matching node affinity as well — or use affinity alone,
+> which is why it is the recommendation above.
+
+The annotation earns its place when the *order* of several node pools matters, since
+affinity expresses a set rather than a preference order.
 
 ### Targeting the default node pool
 

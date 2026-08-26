@@ -60,7 +60,7 @@ kubectl get namespace kai-research -o jsonpath='{.metadata.annotations}' | jq
 | --- | --- | --- | --- |
 | `project` | configurable | Read, then written | The pod's project. An explicit value is kept; otherwise resolved from the namespace |
 | `kai.scheduler/node-pool` | configurable | Read | An explicit node pool for this pod, taking precedence over the project's defaults |
-| `kai.scheduler/node-pools` | configurable | Read | **Annotation.** Space-separated list of node pools in preference order. Highest precedence of all placement sources |
+| `kai.scheduler/node-pools` | configurable | Read | **Annotation.** Space-separated node pools in preference order. Highest precedence for the *assigned* node pool — but admission does not read it, so set matching node affinity too |
 | `pod-group-name` | fixed | Read | **Annotation.** The PodGroup this pod belongs to. Set by KAI Scheduler |
 
 Configurable through `global.projectLabelKey`, `global.nodePoolLabelKey`, and the

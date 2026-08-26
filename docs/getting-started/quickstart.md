@@ -60,20 +60,25 @@ Wait for `Ready` to be `True`. If it is not, `Deployed`, `Available` and
 `DependenciesFulfilled` say which part is outstanding — see
 [troubleshooting](../how-to/troubleshooting.md).
 
-Then confirm the four services are running. Helm installs only the operator; the operator
-installs the other three, so they appear a moment later:
+Then confirm the four services are running. Helm installs only `krm-operator`, which
+installs the other three, so those appear a moment later:
 
 ```bash
-kubectl -n "${KRM_NAMESPACE}" get deploy
+kubectl -n "${KRM_NAMESPACE}" get deploy \
+  -l 'app in (krm-operator,nodepool-controller,project-controller,pod-group-assigner)'
 ```
 
 ```text
 NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
-krm-operator          1/1     1            1           2m
-nodepool-controller   1/1     1            1           1m
-pod-group-assigner    1/1     1            1           1m
-project-controller    1/1     1            1           1m
+krm-operator          1/1     1            1           57s
+nodepool-controller   1/1     1            1           34s
+pod-group-assigner    1/1     1            1           34s
+project-controller    1/1     1            1           34s
 ```
+
+> A plain `kubectl get deploy` lists considerably more. The bundled KAI Scheduler installs
+> into this same namespace and brings its own components — those are its to document, not
+> ours. The selector above narrows the list to the four services KRM owns.
 
 The chart also creates the catch-all `default` node pool. Every node in the cluster
 belongs to it right now:
@@ -86,6 +91,9 @@ kubectl get nodepool -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
 NAME      PHASE
 default   Ready
 ```
+
+> Briefly after install this reads `Unschedulable` rather than `Ready`. A node pool's phase
+> depends on its scheduler being up, and that starts last. Give it a few seconds.
 
 > KRM's custom resources define no printer columns, so a bare `kubectl get` shows only
 > `NAME` and `AGE`. Every command below asks for the fields it wants explicitly.
@@ -171,6 +179,16 @@ h100      Ready
 ```json
 [{"name":"<your-node>","status":"Ready"}]
 ```
+
+> **Expect `h100` to read `Unschedulable` for the first half-minute**, while its node is
+> already listed as `Ready` above. The two answer different questions: `status.nodes` is
+> about the node, and the phase is about whether the node pool can schedule — which needs
+> its own scheduler, and creating a node pool creates one. Watch the node pool settle:
+>
+> ```bash
+> kubectl get nodepool h100 \
+>   -o custom-columns=NAME:.metadata.name,PHASE:.status.phase,MESSAGE:.status.message -w
+> ```
 
 The node also picked up a node-pool label from the controller, which is how the scheduler
 knows where it belongs:
@@ -305,9 +323,12 @@ NAME:.metadata.name,QUEUE:.spec.queue,POOL:'.metadata.labels.kai\.scheduler/node
 ```
 
 ```text
-NAME                  QUEUE           POOL
-pg-sample-workload    research-h100   h100
+NAME                                                      QUEUE           POOL
+pg-sample-workload-f8d479c3-3aa3-4157-b18c-d241485ddc9c   research-h100   h100
 ```
+
+The name is `pg-<pod>-<uid>`, so yours will differ in the suffix. Do not hard-code it —
+list PodGroups by namespace, as above.
 
 Neither the queue nor the node pool was named by the person who submitted the pod. That is
 the whole point — see [workload placement](../concepts/workload-placement.md) for how each

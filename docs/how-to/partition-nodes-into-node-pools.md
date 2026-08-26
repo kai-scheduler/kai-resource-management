@@ -105,15 +105,27 @@ spec:
   queues:
     - name: research
       nodepool: default
+      resources:
+        gpu: { deserved: 0, limit: 0, overQuotaWeight: 0 }
+        cpu: { deserved: 4000, limit: -1, overQuotaWeight: 1 }
+        memory: { deserved: 16000, limit: -1, overQuotaWeight: 1 }
     - name: research-h100
       nodepool: h100
       resources:
         gpu: { deserved: 4, limit: 8, overQuotaWeight: 1 }
+        cpu: { deserved: 16000, limit: -1, overQuotaWeight: 1 }
+        memory: { deserved: 64000, limit: -1, overQuotaWeight: 1 }
     - name: research-a100
       nodepool: a100
       resources:
         gpu: { deserved: 2, limit: 4, overQuotaWeight: 1 }
+        cpu: { deserved: 8000, limit: -1, overQuotaWeight: 1 }
+        memory: { deserved: 32000, limit: -1, overQuotaWeight: 1 }
 ```
+
+**Set `cpu` and `memory`, not just `gpu`.** Every unset field defaults to `0`, and a `limit`
+of `0` is a real ceiling of zero — a GPU-only queue rejects every pod that requests CPU,
+with `OverLimit: ... Limit is 0 cores`. Write `-1` for "no ceiling".
 
 Quota does not cross node pools: idle A100 quota does not become H100 quota. See
 [queues and quota](../concepts/queues-and-quota.md).
