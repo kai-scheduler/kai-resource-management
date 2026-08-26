@@ -1,0 +1,66 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# A department holding the quota its projects share.
+#
+# The department itself runs nothing. Its queue is the parent of every queue
+# belonging to a project that names it, which is how one team's guarantee is
+# capped by its department's.
+#
+# Prerequisites:
+#   - The `h100` node pool from docs/concepts/examples/nodepool.yaml.
+#
+# Apply:
+#   kubectl apply -f docs/concepts/examples/department.yaml
+#
+# Then confirm both queues were created:
+#   kubectl get queue engineering engineering-h100
+#
+# Units: gpu is in whole GPUs and accepts fractions, cpu is in millicores
+# (1000 = 1 core), memory is in megabytes (1 MB = 10^6 bytes). Every field
+# defaults to 0, and 0 is a real number — write -1 for "no ceiling".
+#
+# Next: docs/concepts/examples/project.yaml
+---
+apiVersion: kai.resources/v1alpha1
+kind: Department
+metadata:
+  name: engineering
+spec:
+  queues:
+    # A queue for the default node pool. The default node pool always exists
+    # and always has nodes that no other pool claimed, so a queue for it is not
+    # required but is strongly advised — without one, anything that falls back
+    # to the default pool has nowhere to be charged. Convention is to name it
+    # after the department itself.
+    - name: engineering
+      nodepool: default
+      resources:
+        # Explicitly zero: the default pool here holds CPU-only nodes.
+        gpu:
+          deserved: 0
+          limit: 0
+          overQuotaWeight: 0
+        cpu:
+          deserved: 8000
+          limit: -1          # -1 is the "no ceiling" sentinel
+          overQuotaWeight: 1
+        memory:
+          deserved: 32000
+          limit: -1
+          overQuotaWeight: 1
+    - name: engineering-h100
+      nodepool: h100
+      resources:
+        gpu:
+          deserved: 8
+          limit: 16
+          overQuotaWeight: 1
+        cpu:
+          deserved: 32000
+          limit: 64000
+          overQuotaWeight: 1
+        memory:
+          deserved: 128000
+          limit: 256000
+          overQuotaWeight: 1
