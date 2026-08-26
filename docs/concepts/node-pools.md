@@ -33,11 +33,39 @@ time is one of these:
   one.
 
 You are labelling the *nodes*, not the pool. KRM does not put your `labelKey` on nodes for
-you — you or your provisioning tooling do that, and the pool follows:
+you — you or your infrastructure do that, and the pool follows.
+
+### Prefer a label that already exists
+
+In most clusters you do not need to invent a label. Something is already describing your
+nodes, and selecting on that is the better habit — a new node joins the right pool the
+moment it registers, with nothing for anyone to remember.
+
+| Label | Set by |
+| --- | --- |
+| `nvidia.com/gpu.product`, `nvidia.com/gpu.count` | NVIDIA GPU Operator / GPU Feature Discovery |
+| `node.kubernetes.io/instance-type`, `topology.kubernetes.io/zone` | Cloud provider |
+| `kubernetes.io/arch`, `kubernetes.io/os` | kubelet |
+| `feature.node.kubernetes.io/*` | Node Feature Discovery |
+
+Look before you label:
 
 ```bash
-kubectl label node worker-3 nvidia.com/gpu.product=H100
+kubectl get node <node> -o jsonpath='{.metadata.labels}' | jq
 ```
+
+`labelValue` is matched exactly, so copy the value rather than typing it —
+`nvidia.com/gpu.product` is `NVIDIA-H100-80GB-HBM3`, not `H100`.
+
+Add your own label only when nothing existing expresses the split you want — a cluster
+with no GPU operator, or a boundary with no hardware meaning, such as reserving nodes for
+one team:
+
+```bash
+kubectl label node worker-3 example.com/reserved-for=research
+```
+
+A pool whose pair matches no node is not an error: it comes up `Empty` and waits for one.
 
 ## The `default` node pool
 
@@ -108,9 +136,13 @@ is redirected to another of its requested pools if it has one — see
 Read the phase, and the message explaining it, with:
 
 ```bash
-kubectl get nodepool
+kubectl get nodepool -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
 kubectl get nodepool h100 -o jsonpath='{.status.message}'
 ```
+
+> KRM's custom resources define no printer columns, so a bare
+> `kubectl get nodepool` shows only `NAME` and `AGE`, and `-o wide` adds nothing. Ask for
+> the fields you want with `-o custom-columns` or `-o jsonpath`, as above.
 
 Per-node detail, including nodes that are ready but failing a prerequisite:
 

@@ -64,8 +64,13 @@ Applying that produces:
 Watch it settle and find the namespace it chose:
 
 ```bash
-kubectl get project research
-kubectl get project research -o jsonpath='{.status.namespace}'
+kubectl get project -o custom-columns=\
+NAME:.metadata.name,PHASE:.status.phase,NAMESPACE:.status.namespace
+```
+
+```text
+NAME         PHASE   NAMESPACE
+research     Ready   kai-research
 ```
 
 `status.phase` is `Ready` once every piece exists. If it stays `NotReady`, the conditions
