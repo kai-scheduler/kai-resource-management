@@ -5,6 +5,11 @@ dependency. It deploys the node-pool controller, project controller, and PodGrou
 assigner, together with their service accounts, RBAC, services, monitoring
 resources, webhook configuration, and KAI Resource Management CRDs.
 
+This page is the chart reference: prerequisites, values, install, upgrade and uninstall.
+For what KAI Resource Management *is* and what to do with it once installed, see the
+[overview](../../docs/overview.md), the [quickstart](../../docs/getting-started/quickstart.md)
+and the [concepts](../../docs/concepts/README.md).
+
 ## Prerequisites
 
 - A Kubernetes cluster and Helm 3.
