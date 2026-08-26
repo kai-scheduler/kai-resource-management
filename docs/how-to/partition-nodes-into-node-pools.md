@@ -12,15 +12,16 @@ Good reasons:
 
 - **Different hardware.** H100s and A100s are not interchangeable, and quota measured in
   "GPUs" is meaningless across them.
-- **Different scheduling behaviour.** One pool bin-packs for throughput, another spreads
-  for latency. Each pool gets its own scheduler, so this is only expressible per pool.
+- **Different scheduling behaviour.** One node pool bin-packs for throughput, another
+  spreads for latency. Each node pool gets its own scheduler, so this is only expressible
+  per pool.
 - **Dedicated capacity.** Nodes a team paid for, which nobody else should borrow.
 
 Poor reasons — these are better expressed with plain node affinity on the workload:
 
 - A property only some workloads care about, where the rest of the cluster is fungible.
-- Anything that changes frequently. The label pair is immutable after creation, so a pool
-  is not a good place to encode something you will want to re-cut.
+- Anything that changes frequently. The label pair is immutable after creation, so a node
+  pool is not a good place to encode something you will want to re-cut.
 
 ## 2. Find the label you already have
 
@@ -40,8 +41,8 @@ worker-4   <none>                  m6i.8xlarge
 ```
 
 That cluster partitions itself: two H100 nodes, one A100 node, one CPU-only node.
-`nvidia.com/gpu.product` is maintained by the NVIDIA GPU Operator, so a pool built on it
-picks up new nodes with no further action from anyone.
+`nvidia.com/gpu.product` is maintained by the NVIDIA GPU Operator, so a node pool built on
+it picks up new nodes with no further action from anyone.
 
 To see everything a node carries:
 
@@ -55,7 +56,7 @@ Label by hand only when nothing existing expresses the boundary:
 kubectl label node worker-5 example.com/reserved-for=research
 ```
 
-## 3. Create one pool per group
+## 3. Create one node pool per group
 
 ```yaml
 apiVersion: kai.resources/v1alpha1
@@ -75,14 +76,14 @@ spec:
   labelValue: NVIDIA-A100-SXM4-80GB
 ```
 
-Note that two pools **may** share a `labelKey` — what must be unique is the key *and*
-value together. Splitting one dimension into several pools is the normal case.
+Note that two node pools **may** share a `labelKey` — what must be unique is the key *and*
+value together. Splitting one dimension into several node pools is the normal case.
 
-The CPU-only node needs nothing. It stays in the `default` pool, which catches everything
-no other pool claims.
+The CPU-only node needs nothing. It stays in the `default` node pool, which catches
+everything no other pool claims.
 
 Copy `labelValue` from the output above rather than typing it. It is matched exactly, and
-a mismatched value produces a pool that is `Empty` rather than an error.
+a mismatched value produces a node pool that is `Empty` rather than an error.
 
 Confirm the split:
 
@@ -94,7 +95,7 @@ for pool in h100 a100 default; do
 done
 ```
 
-## 4. Give the pools quota
+## 4. Give the node pools quota
 
 A node pool with no queue holds capacity that nothing can be charged against. Add a queue
 per pool to each project and department that should use it:
@@ -114,15 +115,15 @@ spec:
         gpu: { deserved: 2, limit: 4, overQuotaWeight: 1 }
 ```
 
-Quota does not cross pools: idle A100 quota does not become H100 quota. See
+Quota does not cross node pools: idle A100 quota does not become H100 quota. See
 [queues and quota](../concepts/queues-and-quota.md).
 
 ## What happens to workloads already running
 
-Nothing is evicted, ever. When you create a pool that claims nodes currently in another
+Nothing is evicted, ever. When you create a node pool that claims nodes currently in another
 pool, each node moves only once no workload of its old pool is still running on it.
 
-Until then the node is cordoned and the new pool reports what it is waiting for:
+Until then the node is cordoned and the new node pool reports what it is waiting for:
 
 ```bash
 kubectl get nodepool h100 -o jsonpath='{.status.message}'
@@ -134,33 +135,34 @@ finish draining: worker-1, worker-2
 ```
 
 That is a wait, not a failure. If the workloads are long-running and you want the capacity
-now, delete them. See [node pools](../concepts/node-pools.md#how-a-node-moves-between-pools).
+now, delete them. See [node
+pools](../concepts/node-pools.md#how-a-node-moves-between-node-pools).
 
 Plan the cut for a quiet window if the cluster is busy.
 
-## Re-cutting a pool later
+## Re-cutting a node pool later
 
-`labelKey` and `labelValue` are immutable — you cannot re-target a pool in place. To
+`labelKey` and `labelValue` are immutable — you cannot re-target a node pool in place. To
 change the boundary:
 
-1. Create the new pool alongside the old one.
+1. Create the new node pool alongside the old one.
 2. Move each project's queues over to it.
-3. Wait for workloads charged to the old pool's queues to drain.
-4. Delete the old pool. It refuses while any project still has a queue for it, which is
+3. Wait for workloads charged to the old node pool's queues to drain.
+4. Delete the old node pool. It refuses while any project still has a queue for it, which is
    the ordering being enforced for you.
 
-The alternative — relabelling nodes so they fall out of the old pool and into the new one
-— works too, and drains node by node rather than all at once.
+The alternative — relabelling nodes so they fall out of the old node pool and into the new
+one — works too, and drains node by node rather than all at once.
 
 ## Common mistakes
 
 | Symptom | Cause |
 | --- | --- |
-| Pool is `Empty` but nodes look right | `labelValue` does not match exactly. Compare with `kubectl get node <node> --show-labels` |
-| `nodepool ... labelKey ... duplicates existing nodepool` on create | Another pool already has that exact key/value pair |
-| `must set a non-empty labelKey and labelValue` | Only the `default` pool may leave them empty |
-| Nodes never leave the old pool | Workloads of the old pool are still running on them |
-| Workloads land in `default` unexpectedly | The project has no queue for the pool you expected, or no `defaultNodePools` |
+| Node pool is `Empty` but nodes look right | `labelValue` does not match exactly. Compare with `kubectl get node <node> --show-labels` |
+| `nodepool ... labelKey ... duplicates existing nodepool` on create | Another node pool already has that exact key/value pair |
+| `must set a non-empty labelKey and labelValue` | Only the `default` node pool may leave them empty |
+| Nodes never leave the old node pool | Workloads of the old pool are still running on them |
+| Workloads land in `default` unexpectedly | The project has no queue for the node pool you expected, or no `defaultNodePools` |
 
 ## See also
 
@@ -168,4 +170,4 @@ The alternative — relabelling nodes so they fall out of the old pool and into 
 - [Tune per-node-pool scheduling](tune-per-node-pool-scheduling.md) — now that pools are
   separate, give them different scheduling behaviour.
 - [Exclude nodes from management](exclude-nodes-from-management.md) — for nodes that
-  should be in no pool at all.
+  should be in no node pool at all.

@@ -2,7 +2,7 @@
 
 A **project** is a team. It is the unit that owns quota, owns a namespace, and that
 workloads are submitted into. A **department** is a group of projects that share a larger
-pool of quota.
+node pool of quota.
 
 Both are cluster-scoped, and the hierarchy is exactly two levels deep: a project may name
 one department as its parent, and a department has no parent of its own.

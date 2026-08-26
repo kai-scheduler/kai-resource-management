@@ -87,7 +87,7 @@ A failed Job is replaced automatically on the next attempt.
 
 ## Node pools
 
-### Pool is `Empty` but the nodes look right
+### Node pool is `Empty` but the nodes look right
 
 `labelValue` is matched exactly. The usual cause is a value that looks right but is not —
 `nvidia.com/gpu.product` is `NVIDIA-H100-80GB-HBM3`, not `H100`.
@@ -97,13 +97,13 @@ kubectl get nodepool h100 -o jsonpath='{.spec.labelKey}={.spec.labelValue}{"\n"}
 kubectl get nodes --show-labels | tr ',' '\n' | grep nvidia
 ```
 
-`Empty` is not an error. The pool is a valid placement target and will claim nodes as soon
-as any match.
+`Empty` is not an error. The node pool is a valid placement target and will claim nodes as
+soon as any match.
 
-### Pool is `Unschedulable`
+### Node pool is `Unschedulable`
 
 It has nodes, but none are ready. Either the nodes are genuinely unhealthy, or they were
-cordoned while moving between pools:
+cordoned while moving between node pools:
 
 ```bash
 kubectl get nodepool h100 -o jsonpath='{.status.message}'
@@ -111,9 +111,9 @@ kubectl get nodes -l kai.scheduler/unschedulable
 ```
 
 A node carrying `kai.scheduler/unschedulable` was cordoned by KRM to drain it before a
-move. It clears itself once the old pool's workloads finish.
+move. It clears itself once the old node pool's workloads finish.
 
-### Pool is `MissingPrerequisites`
+### Node pool is `MissingPrerequisites`
 
 A scheduling feature you enabled cannot be honoured on some nodes — in practice, NUMA. The
 message says which prerequisite:
@@ -123,12 +123,13 @@ kubectl get nodepool h100 -o jsonpath='{.status.message}'
 kubectl get nodepool h100 -o jsonpath='{.status.nodes}' | jq
 ```
 
-See [tuning per-node-pool scheduling](tune-per-node-pool-scheduling.md#numa-aware-scheduling).
-Workloads are still placed on the pool; alignment may just not be honoured.
+See [tuning per-node-pool
+scheduling](tune-per-node-pool-scheduling.md#numa-aware-scheduling). Workloads are still
+placed on the pool; alignment may just not be honoured.
 
-### Nodes never move into a new pool
+### Nodes never move into a new node pool
 
-Workloads of their current pool are still running on them. Nothing is ever evicted:
+Workloads of their current node pool are still running on them. Nothing is ever evicted:
 
 ```bash
 kubectl get nodepool h100 -o jsonpath='{.status.message}'
@@ -150,8 +151,8 @@ kubectl get nodepool h100 -o jsonpath='{.status.conditions}' | jq
 `ProjectReferencesExist` names the projects still holding a queue for it. Remove those
 queues, or delete the projects.
 
-The `default` pool cannot be deleted at all — it is the catch-all, and nothing recreates
-it.
+The `default` node pool cannot be deleted at all — it is the catch-all, and nothing
+recreates it.
 
 ### Rejected on create
 
@@ -159,7 +160,7 @@ it.
 | --- | --- |
 | `must set a non-empty labelKey and labelValue` | Only `default` may leave them empty |
 | `the "default" nodepool must not set labelKey or labelValue` | The catch-all selects by exclusion |
-| `labelKey ... duplicates existing nodepool` | Another pool has that exact pair |
+| `labelKey ... duplicates existing nodepool` | Another node pool has that exact pair |
 | `labelKey and labelValue are immutable` | Delete and recreate instead |
 
 ## Projects and departments
@@ -184,7 +185,7 @@ The message carries the underlying error.
 | --- | --- |
 | `parent department "x" does not exist` | Create the department first |
 | `node pool "x" does not exist` | Create the node pool first |
-| `node pool "x" is already referenced by another queue` | Two queues in one spec cannot share a pool |
+| `node pool "x" is already referenced by another queue` | Two queues in one spec cannot share a node pool |
 | `the nodepool "x" from the DefaultNodePools list has no queue defined in the spec` | Add a queue for it |
 
 ### Department will not delete
@@ -257,11 +258,11 @@ kubectl get podgroup -n <ns> -o custom-columns=\
 NAME:.metadata.name,QUEUE:.spec.queue,POOL:'.metadata.labels.kai\.scheduler/node-pool'
 ```
 
-An empty `QUEUE` means the assigner could not resolve one. Usual causes:
+An empty `QUEUE` means the pod group assigner could not resolve one. Usual causes:
 
-- The project has no queue for the pool that was chosen.
+- The project has no queue for the node pool that was chosen.
 - The pod's project could not be resolved — its namespace lacks the project label.
-- Every candidate pool is unavailable, so no pool was chosen at all.
+- Every candidate node pool is unavailable, so no pool was chosen at all.
 
 ```bash
 kubectl -n kai-resource-management logs deploy/pod-group-assigner --tail=100
@@ -295,19 +296,19 @@ Common causes, in rough order of likelihood:
 | --- | --- |
 | The queue is at its `limit` | `kubectl get project research -o jsonpath='{.status.nodePoolsQuotaStatuses}' \| jq` — compare `requested` against `allocated` |
 | The queue has no quota at all | Every resource field defaults to `0`, and `0` is a real ceiling |
-| The pool has no capacity | `kubectl get nodepool <pool> -o jsonpath='{.status.nodes}' \| jq` |
+| The node pool has no capacity | `kubectl get nodepool <pool> -o jsonpath='{.status.nodes}' \| jq` |
 | Node affinity matches no node | Admission added the project's `defaultNodePools` as required affinity |
-| The pool is unschedulable | Its phase |
+| The node pool is unschedulable | Its phase |
 
-A workload with only one candidate pool waits there indefinitely rather than being marked
-unschedulable — there is nowhere for it to move to.
+A workload with only one candidate node pool waits there indefinitely rather than being
+marked unschedulable — there is nowhere for it to move to.
 
-### Everything lands in the `default` pool
+### Everything lands in the `default` node pool
 
 The project has no `defaultNodePools`, and the pods express no preference of their own, so
 resolution falls through to the last resort.
 
-Remember the default pool is the **absence** of the node-pool label, so a node or queue
+Remember the default node pool is the **absence** of the node-pool label, so a node or queue
 showing nothing under `kai.scheduler/node-pool` is in `default`, not unassigned.
 
 ## Webhooks
@@ -334,8 +335,8 @@ configuration and tells the controller to stop serving it, in step.
 
 The chart reuses an existing serving certificate by looking it up in the cluster, and that
 lookup returns nothing during an offline render. So a fresh certificate is minted on every
-render, and the pods must roll for it to take effect. See the
-[chart documentation](../../deployments/kai-resource-management-chart/README.md#tls-certificates).
+render, and the pods must roll for it to take effect. See the [chart
+documentation](../../deployments/kai-resource-management-chart/README.md#tls-certificates).
 
 ## Collecting logs
 

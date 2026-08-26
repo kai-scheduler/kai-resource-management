@@ -10,8 +10,8 @@ edit it by hand.
 
 | Key | Default | R/W | Meaning |
 | --- | --- | --- | --- |
-| `kai.scheduler/node-pool` | configurable | Written | The node pool this node belongs to. **Absent means the `default` pool** |
-| `kai.scheduler/unschedulable` | configurable | Written | KRM cordoned this node to drain it before moving it between pools. Clears itself |
+| `kai.scheduler/node-pool` | configurable | Written | The node pool this node belongs to. **Absent means the `default` node pool** |
+| `kai.scheduler/unschedulable` | configurable | Written | KRM cordoned this node to drain it before moving it between node pools. Clears itself |
 | `kai.scheduler/to-exclude` | configurable | Written | The node is draining ahead of exclusion by a `ManagedNodesConfig` |
 | *your own* | — | Read | Whatever `labelKey`/`labelValue` a node pool selects on |
 
@@ -30,8 +30,8 @@ kubectl get nodes -l kai.scheduler/to-exclude=true
 
 | Key | R/W | Meaning |
 | --- | --- | --- |
-| `kai.resources/topology-manager-policy` | Written | The node's kubelet Topology Manager policy, as read from its `NodeResourceTopology`. Only on NUMA-enabled pools |
-| `gpuNetworkAccelerationLabelKey` | Written | The label key used to detect GPU network acceleration on this node. Only when detection is configured on its pool |
+| `kai.resources/topology-manager-policy` | Written | The node's kubelet Topology Manager policy, as read from its `NodeResourceTopology`. Only on NUMA-enabled node pools |
+| `gpuNetworkAccelerationLabelKey` | Written | The label key used to detect GPU network acceleration on this node. Only when detection is configured on its node pool |
 
 ## Namespace labels and annotations
 
@@ -75,7 +75,7 @@ All written by the project-controller.
 | `project` | configurable | The project owning this queue |
 | `kai.resources/project-id` | configurable | That project's UID |
 | `kai.resources/department-name` | configurable | The department — on a department's own queues, and on its projects' queues |
-| `kai.scheduler/node-pool` | configurable | The node pool. **Absent means the `default` pool** |
+| `kai.scheduler/node-pool` | configurable | The node pool. **Absent means the `default` node pool** |
 
 The department label is on both a department's queues and its projects' queues, so it is
 not sufficient to tell them apart — ownership is. To list one project's queues:
@@ -97,7 +97,7 @@ kubectl get queue -l '!kai.scheduler/node-pool'
 | `topology.kai/source` | fixed | Written | **Annotation.** `system` marks a topology constraint KRM added, which it may refresh or clear. Its absence on a set constraint means you own it, and KRM will never touch it |
 
 The unassigned sentinel — `kai-unexisting-node-pool` by default — is deliberately not an
-absent label: absence already means "the default pool", so a third state was needed.
+absent label: absence already means "the default node pool", so a third state was needed.
 
 ## NodePool annotations
 
@@ -105,13 +105,13 @@ The only annotations you set yourself, rather than reading.
 
 | Key | Values | R/W | Meaning |
 | --- | --- | --- | --- |
-| `kai/gpu-network-acceleration-detection` | `Auto`, `Use`, `DontUse` | Read | How to decide whether this pool's nodes have GPU network acceleration. Absent means detection is off |
+| `kai/gpu-network-acceleration-detection` | `Auto`, `Use`, `DontUse` | Read | How to decide whether this node pool's nodes have GPU network acceleration. Absent means detection is off |
 | `kai/gpu-network-acceleration-label-key` | a label key | Read | The node label to detect on. Defaults to `nvidia.com/gpu.clique` |
 | `kai/gpu-network-acceleration-detected` | `true`/`false` | Written | The result. Only written when detection is configured |
 
 | Mode | Effect |
 | --- | --- |
-| `Auto` | Detected from the label key above, present on any node in the pool |
+| `Auto` | Detected from the label key above, present on any node in the node pool |
 | `Use` | Forced on, regardless of node labels |
 | `DontUse` | Forced off |
 

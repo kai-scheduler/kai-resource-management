@@ -53,7 +53,8 @@ spec:
             operator: DoesNotExist
 ```
 
-Full file: [`examples/managednodesconfig.yaml`](../concepts/examples/managednodesconfig.yaml).
+Full file:
+[`examples/managednodesconfig.yaml`](../concepts/examples/managednodesconfig.yaml).
 
 Note the field name: **`inclusion_criteria`**, with an underscore, not camelCase like the
 rest of the API.
@@ -101,7 +102,7 @@ A node still running workloads of its current node pool is **not** yanked out. I
 2. made unschedulable, so nothing new lands on it,
 3. left to drain naturally.
 
-Only once no workload of its old pool remains does it move to the excluded pool. Until
+Only once no workload of its old node pool remains does it move to the excluded pool. Until
 then the config reports the wait:
 
 ```json
@@ -121,7 +122,7 @@ kubectl get nodes -l kai.scheduler/to-exclude=true
 ## Reversing it
 
 Widen `inclusion_criteria` so the node matches again, or relabel the node. It is moved
-back into the `default` pool and the drain marker is removed.
+back into the `default` node pool and the drain marker is removed.
 
 Deleting the `ManagedNodesConfig` entirely returns every node to eligibility.
 
@@ -141,7 +142,7 @@ worker-1   Ready    <none>          5d    v1.34.0   h100
 worker-2   Ready    <none>          5d    v1.34.0
 ```
 
-`worker-2` shows an empty node pool because it is in the **`default`** pool, which is
+`worker-2` shows an empty node pool because it is in the **`default`** node pool, which is
 represented by the label's absence — not because it is unmanaged. Excluded nodes carry the
 excluded pool's name explicitly.
 
@@ -152,7 +153,7 @@ excluded pool's name explicitly.
 | Nothing happens at all | The object is not named `kai-managed-nodes-config` |
 | Far more nodes excluded than expected | The criteria are a whitelist. Everything not matching is excluded |
 | `Applied: False`, reason `ToBeExcludedNodes` | Working as intended — nodes are draining |
-| A node never leaves | Workloads of its current pool are still running on it |
+| A node never leaves | Workloads of its current node pool are still running on it |
 | Excluded nodes still run pods | Expected. Exclusion only stops KAI scheduling onto them; other schedulers are unaffected |
 
 ## See also

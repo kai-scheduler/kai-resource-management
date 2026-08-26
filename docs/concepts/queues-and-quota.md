@@ -12,7 +12,7 @@ objects.
 
 This is the rule that shapes everything else: **a queue is a (owner, node pool) pair**. A
 project with entries for two node pools has two queues, with entirely independent quota.
-Four GPUs in the `h100` pool is not four GPUs anywhere — unused `h100` quota does not
+Four GPUs in the `h100` node pool is not four GPUs anywhere — unused `h100` quota does not
 become `a100` quota.
 
 ```mermaid
@@ -130,12 +130,12 @@ kubectl get queue -l project=research
 
 ## The default node pool has no label
 
-Queues carry a `kai.scheduler/node-pool` label naming their pool — **except** queues for
-the default node pool, which carry no such label at all. The default pool is represented
-by absence throughout the system.
+Queues carry a `kai.scheduler/node-pool` label naming their node pool — **except** queues
+for the default node pool, which carry no such label at all. The default pool is
+represented by absence throughout the system.
 
-This matters the moment you write a selector by hand. To find queues for the default pool
-you must select on the label *not existing*:
+This matters the moment you write a selector by hand. To find queues for the default node
+pool you must select on the label *not existing*:
 
 ```bash
 # Queues for the h100 pool
@@ -199,8 +199,8 @@ Removing an entry deletes its queue — including any workloads' claim on that q
 workloads charged to it stop being schedulable. Adding a node pool to `defaultNodePools`
 without adding a queue for it is rejected at admission.
 
-A queue you have marked with the manual-override label is left alone. See
-[projects and departments](projects-and-departments.md#manually-overriding-something-krm-created).
+A queue you have marked with the manual-override label is left alone. See [projects and
+departments](projects-and-departments.md#manually-overriding-something-krm-created).
 
 ## Next
 

@@ -24,7 +24,7 @@ New here? Read the [overview](overview.md), then follow the
 
 | Document | Covers |
 | --- | --- |
-| [Node pools](concepts/node-pools.md) | Slicing the cluster's nodes; the `default` pool; node pool phases |
+| [Node pools](concepts/node-pools.md) | Slicing the cluster's nodes; the `default` node pool; node pool phases |
 | [Projects and departments](concepts/projects-and-departments.md) | The team hierarchy, project namespaces, deletion order |
 | [Queues and quota](concepts/queues-and-quota.md) | How quota is expressed and enforced per node pool |
 | [Workload placement](concepts/workload-placement.md) | What happens to a pod between `kubectl apply` and running |

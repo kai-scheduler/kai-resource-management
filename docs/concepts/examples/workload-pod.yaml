@@ -11,7 +11,7 @@
 # Kubernetes scheduler and never counts against anyone's quota.
 #
 # Note what it still does NOT say: no queue, no node pool, no node affinity.
-# Admission and the pod-group assigner fill all of that in from the project
+# Admission and the pod group assigner fill all of that in from the project
 # that owns the namespace. That is the point — a workload author picks none of
 # it unless they want to.
 #

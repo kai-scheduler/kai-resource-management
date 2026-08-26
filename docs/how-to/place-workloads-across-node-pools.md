@@ -12,14 +12,15 @@ below that produces anything wins outright; the rest are not consulted.
 
 | # | Source | Where it is set | Use it for |
 | --- | --- | --- | --- |
-| 1 | `kai.scheduler/node-pools` annotation | On the pod | One workload that needs a specific pool, or a specific fallback order |
+| 1 | `kai.scheduler/node-pools` annotation | On the pod | One workload that needs a specific node pool, or a specific fallback order |
 | 2 | Required node affinity | On the pod | Expressing hardware requirements portably |
 | 3 | Node pool label | On the PodGroup | Tooling that assigns directly |
 | 4 | `defaultNodePools` | On the project | The normal case — every workload in the project |
-| 5 | The `default` pool | Nothing | The final fallback |
+| 5 | The `default` node pool | Nothing | The final fallback |
 
-The assigner walks the resulting list and takes the first pool whose phase is `Ready` or
-`Empty`. Pools that are `Unschedulable`, `Deleting` or `MissingPrerequisites` are skipped.
+The pod group assigner walks the resulting list and takes the first node pool whose phase
+is `Ready` or `Empty`. Node pools that are `Unschedulable`, `Deleting` or
+`MissingPrerequisites` are skipped.
 
 ## Set the project default
 
@@ -49,19 +50,19 @@ spec:
 **Order is preference.** Work goes to `h100` when it can, and falls back to `a100` when it
 cannot.
 
-**Every pool listed must have a queue in the same spec.** The webhook enforces this, and
-the reason is that a pool with no queue is a pool the work cannot be charged to:
+**Every node pool listed must have a queue in the same spec.** The webhook enforces this,
+and the reason is that a pool with no queue is a pool the work cannot be charged to:
 
 ```text
 the nodepool "a100" from the DefaultNodePools list has no queue defined in the spec
 ```
 
 Admission also turns `defaultNodePools` into required node affinity on each pod, so the
-pods physically cannot land outside those pools.
+pods physically cannot land outside those node pools.
 
 ## Override for one workload
 
-### By annotation — names pools directly
+### By annotation — names node pools directly
 
 ```yaml
 apiVersion: v1
@@ -82,7 +83,7 @@ Space-separated, in preference order. This is the highest-precedence source, so 
 overrides the project's defaults entirely.
 
 Use it when the workload author knows something the project default cannot express — a job
-that must have H100s, or one that should prefer the cheaper pool.
+that must have H100s, or one that should prefer the cheaper node pool.
 
 ### By node affinity — portable
 
@@ -110,16 +111,16 @@ Constraints:
   `NotIn`, `Exists` and `Gt`/`Lt` are still honoured by Kubernetes as ordinary affinity;
   they just do not select a node pool.
 - Only **required** affinity is considered. `preferredDuringScheduling...` does not select
-  a pool.
+  a node pool.
 - Several node pools named in one term collapse to the set of pools matched; each term is
   an alternative.
 
 Because setting a pod's own node affinity counts as expressing a preference, admission
 leaves it alone rather than adding the project's defaults on top.
 
-### Targeting the default pool
+### Targeting the default node pool
 
-The `default` pool is represented by the **absence** of the node-pool label, so it is
+The `default` node pool is represented by the **absence** of the node-pool label, so it is
 selected with `DoesNotExist`, not by naming it:
 
 ```yaml
@@ -133,9 +134,9 @@ By annotation it is simply named:
 kai.scheduler/node-pools: "default"
 ```
 
-## The fallback, when the first pool cannot take it
+## The fallback, when the first node pool cannot take it
 
-A workload with more than one candidate pool is not stuck with its first pick. If the
+A workload with more than one candidate node pool is not stuck with its first pick. If the
 scheduler for that pool cannot place it, the assigner moves it to the next pool in the
 list, wrapping around.
 
@@ -148,15 +149,15 @@ flowchart LR
 
 Two behaviours follow from the list's length, and they are quite different:
 
-- **One candidate pool.** There is nowhere to go. The workload waits in that pool
+- **One candidate node pool.** There is nowhere to go. The workload waits in that pool
   indefinitely until capacity frees up. It is not marked unschedulable, because there is
   nothing to report — it is simply queued.
-- **Several.** The workload cycles. On reaching the last pool in the list it is marked
+- **Several.** The workload cycles. On reaching the last node pool in the list it is marked
   unschedulable, which is what surfaces the failure rather than letting it spin silently.
-  If a pool it already tried frees up, cycling continues.
+  If a node pool it already tried frees up, cycling continues.
 
-A workload whose pods are **all already running** is never moved, even if its pool later
-goes unschedulable. Reassignment applies to work that has not started.
+A workload whose pods are **all already running** is never moved, even if its node pool
+later goes unschedulable. Reassignment applies to work that has not started.
 
 Watch it move:
 
@@ -184,11 +185,11 @@ kubectl get pod needs-h100 -n kai-research -o wide
 | Symptom | Cause |
 | --- | --- |
 | Workload ignores `defaultNodePools` | The pod sets its own affinity or annotation, which takes precedence |
-| Project rejected on create | A pool in `defaultNodePools` has no queue in the same spec |
+| Project rejected on create | A node pool in `defaultNodePools` has no queue in the same spec |
 | Everything lands in `default` | The project has no `defaultNodePools`, and the pod expressed no preference |
-| Affinity is set but no pool is selected | The operator is not `In`, the affinity is `preferred` rather than `required`, or the value does not exactly match a pool's `labelValue` |
-| PodGroup never gets a queue | The project has no queue for the pool that was chosen |
-| Workload never falls back | It has only one candidate pool |
+| Affinity is set but no node pool is selected | The operator is not `In`, the affinity is `preferred` rather than `required`, or the value does not exactly match a node pool's `labelValue` |
+| PodGroup never gets a queue | The project has no queue for the node pool that was chosen |
+| Workload never falls back | It has only one candidate node pool |
 
 ## See also
 

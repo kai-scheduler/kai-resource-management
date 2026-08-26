@@ -115,7 +115,7 @@ Labels that are commonly already present, and make good node pool selectors:
 | `kubernetes.io/arch` | kubelet | `amd64` |
 
 Selecting on a label your infrastructure already maintains is the better habit: new nodes
-join the right pool the moment they register, with nothing for you to remember.
+join the right node pool the moment they register, with nothing for you to remember.
 
 **If one of those fits**, take its exact value and put it in the manifest below —
 `labelValue` must match character for character, so copy it rather than typing it.
@@ -128,7 +128,7 @@ kubectl label "node/${NODE}" nvidia.com/gpu.product=H100
 echo "labelled ${NODE}"
 ```
 
-Either way, create the pool that claims the node. The example selects
+Either way, create the node pool that claims the node. The example selects
 `nvidia.com/gpu.product=H100`; if you chose an existing label instead, edit `labelKey` and
 `labelValue` to match it before applying:
 
@@ -136,8 +136,8 @@ Either way, create the pool that claims the node. The example selects
 kubectl apply -f docs/concepts/examples/nodepool.yaml
 ```
 
-A pool whose pair matches no node is not an error — it comes up `Empty` and waits. If that
-happens, compare the pair against the node's actual labels; a mismatched value is the
+A node pool whose pair matches no node is not an error — it comes up `Empty` and waits. If
+that happens, compare the pair against the node's actual labels; a mismatched value is the
 usual cause.
 
 <details>
@@ -183,8 +183,8 @@ kubectl get "node/${NODE}" -o jsonpath='{.metadata.labels.kai\.scheduler/node-po
 h100
 ```
 
-And the pool got its own scheduler shard — one scheduler instance responsible for this
-pool's nodes:
+And the node pool got its own scheduler shard — one scheduler instance responsible
+for this pool's nodes:
 
 ```bash
 kubectl get schedulingshard h100 \
@@ -202,7 +202,7 @@ kubectl apply -f docs/concepts/examples/project.yaml
 ```
 
 The department holds the quota its projects share; the project is the team. Both declare
-one queue per node pool — the `h100` pool, and the `default` pool as a fallback.
+one queue per node pool — the `h100` node pool, and the `default` node pool as a fallback.
 
 The project gets a namespace:
 
@@ -296,7 +296,7 @@ kubectl get pod sample-workload -n kai-research \
 
 ### See where it was placed
 
-KAI Scheduler grouped the pod into a `PodGroup`; the pod-group assigner chose a node pool
+KAI Scheduler grouped the pod into a `PodGroup`; the pod group assigner chose a node pool
 for it and charged it to the matching queue:
 
 ```bash
@@ -309,9 +309,9 @@ NAME                  QUEUE           POOL
 pg-sample-workload    research-h100   h100
 ```
 
-Neither the queue nor the pool was named by the person who submitted the pod. That is the
-whole point — see [workload placement](../concepts/workload-placement.md) for how each was
-resolved.
+Neither the queue nor the node pool was named by the person who submitted the pod. That is
+the whole point — see [workload placement](../concepts/workload-placement.md) for how each
+was resolved.
 
 ### See it running
 
@@ -319,7 +319,7 @@ resolved.
 kubectl get pod sample-workload -n kai-research -o wide
 ```
 
-It is on the node you labelled in step 3 — the only node in the `h100` pool.
+It is on the node you labelled in step 3 — the only node in the `h100` node pool.
 
 If it stays `Pending`, ask the scheduler why:
 
@@ -375,7 +375,7 @@ left behind. Remove those by hand only when you intend permanent data removal �
 | If you want to | Read |
 | --- | --- |
 | Understand what you just created | [Concepts](../concepts/README.md) |
-| Split a real fleet into pools | [Partition nodes into node pools](../how-to/partition-nodes-into-node-pools.md) |
+| Split a real fleet into node pools | [Partition nodes into node pools](../how-to/partition-nodes-into-node-pools.md) |
 | Give several teams a shared budget | [Model an org with departments](../how-to/model-an-org-with-departments.md) |
 | Control where workloads land | [Place workloads across node pools](../how-to/place-workloads-across-node-pools.md) |
 | Install this properly, for real | [Chart documentation](../../deployments/kai-resource-management-chart/README.md) |

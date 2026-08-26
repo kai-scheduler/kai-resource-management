@@ -55,8 +55,8 @@ that set one knows better than the namespace default.
 
 **The project's default node pools are added as node affinity.** If the project has
 `defaultNodePools`, they become required node affinity, so the pod can only land on those
-pools' nodes. This step is skipped if the pod already expresses a node pool preference of
-its own, by label or by affinity.
+node pools' nodes. This step is skipped if the pod already expresses a node pool
+preference of its own, by label or by affinity.
 
 Check what happened:
 
@@ -82,7 +82,7 @@ a sentinel value rather than leaving the label off. That distinguishes "no node 
 been chosen yet" from "this belongs to the default node pool", which is itself expressed
 by the label's absence.
 
-## Step 3: the assigner picks a node pool
+## Step 3: the pod group assigner picks a node pool
 
 `pod-group-assigner` works out which node pools the workload asked for, in this order. The
 first source that yields anything wins:
@@ -96,20 +96,20 @@ first source that yields anything wins:
 | 5 | The `default` node pool | Nothing — this is the fallback |
 
 The result is an ordered list of candidates, not a single choice. The assigner walks it
-and takes the first pool whose phase is `Ready` or `Empty`; a pool that is
+and takes the first node pool whose phase is `Ready` or `Empty`; a node pool that is
 `Unschedulable`, `Deleting` or `MissingPrerequisites` is skipped.
 
 It then writes onto the PodGroup:
 
 - the node pool label naming the chosen pool — or removes it, if the choice was `default`;
-- `spec.queue`, resolved to the project's queue for that pool.
+- `spec.queue`, resolved to the project's queue for that node pool.
 
 ```bash
 kubectl get podgroup -n kai-research \
   -o custom-columns=NAME:.metadata.name,QUEUE:.spec.queue,POOL:'.metadata.labels.kai\.scheduler/node-pool'
 ```
 
-If none of the candidate pools is available, the assigner reports an error and retries.
+If none of the candidate node pools is available, the assigner reports an error and retries.
 The workload waits rather than being placed somewhere it was not asked to go.
 
 ## Step 4: the shard schedules it
@@ -118,7 +118,7 @@ Each node pool has its own scheduler shard. The shard for the chosen pool sees t
 PodGroup, checks it against its queue's quota and the pool's nodes, and binds the pods.
 
 From here it is ordinary KAI Scheduler behaviour: gang scheduling, preemption,
-reclamation between queues, whatever the pool's
+reclamation between queues, whatever the node pool's
 [scheduling configuration](../how-to/tune-per-node-pool-scheduling.md) says.
 
 ## When the first choice does not fit
@@ -136,11 +136,11 @@ flowchart LR
 
 Two details govern how long this goes on:
 
-- **With one candidate pool**, there is nowhere to move to. The workload waits in that
-  pool indefinitely until capacity appears.
-- **With several**, the workload cycles. On reaching the last pool in the list it is
+- **With one candidate node pool**, there is nowhere to move to. The workload waits in that
+  node pool indefinitely until capacity appears.
+- **With several**, the workload cycles. On reaching the last node pool in the list it is
   marked unschedulable, which is what surfaces the failure to the user rather than
-  spinning silently. If a pool it already tried becomes available again, the cycle
+  spinning silently. If a node pool it already tried becomes available again, the cycle
   continues.
 
 A workload whose pods are all already running is never reassigned, even if its node pool

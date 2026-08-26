@@ -9,7 +9,7 @@ NUMA-aware placement.
 ## Why this is per node pool
 
 Each node pool gets its own scheduler instance — a KAI Scheduler `SchedulingShard` named
-after the pool. That is what makes these settings a per-pool choice rather than a
+after the node pool. That is what makes these settings a per-pool choice rather than a
 cluster-wide one: an inference pool can spread for latency while a training pool packs for
 throughput, in the same cluster.
 
@@ -74,8 +74,8 @@ schedulingShardConfig:
 | `reclaimMinRuntime` | Another queue reclaiming quota this one had borrowed |
 
 Both are durations. They buy a workload a floor of useful runtime before it can be
-interrupted, at the cost of making the pool slower to respond to a reclaim. Longer values
-mean more wasted work when something *does* need the capacity back.
+interrupted, at the cost of making the node pool slower to respond to a reclaim. Longer
+values mean more wasted work when something *does* need the capacity back.
 
 ## Usage-aware fairness
 
@@ -125,8 +125,8 @@ schedulingShardConfig:
       enabled: true
 ```
 
-**This one has prerequisites, and turning it on without them changes the pool's phase.**
-Each node in the pool needs:
+**This one has prerequisites, and turning it on without them changes the node pool's
+phase.** Each node in the pool needs:
 
 1. A `NodeResourceTopology` object — published by a topology agent such as the
    NUMA Resources Operator or `node-feature-discovery`'s topology-updater. Its CRD must be
@@ -135,7 +135,7 @@ Each node in the pool needs:
 3. Its kubelet Topology Manager policy must actually enforce alignment — a policy of
    `none` does not.
 
-When any node fails one of those, the pool goes to `MissingPrerequisites`:
+When any node fails one of those, the node pool goes to `MissingPrerequisites`:
 
 ```bash
 kubectl get nodepool h100 -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
@@ -164,7 +164,7 @@ kubectl get nodepool h100 -o jsonpath='{.status.nodes}' | jq
 
 Nodes failing the check report `MissingNrtHealthyPrerequisite`.
 
-`MissingPrerequisites` does **not** stop workloads being placed on the pool — it is a
+`MissingPrerequisites` does **not** stop workloads being placed on the node pool — it is a
 warning that NUMA alignment may not be honoured, not a blockage. Turning the plugin back
 off clears it.
 
@@ -204,25 +204,26 @@ schedulingShardConfig:
 Keys are the scheduler's own flag names, matched exactly. Use this sparingly — it is
 unvalidated, and a bad key is only discovered when the shard's scheduler fails to start.
 
-## Applying to an existing pool
+## Applying to an existing node pool
 
-`schedulingShardConfig` is mutable — unlike `labelKey` and `labelValue`. Edit the pool and
-the shard follows:
+`schedulingShardConfig` is mutable — unlike `labelKey` and `labelValue`. Edit the node
+pool and the shard follows:
 
 ```bash
 kubectl edit nodepool h100
 kubectl get schedulingshard h100 -o jsonpath='{.spec}' | jq
 ```
 
-The shard's scheduler restarts to pick up the change, so its pool is briefly not scheduling.
-Already-running workloads are unaffected. Change one thing at a time on a busy cluster.
+The shard's scheduler restarts to pick up the change, so its node pool is briefly not
+scheduling. Already-running workloads are unaffected. Change one thing at a time on a busy
+cluster.
 
 ## Common mistakes
 
 | Symptom | Cause |
 | --- | --- |
 | Edits to the `SchedulingShard` keep disappearing | It is derived from the node pool. Edit `schedulingShardConfig` instead |
-| Pool went to `MissingPrerequisites` after enabling NUMA | Expected without the topology prerequisites. Read `status.message` |
+| Node pool went to `MissingPrerequisites` after enabling NUMA | Expected without the topology prerequisites. Read `status.message` |
 | `timeBasedFairShare` seems to do nothing | `enabled` is not `true`, or there is no Prometheus to read usage from |
 | A plugin name is not recognised | Names come from KAI Scheduler; check its documentation |
 | The shard's scheduler will not start | A bad key or value in `args` |
@@ -231,6 +232,6 @@ Already-running workloads are unaffected. Change one thing at a time on a busy c
 
 - [Node pools](../concepts/node-pools.md) — including the phases this can change.
 - [Partition nodes into node pools](partition-nodes-into-node-pools.md) — you need
-  separate pools before per-pool tuning means anything.
+  separate node pools before per-pool tuning means anything.
 - [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler) — the plugins, actions
   and flags themselves.

@@ -30,16 +30,16 @@ For anything not covered here, the cluster has the full schema:
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `labelKey` | string | — | The node label key this pool selects on. **Immutable.** Must be empty on `default` and non-empty on every other pool |
-| `labelValue` | string | — | The value that key must have. **Immutable.** Matched exactly. The key/value pair must be unique across all pools |
-| `preferredNetworkTopologyName` | string | — | A KAI `Topology` to prefer for workloads on this pool. Applied as a *preferred* PodGroup constraint at the topology's lowest level |
+| `labelKey` | string | — | The node label key this node pool selects on. **Immutable.** Must be empty on `default` and non-empty on every other node pool |
+| `labelValue` | string | — | The value that key must have. **Immutable.** Matched exactly. The key/value pair must be unique across all node pools |
+| `preferredNetworkTopologyName` | string | — | A KAI `Topology` to prefer for workloads on this node pool. Applied as a *preferred* PodGroup constraint at the topology's lowest level |
 | `schedulingShardConfig` | object | — | Per-pool scheduler settings. See [below](#specschedulingshardconfig) |
 
 ### `spec.schedulingShardConfig`
 
-Compiled into the pool's KAI `SchedulingShard`. Unset fields fall back to the scheduler's
-own defaults. See
-[tuning per-node-pool scheduling](../how-to/tune-per-node-pool-scheduling.md).
+Compiled into the node pool's KAI `SchedulingShard`. Unset fields fall back to the
+scheduler's own defaults. See [tuning per-node-pool
+scheduling](../how-to/tune-per-node-pool-scheduling.md).
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -80,9 +80,9 @@ All **controller-written**.
 | --- | --- | --- |
 | `phase` | string | `Ready`, `Empty`, `Unschedulable`, `MissingPrerequisites`, `Deleting`. See [conditions and phases](conditions-and-phases.md#nodepool-phases) |
 | `message` | string | Human-readable explanation of the phase, naming the nodes involved |
-| `nodes[].name` | string | A node in this pool |
+| `nodes[].name` | string | A node in this node pool |
 | `nodes[].status` | string | `Ready`, `Unschedulable`, `MissingNrtHealthyPrerequisite` |
-| `nodes[].topologyMismatch` | bool | The node is missing labels the pool's network topology requires |
+| `nodes[].topologyMismatch` | bool | The node is missing labels the node pool's network topology requires |
 | `conditions` | array | `NodeTopologyMismatch`, `ProjectReferencesExist`, `MissingNrtHealthyPrerequisite` |
 
 ### Annotations
@@ -100,7 +100,7 @@ GPU-network-acceleration annotations this kind accepts.
 | --- | --- | --- | --- |
 | `queues` | array | **required** | One entry per node pool. See [QueueConfig](#queueconfig). May be an empty list |
 | `parent` | string | — | The department this project belongs to. Must exist. Empty means the project is its own root |
-| `defaultNodePools` | []string | — | Ordered placement preference. Every pool listed must also have a queue in `queues` |
+| `defaultNodePools` | []string | — | Ordered placement preference. Every node pool listed must also have a queue in `queues` |
 | `namespace` | string | — | Adopt this existing namespace instead of creating `<prefix>-<name>`. It must already exist |
 | `enforceKaiScheduler` | bool | `false` | Put every pod in the namespace on the KAI scheduler, whether it asked or not |
 | `deletionType` | string | — | `Blocking` requires the namespace be emptied of configured blockers before the project deletes |
@@ -119,9 +119,9 @@ All **controller-written**.
 | `namespace` | string | The namespace actually in use — read this rather than deriving it |
 | `message` | string | Why the project is in this phase |
 | `conditions` | array | `NamespaceReady`, `QueuesReady`, `RoleBindingsReady`, plus one per configured delete-blocker group |
-| `nodePoolsQuotaStatuses[].nodePoolName` | string | Which pool this entry is for |
-| `nodePoolsQuotaStatuses[].queueStatus` | object | That pool's queue status: `requested`, `allocated`, `allocatedNonPreemptible`, `childQueues`, `conditions` |
-| `quotaStatus` | object | The same three figures summed across all pools |
+| `nodePoolsQuotaStatuses[].nodePoolName` | string | Which node pool this entry is for |
+| `nodePoolsQuotaStatuses[].queueStatus` | object | That node pool's queue status: `requested`, `allocated`, `allocatedNonPreemptible`, `childQueues`, `conditions` |
+| `quotaStatus` | object | The same three figures summed across all node pools |
 
 ---
 

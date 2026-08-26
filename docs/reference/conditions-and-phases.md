@@ -18,24 +18,24 @@ kubectl get <kind> <name> -o jsonpath='{.status.conditions}' | jq
 
 | Phase | Meaning | Accepts workloads? | What to do |
 | --- | --- | --- | --- |
-| `Ready` | At least one node in the pool is ready | Yes | Nothing |
-| `Empty` | The pool has no nodes | Yes | Nothing, if intended. Otherwise check `labelValue` matches your nodes exactly |
-| `Unschedulable` | The pool has nodes but none are ready | No | Check node health, and for nodes cordoned mid-move |
+| `Ready` | At least one node in the node pool is ready | Yes | Nothing |
+| `Empty` | The node pool has no nodes | Yes | Nothing, if intended. Otherwise check `labelValue` matches your nodes exactly |
+| `Unschedulable` | The node pool has nodes but none are ready | No | Check node health, and for nodes cordoned mid-move |
 | `MissingPrerequisites` | Nodes are ready, but an enabled scheduling feature cannot be honoured | Yes | Read `status.message`. See [NUMA prerequisites](../how-to/tune-per-node-pool-scheduling.md#numa-aware-scheduling) |
 | `Deleting` | Being deleted, and something is still holding it | No | Read the conditions — a project reference, or nodes still draining |
 
-`Empty` is not an error. A pool with no nodes yet is a valid placement target.
+`Empty` is not an error. A node pool with no nodes yet is a valid placement target.
 
-`MissingPrerequisites` is a warning, not a blockage: work is still placed on the pool, it
-just may not get the alignment you asked for.
+`MissingPrerequisites` is a warning, not a blockage: work is still placed on the node
+pool, it just may not get the alignment you asked for.
 
 ### NodePool conditions
 
 | Condition | `True` means | What to do |
 | --- | --- | --- |
-| `ProjectReferencesExist` | A project still has a queue for this pool, blocking deletion | The message names the projects. Remove those queues, or delete the projects |
-| `MissingNrtHealthyPrerequisite` | A node in this NUMA-enabled pool has missing or invalid topology data | The message names the unmet prerequisite. See below |
-| `NodeTopologyMismatch` | A node is missing labels the pool's network topology requires | Add the missing node labels, or clear `preferredNetworkTopologyName` |
+| `ProjectReferencesExist` | A project still has a queue for this node pool, blocking deletion | The message names the projects. Remove those queues, or delete the projects |
+| `MissingNrtHealthyPrerequisite` | A node in this NUMA-enabled node pool has missing or invalid topology data | The message names the unmet prerequisite. See below |
+| `NodeTopologyMismatch` | A node is missing labels the node pool's network topology requires | Add the missing node labels, or clear `preferredNetworkTopologyName` |
 
 Absent is the same as `False` — these conditions are only added once they first become
 true.
@@ -50,7 +50,7 @@ true.
 | `Unschedulable` | Not ready — cordoned, or failing its `Ready` condition |
 | `MissingNrtHealthyPrerequisite` | Ready, but its NUMA topology data is missing or unusable |
 
-`status.nodes[].topologyMismatch: true` means the node lacks a label the pool's network
+`status.nodes[].topologyMismatch: true` means the node lacks a label the node pool's network
 topology requires.
 
 ### The three NUMA prerequisite messages
@@ -114,7 +114,8 @@ A department has no phase — it either exists or it is waiting to be deleted.
 | `Applied` | `False` | `ToBeExcludedNodes` | Nodes are draining before exclusion. **In progress, not failed** |
 
 The message lists up to five node names, then `and N more`. Nothing is ever evicted — a
-node moves once its current pool's workloads finish. Delete them if you need it out now.
+node moves once its current node pool's workloads finish. Delete them if you need it out
+now.
 
 `status.observedGeneration` below `metadata.generation` means your latest edit has not been
 acted on yet.
