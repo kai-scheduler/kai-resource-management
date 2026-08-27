@@ -77,6 +77,30 @@ var _ = Describe("Event Filter Tests", func() {
 			})
 		})
 
+		It("allows only the configured role-bindings ConfigMap when role-binding reconciliation is enabled", func() {
+			projectConfig := ConfigForTests()
+			projectConfig.CreateRoleBindings = true
+			projectConfig.RoleBindingsCm = "role-bindings"
+			projectConfig.RoleBindingsCmNamespace = "kai-resource-management"
+			restore := config.SetForTest(projectConfig)
+			defer restore()
+
+			matchingConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: projectConfig.RoleBindingsCm, Namespace: projectConfig.RoleBindingsCmNamespace,
+			}}
+			wrongName := matchingConfigMap.DeepCopy()
+			wrongName.Name = "other"
+			wrongNamespace := matchingConfigMap.DeepCopy()
+			wrongNamespace.Namespace = "other"
+
+			Expect(FilterProjectEvent(matchingConfigMap)).To(BeTrue())
+			Expect(FilterProjectEvent(wrongName)).To(BeFalse())
+			Expect(FilterProjectEvent(wrongNamespace)).To(BeFalse())
+
+			projectConfig.CreateRoleBindings = false
+			Expect(FilterProjectEvent(matchingConfigMap)).To(BeFalse())
+		})
+
 		It("Blocks manually overridden resources", func() {
 
 			By("Blocking a manually overridden Namespace", func() {

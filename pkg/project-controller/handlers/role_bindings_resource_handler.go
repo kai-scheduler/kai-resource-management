@@ -6,6 +6,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	stderrors "errors"
 	"fmt"
 
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -23,11 +24,20 @@ import (
 
 type RoleBindingsResourceHandler struct {
 	common.WithLoggerAndCli
-	desiredRoleBindings     map[string]*rbacv1.RoleBinding
+	desiredRoleBindings     *desiredRoleBindingsCache
 	roleBindingCm           string
 	roleBindingCmNamespace  string
 	validateNamespaceExists bool
 	isOpenshift             bool
+}
+
+// desiredRoleBindingsCache holds the RoleBindings parsed from the configmap.
+// It is keyed on the configmap resource version so an edited configmap is
+// re-parsed instead of being served from a stale cache.
+type desiredRoleBindingsCache struct {
+	initialized     bool
+	resourceVersion string
+	roleBindings    map[string]*rbacv1.RoleBinding
 }
 
 func NewRoleBindingsResourceHandler(client client.Client,
@@ -39,7 +49,7 @@ func NewRoleBindingsResourceHandler(client client.Client,
 			Client: client,
 			Log:    logger,
 		},
-		desiredRoleBindings:     make(map[string]*rbacv1.RoleBinding),
+		desiredRoleBindings:     &desiredRoleBindingsCache{},
 		roleBindingCm:           roleBindingCm,
 		roleBindingCmNamespace:  roleBindingCmNamespace,
 		validateNamespaceExists: validateNamespaceExists,
@@ -47,29 +57,51 @@ func NewRoleBindingsResourceHandler(client client.Client,
 	}
 }
 
-func (handler RoleBindingsResourceHandler) getRoleBindingMapFromCm(ctx context.Context) []error {
+func (handler RoleBindingsResourceHandler) getRoleBindingMapFromCm(
+	ctx context.Context,
+) (map[string]*rbacv1.RoleBinding, error) {
 	if handler.roleBindingCm == "" {
-		return []error{}
+		return map[string]*rbacv1.RoleBinding{}, nil
 	}
 
 	var cm v1.ConfigMap
 	if err := handler.Client.Get(ctx, client.ObjectKey{Namespace: handler.roleBindingCmNamespace, Name: handler.roleBindingCm}, &cm); err != nil {
-		return []error{err}
+		return nil, err
 	}
 
-	var errorResult []error
-	for _, roleBindingYaml := range cm.Data {
+	if handler.desiredRoleBindings.initialized &&
+		handler.desiredRoleBindings.resourceVersion == cm.ResourceVersion {
+		return handler.desiredRoleBindings.roleBindings, nil
+	}
+
+	desiredRoleBindings := make(map[string]*rbacv1.RoleBinding)
+	var parseErrors []error
+	for key, roleBindingYaml := range cm.Data {
 		roleBindingObject := &rbacv1.RoleBinding{}
 		decoder := k8Yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(roleBindingYaml)), 1000)
 
-		err := decoder.Decode(&roleBindingObject)
+		err := decoder.Decode(roleBindingObject)
 		if err != nil {
-			errorResult = append(errorResult, err)
+			parseErrors = append(parseErrors, fmt.Errorf("parse role binding %q: %w", key, err))
 			continue
 		}
-		handler.desiredRoleBindings[roleBindingObject.Name] = roleBindingObject
+		if roleBindingObject.Name == "" {
+			parseErrors = append(parseErrors, fmt.Errorf("parse role binding %q: metadata.name is required", key))
+			continue
+		}
+		desiredRoleBindings[roleBindingObject.Name] = roleBindingObject
 	}
-	return errorResult
+	// A partially parsed configmap would look like an intentional removal to
+	// deleteOmittedRoleBindings, so fail instead of pruning on bad input.
+	if err := stderrors.Join(parseErrors...); err != nil {
+		return nil, err
+	}
+
+	handler.desiredRoleBindings.initialized = true
+	handler.desiredRoleBindings.resourceVersion = cm.ResourceVersion
+	handler.desiredRoleBindings.roleBindings = desiredRoleBindings
+
+	return desiredRoleBindings, nil
 }
 
 func (handler RoleBindingsResourceHandler) HandleResource(
@@ -102,24 +134,56 @@ func (handler RoleBindingsResourceHandler) handleResourceInner(
 		}
 	}
 
-	handler.populateDesiredRoleBindings(ctx)
-	for name, roleBinding := range handler.desiredRoleBindings {
+	desiredRoleBindings, err := handler.getRoleBindingMapFromCm(ctx)
+	if err != nil {
+		handler.Log.Error(err, "could not parse role bindings from configmap",
+			common.LogNamespaceTag, handler.roleBindingCmNamespace)
+		return err
+	}
+
+	for name, roleBinding := range desiredRoleBindings {
 		err = handler.manageStaticRoleBinding(name, namespaceName, project, roleBinding)
 		if err != nil {
 			return err
 		}
 	}
-	return err
+
+	return handler.deleteOmittedRoleBindings(ctx, namespaceName, project, desiredRoleBindings)
 }
 
-func (handler RoleBindingsResourceHandler) populateDesiredRoleBindings(ctx context.Context) {
-	if len(handler.desiredRoleBindings) == 0 {
-		errs := handler.getRoleBindingMapFromCm(ctx)
-		for _, parseErr := range errs {
-			handler.Log.Error(parseErr, "could not parse role binding from configmap",
-				common.LogNamespaceTag, handler.roleBindingCmNamespace)
+// deleteOmittedRoleBindings removes RoleBindings this Project controls that the
+// configmap no longer describes. RoleBindings owned by anything else, including
+// another Project, are left alone.
+func (handler RoleBindingsResourceHandler) deleteOmittedRoleBindings(
+	ctx context.Context, namespace string, project kaiv1alpha1.Project,
+	desiredRoleBindings map[string]*rbacv1.RoleBinding,
+) error {
+	if handler.roleBindingCm == "" {
+		return nil
+	}
+
+	roleBindings := &rbacv1.RoleBindingList{}
+	if err := handler.Client.List(ctx, roleBindings, client.InNamespace(namespace)); err != nil {
+		return fmt.Errorf("list RoleBindings in namespace %s: %w", namespace, err)
+	}
+
+	for i := range roleBindings.Items {
+		roleBinding := &roleBindings.Items[i]
+		if _, desired := desiredRoleBindings[roleBinding.Name]; desired {
+			continue
+		}
+		if !metav1.IsControlledBy(roleBinding, &project) {
+			continue
+		}
+
+		handler.Log.Info("Deleting RoleBinding omitted from the role bindings configmap",
+			common.LogRoleBindingTag, roleBinding.Name,
+			common.LogNamespaceTag, namespace, common.LogProjectTag, project.Name)
+		if err := handler.Client.Delete(ctx, roleBinding); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete omitted RoleBinding %s/%s: %w", namespace, roleBinding.Name, err)
 		}
 	}
+	return nil
 }
 
 func (handler RoleBindingsResourceHandler) manageStaticRoleBinding(
@@ -258,11 +322,12 @@ func (handler RoleBindingsResourceHandler) recreateRoleBinding(currentRoleBindin
 		return err
 	}
 
-	desiredRoleBinding.Namespace = currentRoleBinding.Namespace
-	if err = handler.Client.Create(context.Background(), desiredRoleBinding); err != nil && !errors.IsAlreadyExists(err) {
+	desiredRoleBindingToCreate := desiredRoleBinding.DeepCopy()
+	desiredRoleBindingToCreate.Namespace = currentRoleBinding.Namespace
+	if err = handler.Client.Create(context.Background(), desiredRoleBindingToCreate); err != nil && !errors.IsAlreadyExists(err) {
 		handler.Log.Error(err, "Error creating RoleBinding while attempting to recreate it",
-			common.LogRoleBindingTag, desiredRoleBinding.Name,
-			common.LogNamespaceTag, desiredRoleBinding.Namespace,
+			common.LogRoleBindingTag, desiredRoleBindingToCreate.Name,
+			common.LogNamespaceTag, desiredRoleBindingToCreate.Namespace,
 			common.LogProjectTag, projectName)
 
 		return err

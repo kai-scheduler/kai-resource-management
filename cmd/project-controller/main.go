@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -62,8 +64,26 @@ func main() {
 	clientConfig.QPS = float32(projectReconcilerConfig.K8sClientConfigQPS)
 	clientConfig.Burst = projectReconcilerConfig.K8sClientConfigBurst
 
+	// Scope the ConfigMap informer, which the watch below would otherwise
+	// populate with every ConfigMap in the cluster. This bounds cached reads
+	// only; uncached APIReader reads, such as the project-delete-blockers
+	// lookup, are unaffected.
+	configMapCacheNamespaces := map[string]cache.Config{}
+	for _, namespace := range []string{projectReconcilerConfig.InstallNamespace, projectReconcilerConfig.RoleBindingsCmNamespace} {
+		if namespace != "" {
+			configMapCacheNamespaces[namespace] = cache.Config{}
+		}
+	}
+
 	mgr, err := ctrl.NewManager(clientConfig, ctrl.Options{
 		Scheme: scheme,
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.ConfigMap{}: {
+					Namespaces: configMapCacheNamespaces,
+				},
+			},
+		},
 		Metrics: metricsserver.Options{
 			BindAddress: fmt.Sprintf(":%s", options.MetricsPort),
 		},
