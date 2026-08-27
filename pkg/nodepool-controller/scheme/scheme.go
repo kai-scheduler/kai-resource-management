@@ -33,7 +33,7 @@ import (
 //   - grove/v1alpha1            PodCliqueSet
 //   - topology/v1alpha2         NodeResourceTopology
 //
-// The CR named by --uninstall-detection-gvk is deliberately absent: it is read
+// The CR named by --uninstall-detection-ref is deliberately absent: it is read
 // as unstructured so this module does not depend on the installing
 // distribution's API types.
 func AddToScheme(s *runtime.Scheme) error {

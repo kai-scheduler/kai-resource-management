@@ -24,7 +24,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 )
 
-var _ = Describe("Runai Scheduler Operand", Ordered, func() {
+var _ = Describe("KAI Scheduler Operand", Ordered, func() {
 	var (
 		ctx     context.Context
 		cancel  context.CancelFunc

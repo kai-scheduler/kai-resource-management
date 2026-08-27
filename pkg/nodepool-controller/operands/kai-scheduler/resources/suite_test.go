@@ -21,7 +21,7 @@ const (
 	runaiMIGWorkerNodeLabelKey = "node-role.kubernetes.io/runai-mig-enabled"
 )
 
-var suite = "runai scheduler"
+var suite = "KAI Scheduler Operand Resources"
 
 func TestResources(t *testing.T) {
 	RegisterFailHandler(Fail)

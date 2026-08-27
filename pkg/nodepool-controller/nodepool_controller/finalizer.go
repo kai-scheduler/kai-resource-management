@@ -78,7 +78,7 @@ func (npc *NodePoolController) finalize(ctx context.Context, nodePool *v1alpha1.
 }
 
 // handleNodePoolDeletionOnOwnerUninstall force-deletes the nodepool, ignoring pods
-// still running on its nodes, when the CR named by --uninstall-detection-gvk is
+// still running on its nodes, when the CR named by --uninstall-detection-ref is
 // being deleted. Returns true if the nodepool was deleted.
 func (npc *NodePoolController) handleNodePoolDeletionOnOwnerUninstall(ctx context.Context, nodePool *v1alpha1.NodePool) bool {
 	if npc.params.UninstallDetection == nil {
