@@ -36,9 +36,9 @@ tests:
 
   - it: carries the cert secret name
     set:
-      podGroupAssigner.webhook.certSecretName: runai-pga-tls
+      podGroupAssigner.webhook.certSecretName: custom-pga-tls
     asserts:
-      - equal: {path: spec.podGroupAssigner.webhooks.certSecretName, value: runai-pga-tls}
+      - equal: {path: spec.podGroupAssigner.webhooks.certSecretName, value: custom-pga-tls}
 
   - it: carries the service's own flags
     set:

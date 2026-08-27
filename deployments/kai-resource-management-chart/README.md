@@ -137,7 +137,7 @@ The chart creates it in one of two ways, and can also leave it alone entirely.
 | --- | --- | --- |
 | Deployer (default) | `krmConfigDeployer.enabled=true` | applied by a post-install/post-upgrade hook Job, **outside** the Helm release |
 | GitOps | `krmConfigDeployer.enabled=false`, `krmConfig.render=true` | an ordinary release resource, tracked and drift-detected by ArgoCD |
-| External | both `false` | not created — for Run:ai, which creates the `KRMConfig` itself |
+| External | both `false` | not created — for an external installer that creates the `KRMConfig` itself |
 
 Setting both fails the render: two managers of one singleton would fight, one
 recreating what the other prunes.

@@ -15,7 +15,7 @@ const (
 
 	// nodepoolFinalizerPrefix and nodepoolFinalizerSuffix are appended around
 	// the configured FinalizerDomain to compose the nodepool finalizer string.
-	// e.g., domain "run.ai" -> "nodepool.run.ai/finalize".
+	// e.g., domain "example.com" -> "nodepool.example.com/finalize".
 	nodepoolFinalizerPrefix = "nodepool."
 	nodepoolFinalizerSuffix = "/finalize"
 
@@ -73,7 +73,7 @@ type NodePoolControllerConfig struct {
 	// the prefix of the queue-allocation metric names (e.g.,
 	// `<MetricsNamespace>_queue_allocated_gpus`) written into each
 	// SchedulingShard's UsageDB ExtraParams. Defaults to KAI's metrics
-	// prefix ("kai"); runai overrides to "runai" so existing dashboards
+	// prefix ("kai"); an existing installation overrides it so its dashboards
 	// keep working.
 	MetricsNamespace string
 
@@ -136,8 +136,7 @@ func SetForTest(c *NodePoolControllerConfig) func() {
 }
 
 // FinalizerName composes the nodepool-finalizer string from the configured
-// FinalizerDomain. runai input "run.ai" -> "nodepool.run.ai/finalize"
-// (unchanged); OSS default "kai.scheduler" -> "nodepool.kai.scheduler/finalize".
+// FinalizerDomain. Default "kai.scheduler" -> "nodepool.kai.scheduler/finalize".
 func FinalizerName() string {
 	return fmt.Sprintf("%s%s%s", nodepoolFinalizerPrefix, Get().FinalizerDomain, nodepoolFinalizerSuffix)
 }

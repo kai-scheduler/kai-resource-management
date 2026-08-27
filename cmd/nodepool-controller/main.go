@@ -67,7 +67,7 @@ func main() {
 
 	initLogging(ops.DebugLogLevel, zapOptions)
 
-	log.Info().Msg("Run:AI NodePool Controller")
+	log.Info().Msg("KAI NodePool Controller")
 
 	nodepoolControllerParams, err := parseNodePoolControllerParams()
 	if err != nil {

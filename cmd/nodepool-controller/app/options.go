@@ -41,7 +41,7 @@ func BindFlags() (*Options, *config.NodePoolControllerConfig) {
 	options := &Options{}
 	flag.BoolVar(&options.DebugLogLevel, "debug", false, "Should use debug log level")
 	flag.StringVar(&options.DcgmExporterNamespace, "dcgm-exporter-namespace", defaultDcgmExporterNamespace, "Namespace of dcgm-exporter")
-	flag.BoolVar(&options.RestrictNodeScheduling, "restrict-node-scheduling", false, "deprecated- runai-scheduler will allocate jobs only to restricted nodes")
+	flag.BoolVar(&options.RestrictNodeScheduling, "restrict-node-scheduling", false, "deprecated- the scheduler will allocate jobs only to restricted nodes")
 	flag.StringVar(&options.MetricsPort, "metrics-port", "9400", "The port to serve metrics from")
 	flag.IntVar(&options.K8sClientConfigQPS, "qps", 50, "Queries per second to the K8s API server")
 	flag.IntVar(&options.K8sClientConfigBurst, "burst", 300, "Burst to the K8s API server")

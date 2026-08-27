@@ -93,7 +93,7 @@ func initLogging(useDebugLogLevel bool, zapOptions *zap.Options) {
 }
 
 func main() {
-	log.Info().Msg("Run:AI Pod Group Assigner")
+	log.Info().Msg("KAI Pod Group Assigner")
 
 	clientConfig := ctrl.GetConfigOrDie()
 	clientConfig.QPS = float32(options.k8sClientConfigQPS)
