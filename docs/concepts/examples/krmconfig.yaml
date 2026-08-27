@@ -1,0 +1,67 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# The single object describing a KAI Resource Management installation.
+#
+# READ THIS FIRST. In a default install the Helm chart creates and owns this
+# object, and applying the file below would fight it: the chart's hook
+# reapplies its own version on every upgrade, silently reverting you. Configure
+# a normal install through Helm values instead — see
+# deployments/kai-resource-management-chart/README.md.
+#
+# This file is for the one supported case where you own the object yourself:
+# installing the chart with BOTH deployers off.
+#
+#   helm upgrade --install krm ... \
+#     --set krmConfigDeployer.enabled=false \
+#     --set krmConfig.render=false
+#
+# Apply:
+#   kubectl apply --server-side -f docs/concepts/examples/krmconfig.yaml
+#
+# Then watch the operator install the services it describes:
+#   kubectl get krmconfig krm-config -o jsonpath='{.status.conditions}' | jq
+#   kubectl get deployments -n kai-resource-management
+#
+# The name is fixed: only the singleton named `krm-config` is reconciled, so
+# two of them can never fight. Set `namespace` to the namespace the operator
+# itself runs in.
+#
+# Never delete and recreate this object on a running installation. Everything
+# the operator creates is owned by it, so a new UID cascade-deletes all of it.
+#
+# Every field below is optional. An unset field means "use the default", which
+# is usually the service's own built-in default rather than one this object
+# invents. See docs/reference/api.md for the full surface.
+---
+apiVersion: kai.resources/v1alpha1
+kind: KRMConfig
+metadata:
+  name: krm-config
+spec:
+  namespace: kai-resource-management
+  global:
+    # These three must match the scheduler the services talk to, and nothing
+    # reconciles them against it. Set them at install time and leave them alone.
+    schedulerName: kai-scheduler
+    queueLabelKey: kai.scheduler/queue
+    nodePoolLabelKey: kai.scheduler/node-pool
+    defaultNodePoolName: default
+    replicaCount: 1
+    leaderElection: false
+    serviceMonitor:
+      enabled: true
+  nodePoolController:
+    args:
+      debug: false
+  projectController:
+    features:
+      createNamespaces: true
+      createRoleBindings: true
+      limitRange: false
+    args:
+      debug: false
+      projectNamePrefix: kai
+  podGroupAssigner:
+    args:
+      debug: false

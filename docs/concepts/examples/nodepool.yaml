@@ -1,0 +1,41 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# A node pool claiming every node labelled `nvidia.com/gpu.product=H100`.
+#
+# Prefer selecting on a label your nodes already carry. The NVIDIA GPU Operator
+# sets nvidia.com/gpu.product for you, your cloud provider sets
+# node.kubernetes.io/instance-type, and so on — a pool built on one of those
+# picks up new nodes automatically. Check first, and copy the value exactly:
+#
+#   kubectl get node <node> -o jsonpath='{.metadata.labels}' | jq
+#
+# The real value of nvidia.com/gpu.product looks like NVIDIA-H100-80GB-HBM3,
+# not H100 — adjust labelValue below to whatever your nodes actually have.
+#
+# Prerequisites:
+#   - KAI Resource Management installed.
+#   - At least one node matching the pair below. If nothing existing expresses
+#     the split you want, label a node yourself:
+#       kubectl label node <node> nvidia.com/gpu.product=H100
+#
+# Apply:
+#   kubectl apply -f docs/concepts/examples/nodepool.yaml
+#
+# Then watch it claim its nodes. These resources define no printer columns, so
+# a bare `kubectl get` shows only NAME and AGE — ask for the fields directly:
+#   kubectl get nodepool -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+#   kubectl get nodepool h100 -o jsonpath='{.status.nodes}'
+#
+# The labelKey/labelValue pair is immutable after creation and must be unique
+# across all node pools. Only the `default` node pool may leave both empty.
+#
+# Next: docs/concepts/examples/department.yaml
+---
+apiVersion: kai.resources/v1alpha1
+kind: NodePool
+metadata:
+  name: h100
+spec:
+  labelKey: nvidia.com/gpu.product
+  labelValue: H100
