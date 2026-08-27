@@ -212,6 +212,17 @@ Override them only when your nodes already carry a different vocabulary — a cl
 migrated from another distribution, for instance. Changing a key without relabelling the
 nodes has the same effect as leaving them unlabelled.
 
+The `KRMConfig` does not model these flags, so set them through the nodepool-controller's
+`extraArgs`, which the operator appends after every other argument:
+
+```yaml
+nodePoolController:
+  extraArgs:
+    - --cpu-worker-node-label-key=node-role.kubernetes.io/my-cpu-worker
+    - --gpu-worker-node-label-key=node-role.kubernetes.io/my-gpu-worker
+    - --mig-worker-node-label-key=node-role.kubernetes.io/my-mig-enabled
+```
+
 > **The MIG key is different.** It is read whether or not `restrict-node-scheduling` is on:
 > the scheduler uses it to decide a node is MIG-enabled, falling back to detecting MIG
 > resources when the label is absent. The CPU and GPU keys are inert while the feature is
