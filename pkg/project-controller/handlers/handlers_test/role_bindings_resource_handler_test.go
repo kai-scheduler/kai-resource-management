@@ -17,6 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -162,5 +163,106 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].Name).To(Equal(project.Name))
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].UID).To(Equal(project.UID))
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].Controller).To(Equal(&TrueRef))
+	})
+
+	It("deletes a Project-controlled RoleBinding omitted from the desired ConfigMap", func() {
+		obsoleteRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "obsolete-project-role-binding",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: project.APIVersion,
+				Kind:       project.Kind,
+				Name:       project.Name,
+				UID:        project.UID,
+				Controller: &TrueRef,
+			}},
+		}}
+		Expect(k8sClient.Create(context.TODO(), obsoleteRoleBinding)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		err = k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: obsoleteRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
+	It("preserves omitted RoleBindings that are not controlled by the Project", func() {
+		unownedRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name: "workload-controller-rw", Namespace: namespace,
+		}}
+		otherProjectRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "other-project-role-binding",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: project.APIVersion,
+				Kind:       project.Kind,
+				Name:       "other-project",
+				UID:        "other-project-uid",
+				Controller: &TrueRef,
+			}},
+		}}
+		Expect(k8sClient.Create(context.TODO(), unownedRoleBinding)).To(Succeed())
+		Expect(k8sClient.Create(context.TODO(), otherProjectRoleBinding)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: unownedRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: otherProjectRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
+	})
+
+	It("applies a new ConfigMap version to an existing Project", func() {
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		configMap := &corev1.ConfigMap{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: roleBindingsCmName, Namespace: roleBindingsCmNamespace,
+		}, configMap)).To(Succeed())
+		delete(configMap.Data, "job-controller.yaml")
+		Expect(k8sClient.Update(context.TODO(), configMap)).To(Succeed())
+
+		_, err = handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		err = k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: JobControllerRoleBindingName, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
+	It("does not delete RoleBindings when any ConfigMap entry is malformed", func() {
+		configMap := &corev1.ConfigMap{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: roleBindingsCmName, Namespace: roleBindingsCmNamespace,
+		}, configMap)).To(Succeed())
+		configMap.Data = map[string]string{"broken.yaml": "metadata: ["}
+		Expect(k8sClient.Update(context.TODO(), configMap)).To(Succeed())
+
+		obsoleteRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "obsolete-project-role-binding",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: project.APIVersion,
+				Kind:       project.Kind,
+				Name:       project.Name,
+				UID:        project.UID,
+				Controller: &TrueRef,
+			}},
+		}}
+		Expect(k8sClient.Create(context.TODO(), obsoleteRoleBinding)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).To(HaveOccurred())
+
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: obsoleteRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
 	})
 })

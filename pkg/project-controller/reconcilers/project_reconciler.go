@@ -349,6 +349,13 @@ func (reconciler *ProjectReconciler) SetupWithManager(mgr ctrl.Manager, config *
 		Watches(&rbacv1.RoleBinding{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapRoleBindingToProjectEvent)).
 		Owns(&kaiv2.Queue{})
 
+	if config.CreateRoleBindings && config.RoleBindingsCm != "" {
+		result = result.Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(reconciler.MapRoleBindingsConfigMapToProjectEvents),
+		)
+	}
+
 	if config.LimitRange {
 		result = result.Owns(&corev1.LimitRange{})
 	}

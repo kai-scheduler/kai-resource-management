@@ -565,6 +565,44 @@ var _ = Describe("Project Reconciler Tests", func() {
 			requests = reconciler.MapNamespaceToProjectEvent(context.Background(), testNamespace)
 			Expect(requests).To(HaveLen(0))
 		})
+
+		It("Maps the configured role-bindings ConfigMap to every Project", func() {
+			projectConfig.RoleBindingsCm = "kai-project-controller-rolebindings-plugin"
+			projectConfig.RoleBindingsCmNamespace = "kai-resource-management"
+
+			firstProject := TestProject.DeepCopy()
+			secondProject := TestProject.DeepCopy()
+			secondProject.Name = "second-project"
+			overriddenProject := TestProject.DeepCopy()
+			overriddenProject.Name = "manually-overridden-project"
+			overriddenProject.Labels = map[string]string{RunaiResourceManualOverrideLabel: "true"}
+			Expect(k8sClient.Create(context.Background(), firstProject)).To(Succeed())
+			Expect(k8sClient.Create(context.Background(), secondProject)).To(Succeed())
+			Expect(k8sClient.Create(context.Background(), overriddenProject)).To(Succeed())
+
+			requests := reconciler.MapRoleBindingsConfigMapToProjectEvents(context.Background(), &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      projectConfig.RoleBindingsCm,
+					Namespace: projectConfig.RoleBindingsCmNamespace,
+				},
+			})
+
+			Expect(requests).To(ConsistOf(
+				ctrl.Request{NamespacedName: client.ObjectKey{Name: firstProject.Name}},
+				ctrl.Request{NamespacedName: client.ObjectKey{Name: secondProject.Name}},
+			))
+		})
+
+		It("Does not map an unrelated ConfigMap to Projects", func() {
+			projectConfig.RoleBindingsCm = "kai-project-controller-rolebindings-plugin"
+			projectConfig.RoleBindingsCmNamespace = "kai-resource-management"
+
+			requests := reconciler.MapRoleBindingsConfigMapToProjectEvents(context.Background(), &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "unrelated", Namespace: "kai-resource-management"},
+			})
+
+			Expect(requests).To(BeEmpty())
+		})
 	})
 })
 
