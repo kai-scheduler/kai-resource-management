@@ -105,7 +105,7 @@ func main() {
 			BindAddress: "0", // disable metrics
 		},
 		LeaderElection:   options.EnableLeaderElection,
-		LeaderElectionID: "pod-group-assigner.run.ai",
+		LeaderElectionID: "pod-group-assigner.kai.resources",
 	})
 	if err != nil {
 		log.Error().Msgf("unable to start manager, error: %s", err.Error())
