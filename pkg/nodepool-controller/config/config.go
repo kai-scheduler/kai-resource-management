@@ -81,6 +81,12 @@ type NodePoolControllerConfig struct {
 	// nodepool finalizer string. See FinalizerName() for the composition.
 	FinalizerDomain string
 
+	// UninstallDetectionRefStr identifies the CR whose deletion means the
+	// installing operator is going away, so nodepools are force-deleted, as
+	// "group/version/Kind/namespace/name". Empty disables the check; an empty
+	// namespace segment means cluster-scoped.
+	UninstallDetectionRefStr string
+
 	// SchedulingShardArgsStr is the JSON-encoded map of cluster-wide KAI scheduler
 	// args supplied at startup via the --scheduling-shard-args flag. The controller
 	// parses it once at boot and merges it into every SchedulingShard's Args,
