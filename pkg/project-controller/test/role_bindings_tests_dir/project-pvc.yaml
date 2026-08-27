@@ -1,6 +1,9 @@
 # Copyright 2026 NVIDIA CORPORATION
 # SPDX-License-Identifier: Apache-2.0
 
+# Fixture names are deliberately vendor-flavored; see the package comment in
+# ../test_common.go.
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
