@@ -14,7 +14,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
-	runai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler"
+	kai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -84,5 +84,5 @@ func (npc *NodePoolController) getNodePoolStatusByScheduler(ctx context.Context,
 }
 
 func (npc *NodePoolController) getSchedulerOperand(nodePool *v1alpha1.NodePool) operands.NodePoolOperand {
-	return runai_scheduler.Operand(nodePool.Name, npc.serviceMonitorEnabled)
+	return kai_scheduler.Operand(nodePool.Name, npc.serviceMonitorEnabled)
 }

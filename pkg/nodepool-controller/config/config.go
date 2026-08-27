@@ -53,7 +53,7 @@ type NodePoolControllerConfig struct {
 	// pods managed by the scheduler this controller serves. Used (a) to
 	// filter pods when computing per-nodepool capacity / draining state and
 	// (b) as the base name of the ServiceMonitor resources written by
-	// `pkg/operands/runai-scheduler`.
+	// `pkg/nodepool-controller/operands/kai-scheduler`.
 	SchedulerName string
 
 	// SchedulerNamespace is the namespace in which the ServiceMonitor and
