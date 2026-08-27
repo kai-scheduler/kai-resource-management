@@ -61,7 +61,7 @@ func NewNodePoolController(client client.Client, scheme *runtime.Scheme,
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools/finalizers,verbs=update
-//+kubebuilder:rbac:groups=run.ai,resources=projects,verbs=get;list;watch
+//+kubebuilder:rbac:groups=kai.resources,resources=projects,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;update;watch;patch;delete;list
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;watch;patch;list
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;list
