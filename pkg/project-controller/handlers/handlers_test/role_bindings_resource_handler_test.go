@@ -237,6 +237,18 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
+	It("rejects a ConfigMap entry that is an empty YAML document", func() {
+		configMap := &corev1.ConfigMap{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: roleBindingsCmName, Namespace: roleBindingsCmNamespace,
+		}, configMap)).To(Succeed())
+		configMap.Data = map[string]string{"empty.yaml": "---\n", "null.yaml": "null"}
+		Expect(k8sClient.Update(context.TODO(), configMap)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).To(HaveOccurred())
+	})
+
 	It("does not delete RoleBindings when any ConfigMap entry is malformed", func() {
 		configMap := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{

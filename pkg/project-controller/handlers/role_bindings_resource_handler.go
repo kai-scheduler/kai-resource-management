@@ -80,7 +80,7 @@ func (handler RoleBindingsResourceHandler) getRoleBindingMapFromCm(
 		roleBindingObject := &rbacv1.RoleBinding{}
 		decoder := k8Yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(roleBindingYaml)), 1000)
 
-		err := decoder.Decode(&roleBindingObject)
+		err := decoder.Decode(roleBindingObject)
 		if err != nil {
 			parseErrors = append(parseErrors, fmt.Errorf("parse role binding %q: %w", key, err))
 			continue
@@ -326,8 +326,8 @@ func (handler RoleBindingsResourceHandler) recreateRoleBinding(currentRoleBindin
 	desiredRoleBindingToCreate.Namespace = currentRoleBinding.Namespace
 	if err = handler.Client.Create(context.Background(), desiredRoleBindingToCreate); err != nil && !errors.IsAlreadyExists(err) {
 		handler.Log.Error(err, "Error creating RoleBinding while attempting to recreate it",
-			common.LogRoleBindingTag, desiredRoleBinding.Name,
-			common.LogNamespaceTag, desiredRoleBinding.Namespace,
+			common.LogRoleBindingTag, desiredRoleBindingToCreate.Name,
+			common.LogNamespaceTag, desiredRoleBindingToCreate.Namespace,
 			common.LogProjectTag, projectName)
 
 		return err

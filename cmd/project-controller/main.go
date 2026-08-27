@@ -64,8 +64,10 @@ func main() {
 	clientConfig.QPS = float32(projectReconcilerConfig.K8sClientConfigQPS)
 	clientConfig.Burst = projectReconcilerConfig.K8sClientConfigBurst
 
-	// Only the install namespace and the role-bindings configmap namespace are
-	// ever read.
+	// Scope the ConfigMap informer, which the watch below would otherwise
+	// populate with every ConfigMap in the cluster. This bounds cached reads
+	// only; uncached APIReader reads, such as the project-delete-blockers
+	// lookup, are unaffected.
 	configMapCacheNamespaces := map[string]cache.Config{}
 	for _, namespace := range []string{projectReconcilerConfig.InstallNamespace, projectReconcilerConfig.RoleBindingsCmNamespace} {
 		if namespace != "" {
