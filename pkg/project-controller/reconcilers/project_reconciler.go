@@ -343,7 +343,10 @@ func (reconciler *ProjectReconciler) GetProject(req ctrl.Request, project *kaiv1
 func (reconciler *ProjectReconciler) SetupWithManager(mgr ctrl.Manager, config *config.ProjectReconcilerConfig) error {
 	result := ctrl.NewControllerManagedBy(mgr).
 		For(&kaiv1alpha1.Project{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		// TODO: this single line (WatchesRawSource...) should be removed after 2.27 and after new project crd upgrade
+		// Consumer side of IntraEventSender: LimitRangeReconciler
+		// (limitrange_reconciler.go) pushes a per-Project event onto this channel
+		// when the default-limit-range ConfigMap changes. Removing this line
+		// silently stops that propagation.
 		WatchesRawSource(source.Channel[client.Object](reconciler.projectEvents, &handler.TypedEnqueueRequestForObject[client.Object]{})).
 		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapNamespaceToProjectEvent)).
 		Watches(&rbacv1.RoleBinding{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapRoleBindingToProjectEvent)).
