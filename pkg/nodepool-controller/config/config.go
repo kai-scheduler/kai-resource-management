@@ -60,6 +60,13 @@ type NodePoolControllerConfig struct {
 	// related per-shard scheduler resources live.
 	SchedulerNamespace string
 
+	// Worker-node label keys, passed into every SchedulingShard. CPU and GPU are
+	// only read while the scheduler's restrict-node-scheduling feature is on; MIG
+	// is always read.
+	CPUWorkerNodeLabelKey string
+	GPUWorkerNodeLabelKey string
+	MIGWorkerNodeLabelKey string
+
 	// MetricsNamespace is the prefix attached to every Prometheus metric
 	// the controller emits or queries: it is used both as the Subsystem of
 	// the controller's own `<MetricsNamespace>_node_nodepool` gauge and as

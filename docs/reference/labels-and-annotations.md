@@ -18,6 +18,25 @@ edit it by hand.
 Configurable through `global.nodePoolLabelKey`, and the nodepool-controller's
 `unschedulableLabel` and `toExcludeLabel` args.
 
+### Worker-node labels
+
+These are read by the scheduler rather than by KRM. KRM's only role is to pass the keys
+into every `SchedulingShard` it writes, so that the scheduler knows which keys to look for.
+
+| Key | Default | R/W | Meaning |
+| --- | --- | --- | --- |
+| `node-role.kubernetes.io/cpu-worker` | configurable | Read | The node may run CPU-only work. Only consulted while `restrict-node-scheduling` is on |
+| `node-role.kubernetes.io/gpu-worker` | configurable | Read | The node may run GPU work. Only consulted while `restrict-node-scheduling` is on |
+| `node-role.kubernetes.io/mig-enabled` | configurable | Read | The node is MIG-enabled. Always consulted; when absent the scheduler detects MIG resources instead |
+
+Configurable through the nodepool-controller's `--cpu-worker-node-label-key`,
+`--gpu-worker-node-label-key` and `--mig-worker-node-label-key` args.
+
+The CPU and GPU keys do nothing until `restrict-node-scheduling` is enabled on a node
+pool's shard — and once it is, a node carrying neither is dropped from the scheduler's
+cache altogether. See
+[Restrict scheduling to labelled nodes](../how-to/tune-per-node-pool-scheduling.md#restrict-scheduling-to-labelled-nodes).
+
 Find nodes in each state:
 
 ```bash

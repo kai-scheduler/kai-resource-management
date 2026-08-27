@@ -168,6 +168,55 @@ Nodes failing the check report `MissingNrtHealthyPrerequisite`.
 warning that NUMA alignment may not be honoured, not a blockage. Turning the plugin back
 off clears it.
 
+## Restrict scheduling to labelled nodes
+
+By default the scheduler considers every node in the node pool, and places a workload
+wherever it fits. `restrict-node-scheduling` narrows that to nodes you have explicitly
+marked as workers, and stops GPU work landing on CPU nodes.
+
+```yaml
+schedulingShardConfig:
+  args:
+    restrict-node-scheduling: "true"
+```
+
+**Label your nodes before turning this on.** While it is enabled the scheduler drops every
+node carrying neither the CPU nor the GPU worker label out of its cache entirely — an
+unlabelled node becomes invisible, not merely deprioritised, and workloads on that pool
+stop being placed.
+
+```bash
+kubectl label node <node> node-role.kubernetes.io/gpu-worker=""
+kubectl label node <node> node-role.kubernetes.io/cpu-worker=""
+```
+
+Two things change once it is on:
+
+| Effect | Result |
+| --- | --- |
+| Unlabelled nodes are filtered out of the scheduler's cache | Only labelled nodes are candidates at all |
+| GPU and CPU work are separated | A workload requesting a GPU is refused a node without the GPU label; one requesting no GPU is refused a node without the CPU label |
+
+### Changing the label keys
+
+The keys themselves are set on the nodepool-controller, not per node pool, because the
+controller writes them into every shard it creates:
+
+| Flag | Default |
+| --- | --- |
+| `--cpu-worker-node-label-key` | `node-role.kubernetes.io/cpu-worker` |
+| `--gpu-worker-node-label-key` | `node-role.kubernetes.io/gpu-worker` |
+| `--mig-worker-node-label-key` | `node-role.kubernetes.io/mig-enabled` |
+
+Override them only when your nodes already carry a different vocabulary — a cluster
+migrated from another distribution, for instance. Changing a key without relabelling the
+nodes has the same effect as leaving them unlabelled.
+
+> **The MIG key is different.** It is read whether or not `restrict-node-scheduling` is on:
+> the scheduler uses it to decide a node is MIG-enabled, falling back to detecting MIG
+> resources when the label is absent. The CPU and GPU keys are inert while the feature is
+> off.
+
 ## Other plugins and actions
 
 ```yaml
@@ -227,6 +276,8 @@ cluster.
 | `timeBasedFairShare` seems to do nothing | `enabled` is not `true`, or there is no Prometheus to read usage from |
 | A plugin name is not recognised | Names come from KAI Scheduler; check its documentation |
 | The shard's scheduler will not start | A bad key or value in `args` |
+| Nothing schedules on a pool after enabling `restrict-node-scheduling` | Its nodes carry neither worker label, so the scheduler dropped them from its cache |
+| Changing a worker-label key had no effect | `restrict-node-scheduling` is off, so the CPU and GPU keys are never read |
 
 ## See also
 

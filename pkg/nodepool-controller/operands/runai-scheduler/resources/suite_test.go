@@ -13,6 +13,14 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
+// The suite baseline pins the runai worker-node labels, so specs that don't
+// override the config assert the vendor vocabulary still flows into the shard.
+const (
+	runaiCPUWorkerNodeLabelKey = "node-role.kubernetes.io/runai-cpu-worker"
+	runaiGPUWorkerNodeLabelKey = "node-role.kubernetes.io/runai-gpu-worker"
+	runaiMIGWorkerNodeLabelKey = "node-role.kubernetes.io/runai-mig-enabled"
+)
+
 var suite = "runai scheduler"
 
 func TestResources(t *testing.T) {
@@ -34,5 +42,9 @@ var _ = BeforeSuite(func() {
 		SchedulerNamespace:  "runai",
 		MetricsNamespace:    "runai",
 		FinalizerDomain:     "run.ai",
+
+		CPUWorkerNodeLabelKey: runaiCPUWorkerNodeLabelKey,
+		GPUWorkerNodeLabelKey: runaiGPUWorkerNodeLabelKey,
+		MIGWorkerNodeLabelKey: runaiMIGWorkerNodeLabelKey,
 	})
 })
