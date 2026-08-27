@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,24 +30,53 @@ func objectMeta(name string) metav1.ObjectMeta {
 	}
 }
 
+// NodePoolOption customises a NodePool before it is created.
+type NodePoolOption func(*kaires.NodePool)
+
+// WithPreferredNetworkTopology names the Topology the pod-group-assigner stamps onto the
+// pod groups it assigns to this node pool.
+func WithPreferredNetworkTopology(topology string) NodePoolOption {
+	return func(nodePool *kaires.NodePool) { nodePool.Spec.PreferredNetworkTopologyName = topology }
+}
+
 // NodePool builds a nodePool selecting nodes by labelKey=labelValue. The webhook
 // requires a non-empty pair on every node pool but the default one.
-func NodePool(name, labelKey, labelValue string) *kaires.NodePool {
-	return &kaires.NodePool{
+func NodePool(name, labelKey, labelValue string, options ...NodePoolOption) *kaires.NodePool {
+	nodePool := &kaires.NodePool{
 		ObjectMeta: objectMeta(name),
 		Spec: kaires.NodePoolSpec{
 			LabelKey:   labelKey,
 			LabelValue: labelValue,
 		},
 	}
+	for _, apply := range options {
+		apply(nodePool)
+	}
+
+	return nodePool
 }
 
 // GeneratedNodePool builds a nodePool whose name and node-label value are unique to
 // this call, so parallel specs never collide on the webhook's duplicate-pair rule.
-func GeneratedNodePool(prefix, labelKey string) *kaires.NodePool {
+func GeneratedNodePool(prefix, labelKey string, options ...NodePoolOption) *kaires.NodePool {
 	name := utils.GenerateName(prefix)
 
-	return NodePool(name, labelKey, name)
+	return NodePool(name, labelKey, name, options...)
+}
+
+// Topology builds a kai.scheduler Topology from its node labels, ordered highest level
+// first. The pod-group-assigner stamps the last one, the lowest, onto a pod group; a node
+// missing any of them is reported as a topology mismatch by nodepool-controller.
+func Topology(name string, nodeLabels ...string) *kaitopologyv1alpha1.Topology {
+	levels := make([]kaitopologyv1alpha1.TopologyLevel, 0, len(nodeLabels))
+	for _, nodeLabel := range nodeLabels {
+		levels = append(levels, kaitopologyv1alpha1.TopologyLevel{NodeLabel: nodeLabel})
+	}
+
+	return &kaitopologyv1alpha1.Topology{
+		ObjectMeta: objectMeta(name),
+		Spec:       kaitopologyv1alpha1.TopologySpec{Levels: levels},
+	}
 }
 
 // ProjectOption customises a Project before it is created.

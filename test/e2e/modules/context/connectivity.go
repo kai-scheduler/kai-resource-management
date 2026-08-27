@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
+	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -34,12 +35,13 @@ var (
 func buildScheme() (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
 	for _, add := range []func(*runtime.Scheme) error{
-		clientgoscheme.AddToScheme, // Node, Pod, Namespace
-		kaires.AddToScheme,         // Project, Department, NodePool, ManagedNodesConfig
-		kaischedulerv1.AddToScheme, // SchedulingShard
-		kaiv2.AddToScheme,          // Queue
-		kaiv2alpha2.AddToScheme,    // PodGroup
-		monitoringv1.AddToScheme,   // ServiceMonitor
+		clientgoscheme.AddToScheme,      // Node, Pod, Namespace
+		kaires.AddToScheme,              // Project, Department, NodePool, ManagedNodesConfig
+		kaischedulerv1.AddToScheme,      // SchedulingShard
+		kaitopologyv1alpha1.AddToScheme, // Topology
+		kaiv2.AddToScheme,               // Queue
+		kaiv2alpha2.AddToScheme,         // PodGroup
+		monitoringv1.AddToScheme,        // ServiceMonitor
 	} {
 		if err := add(scheme); err != nil {
 			return nil, err
