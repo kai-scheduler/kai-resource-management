@@ -32,6 +32,12 @@ const (
 	projectPvcRoleBindingName = "runai-project-controller-cluster-pvc-per-project"
 )
 
+// desiredProjectPvcRoleRef matches the ConfigMap entry, so a fixture carrying it takes the
+// update path rather than the delete-and-recreate one.
+var desiredProjectPvcRoleRef = rbacv1.RoleRef{
+	APIGroup: RbacGroup, Kind: ClusterRoleKind, Name: projectPvcRoleBindingName,
+}
+
 // roleBindingsConfigMap builds a ConfigMap whose data entries are the role
 // binding yamls under roleBindingsTestsDir, mirroring how the plugin configmap
 // is populated in the cluster.
@@ -165,6 +171,58 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].Name).To(Equal(project.Name))
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].UID).To(Equal(project.UID))
 		Expect(projectPvcRoleBindingFound.OwnerReferences[0].Controller).To(Equal(&TrueRef))
+	})
+
+	It("adopts an existing RoleBinding that has no owner", func() {
+		// An earlier recreate built the binding straight from the ConfigMap, which carries no
+		// ownerReferences. Left unowned it is neither garbage collected with the Project nor
+		// eligible for pruning, and this reconcile is the only pass that will look at it.
+		ownerlessRoleBinding := &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: projectPvcRoleBindingName, Namespace: namespace},
+			RoleRef:    desiredProjectPvcRoleRef,
+		}
+		Expect(k8sClient.Create(context.TODO(), ownerlessRoleBinding)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		found := &rbacv1.RoleBinding{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: projectPvcRoleBindingName, Namespace: namespace,
+		}, found)).To(Succeed())
+		Expect(found.Labels).To(HaveKeyWithValue(ManagedByLabel, ProjectControllerName))
+		Expect(found.OwnerReferences).To(HaveLen(1))
+		Expect(found.OwnerReferences[0].Name).To(Equal(project.Name))
+		Expect(found.OwnerReferences[0].UID).To(Equal(project.UID))
+		Expect(found.OwnerReferences[0].Controller).To(Equal(&TrueRef))
+	})
+
+	It("does not take over a RoleBinding another Project controls", func() {
+		foreignRoleBinding := &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      projectPvcRoleBindingName,
+				Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: project.APIVersion,
+					Kind:       project.Kind,
+					Name:       "other-project",
+					UID:        "other-project-uid",
+					Controller: &TrueRef,
+				}},
+			},
+			RoleRef: desiredProjectPvcRoleRef,
+		}
+		Expect(k8sClient.Create(context.TODO(), foreignRoleBinding)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		found := &rbacv1.RoleBinding{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: projectPvcRoleBindingName, Namespace: namespace,
+		}, found)).To(Succeed())
+		Expect(found.OwnerReferences).To(HaveLen(1))
+		Expect(found.OwnerReferences[0].Name).To(Equal("other-project"))
 	})
 
 	It("deletes a Project-controlled RoleBinding omitted from the desired ConfigMap", func() {

@@ -190,6 +190,17 @@ func isManagedByProjectController(roleBinding *rbacv1.RoleBinding) bool {
 	return roleBinding.Labels[common.ManagedByLabel] == common.ProjectControllerName
 }
 
+func projectControllerRef(projectName string, projectUid types.UID) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion:         kaiv1alpha1.GroupVersion.Identifier(),
+		Kind:               common.ProjectKind,
+		Name:               projectName,
+		UID:                projectUid,
+		Controller:         &common.TrueRef,
+		BlockOwnerDeletion: &common.TrueRef,
+	}
+}
+
 func (handler RoleBindingsResourceHandler) manageStaticRoleBinding(
 	name, namespace string, project kaiv1alpha1.Project, desiredRoleBinding *rbacv1.RoleBinding,
 ) (err error) {
@@ -213,6 +224,10 @@ func (handler RoleBindingsResourceHandler) manageStaticRoleBinding(
 			currentRoleBinding.Labels = map[string]string{}
 		}
 		currentRoleBinding.Labels[common.ManagedByLabel] = common.ProjectControllerName
+		if metav1.GetControllerOf(&currentRoleBinding) == nil {
+			currentRoleBinding.OwnerReferences = append(
+				currentRoleBinding.OwnerReferences, projectControllerRef(project.Name, project.UID))
+		}
 
 		if shouldRecreateRoleBinding {
 			handler.Log.Info(fmt.Sprintf("Recreating %s, %s RoleBinding", name, namespace), common.LogRoleBindingTag, name, common.LogNamespaceTag, namespace, common.LogProjectTag, project.Name)
@@ -304,17 +319,10 @@ func (handler RoleBindingsResourceHandler) buildRoleBinding(roleBindingName, nam
 
 	return rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleBindingName,
-			Namespace: namespace,
-			Labels:    map[string]string{common.ManagedByLabel: common.ProjectControllerName},
-			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion:         kaiv1alpha1.GroupVersion.Identifier(),
-				Kind:               common.ProjectKind,
-				Name:               projectName,
-				UID:                projectUid,
-				Controller:         &common.TrueRef,
-				BlockOwnerDeletion: &common.TrueRef,
-			}},
+			Name:            roleBindingName,
+			Namespace:       namespace,
+			Labels:          map[string]string{common.ManagedByLabel: common.ProjectControllerName},
+			OwnerReferences: []metav1.OwnerReference{projectControllerRef(projectName, projectUid)},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: common.RbacGroup,
@@ -341,14 +349,8 @@ func (handler RoleBindingsResourceHandler) recreateRoleBinding(currentRoleBindin
 		desiredRoleBindingToCreate.Labels = map[string]string{}
 	}
 	desiredRoleBindingToCreate.Labels[common.ManagedByLabel] = common.ProjectControllerName
-	desiredRoleBindingToCreate.OwnerReferences = []metav1.OwnerReference{{
-		APIVersion:         kaiv1alpha1.GroupVersion.Identifier(),
-		Kind:               common.ProjectKind,
-		Name:               project.Name,
-		UID:                project.UID,
-		Controller:         &common.TrueRef,
-		BlockOwnerDeletion: &common.TrueRef,
-	}}
+	desiredRoleBindingToCreate.OwnerReferences = []metav1.OwnerReference{
+		projectControllerRef(project.Name, project.UID)}
 	if err = handler.Client.Create(context.Background(), desiredRoleBindingToCreate); err != nil && !errors.IsAlreadyExists(err) {
 		handler.Log.Error(err, "Error creating RoleBinding while attempting to recreate it",
 			common.LogRoleBindingTag, desiredRoleBindingToCreate.Name,

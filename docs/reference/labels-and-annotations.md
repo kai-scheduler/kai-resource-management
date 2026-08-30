@@ -130,6 +130,10 @@ though, so pruning is narrower: a RoleBinding is removed only when it carries th
 *and* is owned by the project being reconciled. Anything else in the namespace — including
 a RoleBinding you gave the project as an owner yourself — is left alone.
 
+A RoleBinding named in the ConfigMap that has no owner at all is adopted: the controller
+sets itself as the project's, so it is garbage collected and prunable from then on. One
+already controlled by something else keeps its owner.
+
 ## NodePool annotations
 
 The only annotations you set yourself, rather than reading.
