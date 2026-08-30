@@ -154,7 +154,7 @@ tests:
           content:
             apiGroups: ["apiextensions.k8s.io"]
             resources: ["customresourcedefinitions"]
-            verbs: ["get"]
+            verbs: ["get", "list", "watch"]
 
   # KRM consumes the scheduler's config; writing it is not ours to do.
   - it: is granted nothing on the scheduler's own API group

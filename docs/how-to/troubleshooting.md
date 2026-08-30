@@ -49,8 +49,9 @@ NodePoolController is missing CRDs schedulingshards.kai.scheduler/v1, topologies
 ```
 
 The KAI Scheduler CRDs that service reads are not installed, or no longer serve
-the API version it reads them through — KAI is installed and upgraded separately,
-so it can be removed or rolled back under a running KRM. Confirm with:
+the API version it reads them through. The chart installs KAI as a subchart, but
+it can be upgraded or uninstalled on its own afterwards — so it can be removed or
+rolled back under a running KRM. Confirm with:
 
 ```bash
 kubectl get crd | grep -E 'kai\.scheduler|scheduling\.run\.ai'

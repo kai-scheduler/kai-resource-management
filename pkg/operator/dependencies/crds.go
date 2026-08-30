@@ -4,7 +4,7 @@
 // Package dependencies reports on what a KRM installation needs from components
 // it does not install.
 //
-// KAI Scheduler is installed, upgraded and removed independently of KRM, so the
+// KAI Scheduler can be installed, upgraded and removed independently of KRM, so the
 // operator cannot assume the CRDs its services read are present, or that they
 // still serve the API version those services talk to. Nothing here fails a
 // reconcile: every check answers with a message for the DependenciesFulfilled
@@ -43,9 +43,11 @@ func (r CRDRequirement) String() string {
 // follow "<operand> is missing " — the sentence DeployableOperands builds. It
 // returns an empty message when everything is present.
 //
-// reader must be an uncached one: a cached read of CustomResourceDefinition
-// starts an informer over every CRD in the cluster, and a RESTMapper caches
-// positively and would keep reporting a deleted CRD as present.
+// The manager's cached client is the intended reader: the operator asks this on
+// every reconcile, so one informer over CustomResourceDefinition costs less than
+// re-reading each one from the API server every time. It has to be a client that
+// sees deletions — the RESTMapper does not, since it caches positively and would
+// keep reporting a deleted CRD as present.
 //
 // An error means the cluster could not be asked, and is deliberately distinct
 // from a missing CRD: the caller reports the former as a failed check rather

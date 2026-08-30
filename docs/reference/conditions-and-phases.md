@@ -144,9 +144,13 @@ Reasons attached to these are the condition name or its negation —
 
 ### What `DependenciesFulfilled` covers
 
-KAI Scheduler is installed, upgraded and removed independently of KRM, so the
-operator re-checks on every reconcile that each enabled service still has the
-KAI CRDs it reads, serving the API version it reads them through:
+The chart bundles KAI Scheduler as a subchart, so a default install brings it
+along — but KRM does not own it from then on. It can be upgraded or uninstalled
+on its own afterwards, and an installation can be pointed at a scheduler someone
+else put there. However they got there, the CRDs have to be present, and the
+operator cannot assume they still are. It re-checks on every reconcile that each
+enabled service has the KAI CRDs it reads, serving the API version it reads them
+through:
 
 | Service | CRDs |
 | --- | --- |
