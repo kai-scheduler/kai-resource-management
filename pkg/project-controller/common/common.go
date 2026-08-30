@@ -180,8 +180,7 @@ func IsManuallyOverridden(meta metav1.Object) (isOverridden bool) {
 }
 
 // IsProjectOwner returns the index of the given Project in obj's OwnerReferences,
-// or -1 if the Project does not own obj. It is the KAI replacement for the run.ai
-// Project.IsOwner method.
+// or -1 if the Project does not own obj.
 func IsProjectOwner(project *kaiv1alpha1.Project, obj client.Object) int {
 	for index, ownerRef := range obj.GetOwnerReferences() {
 		if ownerRef.Kind == ProjectKind &&
@@ -194,8 +193,7 @@ func IsProjectOwner(project *kaiv1alpha1.Project, obj client.Object) int {
 }
 
 // IsForceDelete reports whether the object requests force deletion via the
-// kai/force-delete annotation. It is the KAI replacement for the former
-// run.ai deletionRequest.Force spec flag.
+// kai/force-delete annotation.
 func IsForceDelete(meta metav1.Object) bool {
 	return strings.ToLower(meta.GetAnnotations()[ForceDeleteAnnotation]) == "true"
 }

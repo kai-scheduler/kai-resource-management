@@ -142,10 +142,10 @@ func (npc *NodePoolController) arePodsRunningWithNodePool(ctx context.Context, n
 }
 
 func (npc *NodePoolController) getRunningPodsWithNodePoolOnNode(ctx context.Context, nodeName, nodePoolName string, sameNodePool bool) (*corev1.PodList, error) {
-	// this field selector filters in only running pods with runai-scheduler,
+	// this field selector filters in only running pods with the configured scheduler,
 	// and indexes the nodeName to be matched
-	runningWithRunaiSchedulerNodeNameFieldSelector :=
-		fields.OneTermEqualSelector(common.PodRunningWithRunaiSchedulerNodeNameField, nodeName)
+	runningWithKaiSchedulerNodeNameFieldSelector :=
+		fields.OneTermEqualSelector(common.PodRunningWithKaiSchedulerNodeNameField, nodeName)
 
 	var err error
 	var matchNodePool *labels.Requirement
@@ -158,7 +158,7 @@ func (npc *NodePoolController) getRunningPodsWithNodePoolOnNode(ctx context.Cont
 		return nil, err
 	}
 
-	pods, err := npc.listPodsWithSelectors(ctx, runningWithRunaiSchedulerNodeNameFieldSelector, *matchNodePool)
+	pods, err := npc.listPodsWithSelectors(ctx, runningWithKaiSchedulerNodeNameFieldSelector, *matchNodePool)
 	if err != nil {
 		return nil, err
 	}

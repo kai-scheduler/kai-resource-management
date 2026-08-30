@@ -114,11 +114,11 @@ tests:
 
   - it: carries the rolebindings ConfigMap name
     set:
-      projectController.roleBindingsConfigMapName: runai-rolebindings-plugin
+      projectController.roleBindingsConfigMapName: custom-rolebindings-plugin
     asserts:
       - equal:
           path: spec.projectController.roleBindingsConfigMapName
-          value: runai-rolebindings-plugin
+          value: custom-rolebindings-plugin
 
   - it: omits the lists that are empty
     asserts:

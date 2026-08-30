@@ -1,7 +1,7 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-package runai_scheduler
+package kai_scheduler
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/utils"
 )
 
@@ -39,14 +39,14 @@ func (o *operand) resourceStatusFunctions() []operands.ResourceStatusFunction {
 	return funcs
 }
 
-// RBAC permissions the operand requires for resource management
-//+kubebuilder:rbac:namespace=runai,groups=apps,resources=deployments,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="",resources=serviceaccounts,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="rbac.authorization.k8s.io",resources=roles,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="",resources=services,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="",resources=configmaps,verbs=get;create;update;watch;patch;delete;list
-//+kubebuilder:rbac:namespace=runai,groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create;update;watch;patch;delete;list
+// RBAC permissions the operand requires, granted in the release namespace.
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;create;update;watch;patch;delete;list
+//+kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create;update;watch;patch;delete;list
 
 type operand struct {
 	name                  string

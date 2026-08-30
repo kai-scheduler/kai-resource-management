@@ -67,7 +67,7 @@ func main() {
 
 	initLogging(ops.DebugLogLevel, zapOptions)
 
-	log.Info().Msg("Run:AI NodePool Controller")
+	log.Info().Msg("KAI NodePool Controller")
 
 	nodepoolControllerParams, err := parseNodePoolControllerParams()
 	if err != nil {
@@ -190,8 +190,14 @@ func parseNodePoolControllerParams() (*common.NodePoolControllerParams, error) {
 		return nil, fmt.Errorf("failed to parse scheduler args: %w", err)
 	}
 
+	uninstallDetection, err := app.ParseUninstallDetectionRef(config.Get().UninstallDetectionRefStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse uninstall-detection-ref: %w", err)
+	}
+
 	nodePoolControllerParams := &common.NodePoolControllerParams{
 		SchedulingShardArgs: schedulingShardArgs,
+		UninstallDetection:  uninstallDetection,
 	}
 	return nodePoolControllerParams, nil
 }

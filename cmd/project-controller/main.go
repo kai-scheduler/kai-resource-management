@@ -91,7 +91,7 @@ func main() {
 			Cache: &client.CacheOptions{Unstructured: true},
 		},
 		LeaderElection:   options.EnableLeaderElection,
-		LeaderElectionID: "project-controller.run.ai",
+		LeaderElectionID: fmt.Sprintf("project-controller.%s", projectReconcilerConfig.FinalizerDomain),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
