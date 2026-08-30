@@ -1,0 +1,40 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# Restrict which nodes KAI Resource Management manages at all.
+#
+# Without this object every node in the cluster is eligible for a node pool.
+# With it, only nodes matching inclusion_criteria stay managed; every other
+# node is moved into the reserved `kai-excluded-nodes` pool, which no
+# scheduler shard serves, so nothing is scheduled onto it.
+#
+# The name matters: only the singleton named `kai-managed-nodes-config` is
+# reconciled. Another name is ignored.
+#
+# Exclusion is graceful. A node still running workloads of its current pool is
+# labelled `kai.scheduler/to-exclude=true` and made unschedulable rather than
+# moved immediately, and the object reports Applied=False until it drains.
+#
+# Apply:
+#   kubectl apply -f docs/concepts/examples/managednodesconfig.yaml
+#
+# Then check whether it has fully taken effect:
+#   kubectl get managednodesconfig kai-managed-nodes-config \
+#     -o jsonpath='{.status.conditions}'
+#
+# Note the field name is inclusion_criteria, with an underscore. Its value is
+# a core Kubernetes NodeSelector: terms are OR-ed, expressions within a term
+# are AND-ed.
+#
+# See docs/how-to/exclude-nodes-from-management.md before using this.
+---
+apiVersion: kai.resources/v1alpha1
+kind: ManagedNodesConfig
+metadata:
+  name: kai-managed-nodes-config
+spec:
+  inclusion_criteria:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: DoesNotExist

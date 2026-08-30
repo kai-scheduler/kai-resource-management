@@ -21,7 +21,7 @@ import (
 
 // blockedGracePeriod is how long the pool is watched for a deletion that should never
 // happen. Long enough to outlast several reconciles, short enough to keep the suite quick.
-const blockedGracePeriod = 15 * time.Second
+const blockedGracePeriod = 7 * time.Second
 
 var _ = Describe("Deleting a node pool a project references", Ordered, Label("nodepool-controller"), func() {
 	var (

@@ -46,13 +46,6 @@ type PodGroupAssignerConfig struct {
 	// to determine the project name a namespace belongs to. The assigner uses
 	// this when a PodGroup has no project label of its own and we need to
 	// derive the project from its namespace.
-	//
-	// Historically this was the *same* constant as QueueLabelKey (runai/queue),
-	// because the same label was overloaded for two unrelated purposes:
-	// (a) the workload's queue name and (b) the namespace's project name.
-	// Splitting this into its own flag is the central change —
-	// in runai deployments both flags still point at runai/queue (preserving
-	// behavior), but in the OSS package they default to different keys.
 	NamespaceProjectLabelKey string
 
 	// ProjectLabelKey is the label key READ from a PodGroup to determine the

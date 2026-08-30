@@ -1,0 +1,50 @@
+# Copyright 2026 NVIDIA CORPORATION
+# SPDX-License-Identifier: Apache-2.0
+
+# An ordinary pod, submitted the way a team member would submit one.
+#
+# It names the scheduler explicitly. Doing so is opting in, and it works
+# whether or not the project enforces the scheduler — which makes this file
+# safe to copy into any project. In a project with enforceKaiScheduler: true
+# you could leave schedulerName out and admission would add it for you; in a
+# project without it, leaving it out means the pod goes to the default
+# Kubernetes scheduler and never counts against anyone's quota.
+#
+# Note what it still does NOT say: no queue, no node pool, no node affinity.
+# Admission and the pod group assigner fill all of that in from the project
+# that owns the namespace. That is the point — a workload author picks none of
+# it unless they want to.
+#
+# Prerequisites:
+#   - The `research` project from docs/concepts/examples/project.yaml, and the
+#     node pool and department it depends on.
+#   - A node in the `h100` node pool with capacity for the request below.
+#
+# Apply:
+#   kubectl apply -f docs/concepts/examples/workload-pod.yaml
+#
+# Then see what admission did to it:
+#   kubectl get pod sample-workload -n kai-research \
+#     -o jsonpath='{.spec.schedulerName}{"\n"}{.metadata.labels.project}{"\n"}'
+#
+# And see the pod group it was grouped into, and the queue it was charged to:
+#   kubectl get podgroup -n kai-research \
+#     -o custom-columns=NAME:.metadata.name,QUEUE:.spec.queue
+#
+# Remove this pod before deleting the project.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sample-workload
+  namespace: kai-research
+spec:
+  schedulerName: kai-scheduler
+  restartPolicy: Never
+  containers:
+    - name: workload
+      image: registry.k8s.io/pause:3.9
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi

@@ -15,7 +15,7 @@ const (
 
 	// nodepoolFinalizerPrefix and nodepoolFinalizerSuffix are appended around
 	// the configured FinalizerDomain to compose the nodepool finalizer string.
-	// e.g., domain "run.ai" -> "nodepool.run.ai/finalize".
+	// e.g., domain "example.com" -> "nodepool.example.com/finalize".
 	nodepoolFinalizerPrefix = "nodepool."
 	nodepoolFinalizerSuffix = "/finalize"
 
@@ -53,12 +53,19 @@ type NodePoolControllerConfig struct {
 	// pods managed by the scheduler this controller serves. Used (a) to
 	// filter pods when computing per-nodepool capacity / draining state and
 	// (b) as the base name of the ServiceMonitor resources written by
-	// `pkg/operands/runai-scheduler`.
+	// `pkg/nodepool-controller/operands/kai-scheduler`.
 	SchedulerName string
 
 	// SchedulerNamespace is the namespace in which the ServiceMonitor and
 	// related per-shard scheduler resources live.
 	SchedulerNamespace string
+
+	// Worker-node label keys, passed into every SchedulingShard. CPU and GPU are
+	// only read while the scheduler's restrict-node-scheduling feature is on; MIG
+	// is always read.
+	CPUWorkerNodeLabelKey string
+	GPUWorkerNodeLabelKey string
+	MIGWorkerNodeLabelKey string
 
 	// MetricsNamespace is the prefix attached to every Prometheus metric
 	// the controller emits or queries: it is used both as the Subsystem of
@@ -66,13 +73,19 @@ type NodePoolControllerConfig struct {
 	// the prefix of the queue-allocation metric names (e.g.,
 	// `<MetricsNamespace>_queue_allocated_gpus`) written into each
 	// SchedulingShard's UsageDB ExtraParams. Defaults to KAI's metrics
-	// prefix ("kai"); runai overrides to "runai" so existing dashboards
+	// prefix ("kai"); an existing installation overrides it so its dashboards
 	// keep working.
 	MetricsNamespace string
 
 	// FinalizerDomain is the DNS-style domain prefix used to compose the
 	// nodepool finalizer string. See FinalizerName() for the composition.
 	FinalizerDomain string
+
+	// UninstallDetectionRefStr identifies the CR whose deletion means the
+	// installing operator is going away, so nodepools are force-deleted, as
+	// "group/version/Kind/namespace/name". Empty disables the check; an empty
+	// namespace segment means cluster-scoped.
+	UninstallDetectionRefStr string
 
 	// SchedulingShardArgsStr is the JSON-encoded map of cluster-wide KAI scheduler
 	// args supplied at startup via the --scheduling-shard-args flag. The controller
@@ -123,8 +136,7 @@ func SetForTest(c *NodePoolControllerConfig) func() {
 }
 
 // FinalizerName composes the nodepool-finalizer string from the configured
-// FinalizerDomain. runai input "run.ai" -> "nodepool.run.ai/finalize"
-// (unchanged); OSS default "kai.scheduler" -> "nodepool.kai.scheduler/finalize".
+// FinalizerDomain. Default "kai.scheduler" -> "nodepool.kai.scheduler/finalize".
 func FinalizerName() string {
 	return fmt.Sprintf("%s%s%s", nodepoolFinalizerPrefix, Get().FinalizerDomain, nodepoolFinalizerSuffix)
 }

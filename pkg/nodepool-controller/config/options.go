@@ -53,4 +53,17 @@ func AddLabelFlags(fs *flag.FlagSet, cfg *NodePoolControllerConfig) {
 	fs.StringVar(&cfg.GroveTopologyResourceVersionAnnotation, "grove-topology-resource-version-annotation",
 		defaultGroveTopologyRVAnnotation,
 		"Annotation key tracking the synced Grove topology resource version")
+	fs.StringVar(&cfg.UninstallDetectionRefStr, "uninstall-detection-ref",
+		"",
+		"CR whose deletion force-deletes nodepools, as group/version/Kind/namespace/name. "+
+			"Empty disables the check. Requires get on that resource")
+	fs.StringVar(&cfg.CPUWorkerNodeLabelKey, "cpu-worker-node-label-key",
+		kaiconstants.DefaultCPUWorkerNodeLabelKey,
+		"Node label key marking a CPU worker node; passed to every SchedulingShard")
+	fs.StringVar(&cfg.GPUWorkerNodeLabelKey, "gpu-worker-node-label-key",
+		kaiconstants.DefaultGPUWorkerNodeLabelKey,
+		"Node label key marking a GPU worker node; passed to every SchedulingShard")
+	fs.StringVar(&cfg.MIGWorkerNodeLabelKey, "mig-worker-node-label-key",
+		kaiconstants.DefaultMIGWorkerNodeLabelKey,
+		"Node label key marking a MIG-enabled worker node; passed to every SchedulingShard")
 }

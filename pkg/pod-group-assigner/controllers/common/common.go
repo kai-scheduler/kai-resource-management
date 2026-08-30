@@ -49,7 +49,7 @@ func UpdateLabelsWithNodePoolAssignment(labels map[string]string, nodePoolName s
 	}
 }
 
-// IsPodGroupUpForScheduler is used in runai-scheduler
+// IsPodGroupUpForScheduler mirrors the scheduler-side check of the same name.
 func IsPodGroupUpForScheduler(podGroup *kaiv2alpha2.PodGroup) bool {
 	if GetSchedulingBackoffValue(podGroup.Spec.SchedulingBackoff) == NoSchedulingBackoff {
 		return true

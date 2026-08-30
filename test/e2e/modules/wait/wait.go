@@ -10,6 +10,7 @@ package wait
 
 import (
 	goctx "context"
+	"fmt"
 
 	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
@@ -164,11 +165,15 @@ func ForPodGroup(
 // Terminating for the next spec, or the next run's preflight, to trip over.
 func ForDeleted(ctx goctx.Context, k8sClient client.Client, obj client.Object) {
 	key := client.ObjectKeyFromObject(obj)
+	var lastErr error
 
 	gomega.EventuallyWithOffset(1, func() bool {
-		return apierrors.IsNotFound(k8sClient.Get(ctx, key, obj))
+		lastErr = k8sClient.Get(ctx, key, obj)
+		return apierrors.IsNotFound(lastErr)
 	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).
-		Should(gomega.BeTrue(), "waiting for %T %q to be deleted", obj, key.Name)
+		Should(gomega.BeTrue(), func() string {
+			return fmt.Sprintf("waiting for %T %s to be deleted (last error: %v)", obj, key.String(), lastErr)
+		})
 }
 
 // ForNodePoolCondition waits for a nodePool to report conditionType as True and returns
@@ -182,9 +187,9 @@ func ForNodePoolCondition(
 		nodePool := &kaires.NodePool{}
 		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, nodePool)).To(gomega.Succeed())
 
-		condition := nodePoolCondition(nodePool, conditionType)
+		condition := getNodePoolConditionOfType(nodePool, conditionType)
 		g.Expect(condition).ToNot(gomega.BeNil(),
-			"nodepool %q has no %q condition, only %v", name, conditionType, nodePoolConditionTypes(nodePool))
+			"nodepool %q has no %q condition, only %v", name, conditionType, getReportedNodePoolConditionTypes(nodePool))
 		g.Expect(condition.Status).To(gomega.Equal(corev1.ConditionTrue),
 			"nodepool %q condition %q: %s", name, conditionType, condition.Message)
 
@@ -194,9 +199,9 @@ func ForNodePoolCondition(
 	return reported
 }
 
-// nodePoolCondition finds a condition by type. NodePool carries its own condition type
+// getNodePoolConditionOfType finds a condition by type. NodePool carries its own condition type
 // rather than metav1.Condition, so meta.FindStatusCondition does not apply.
-func nodePoolCondition(
+func getNodePoolConditionOfType(
 	nodePool *kaires.NodePool, conditionType kaires.NodePoolConditionType,
 ) *kaires.NodePoolCondition {
 	for i := range nodePool.Status.Conditions {
@@ -208,9 +213,9 @@ func nodePoolCondition(
 	return nil
 }
 
-// nodePoolConditionTypes lists what the nodePool does report, so a timeout on a missing
+// getReportedNodePoolConditionTypes lists what the nodePool does report, so a timeout on a missing
 // condition says what was there instead.
-func nodePoolConditionTypes(nodePool *kaires.NodePool) []kaires.NodePoolConditionType {
+func getReportedNodePoolConditionTypes(nodePool *kaires.NodePool) []kaires.NodePoolConditionType {
 	reported := make([]kaires.NodePoolConditionType, 0, len(nodePool.Status.Conditions))
 	for _, condition := range nodePool.Status.Conditions {
 		reported = append(reported, condition.Type)
