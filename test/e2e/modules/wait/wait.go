@@ -45,6 +45,58 @@ func ForProjectReady(ctx goctx.Context, k8sClient client.Client, name string) *k
 	return project
 }
 
+// ForProjectCondition waits for a project to report conditionType with the given status and
+// returns it, so the caller can assert on the reason and message it carries.
+//
+// Project has its own condition type, as NodePool does but with different fields, so
+// neither meta.FindStatusCondition nor the nodePool helpers below apply. A third shape
+// arrives with ManagedNodesConfig, which uses metav1.Condition; at that point these
+// lookups are worth pulling into a package of their own.
+func ForProjectCondition(
+	ctx goctx.Context, k8sClient client.Client, name string,
+	conditionType kaires.ProjectConditionType, status corev1.ConditionStatus,
+) kaires.ProjectCondition {
+	var reported kaires.ProjectCondition
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		project := &kaires.Project{}
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, project)).To(gomega.Succeed())
+
+		condition := getProjectConditionOfType(project, conditionType)
+		g.Expect(condition).ToNot(gomega.BeNil(),
+			"project %q has no %q condition, only %v", name, conditionType, getReportedProjectConditionTypes(project))
+		g.Expect(condition.Status).To(gomega.Equal(status),
+			"project %q condition %q: %s", name, conditionType, condition.Message)
+
+		reported = *condition
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return reported
+}
+
+func getProjectConditionOfType(
+	project *kaires.Project, conditionType kaires.ProjectConditionType,
+) *kaires.ProjectCondition {
+	for i := range project.Status.Conditions {
+		if project.Status.Conditions[i].Type == conditionType {
+			return &project.Status.Conditions[i]
+		}
+	}
+
+	return nil
+}
+
+// getReportedProjectConditionTypes lists what the project does report, so a timeout on a
+// missing condition says what was there instead.
+func getReportedProjectConditionTypes(project *kaires.Project) []kaires.ProjectConditionType {
+	reported := make([]kaires.ProjectConditionType, 0, len(project.Status.Conditions))
+	for _, condition := range project.Status.Conditions {
+		reported = append(reported, condition.Type)
+	}
+
+	return reported
+}
+
 // ForNodePoolPhase waits for a nodePool to settle on the expected phase. Ready and
 // Empty are both healthy - Empty simply means no node matches the node pool's labels -
 // so the caller says which one it expects rather than the helper guessing.
