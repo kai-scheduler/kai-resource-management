@@ -7,6 +7,7 @@ package nodes
 import (
 	goctx "context"
 	"fmt"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,26 +17,40 @@ import (
 
 const controlPlaneLabel = "node-role.kubernetes.io/control-plane"
 
-// LabelWorker puts one worker node into a node pool and returns its name.
+// Workers names the cluster's worker nodes, in a stable order.
 //
-// Workers only: test pods carry no control-plane toleration, so a node pool
-// built on the control-plane node would accept pods that can never schedule.
-func LabelWorker(ctx goctx.Context, k8sClient client.Client, labelKey, labelValue string) (string, error) {
+// Workers only: test pods carry no control-plane toleration, so a node pool built on the
+// control-plane node would accept pods that can never schedule.
+func Workers(ctx goctx.Context, k8sClient client.Client) ([]string, error) {
 	nodeList := &corev1.NodeList{}
 	if err := k8sClient.List(ctx, nodeList); err != nil {
-		return "", fmt.Errorf("listing nodes: %w", err)
+		return nil, fmt.Errorf("listing nodes: %w", err)
 	}
 
+	var names []string
 	for i := range nodeList.Items {
 		node := &nodeList.Items[i]
 		if _, isControlPlane := node.Labels[controlPlaneLabel]; isControlPlane {
 			continue
 		}
+		names = append(names, node.Name)
+	}
+	sort.Strings(names)
 
-		return node.Name, SetLabel(ctx, k8sClient, node.Name, labelKey, labelValue)
+	return names, nil
+}
+
+// LabelWorker puts one worker node into a node pool and returns its name.
+func LabelWorker(ctx goctx.Context, k8sClient client.Client, labelKey, labelValue string) (string, error) {
+	workers, err := Workers(ctx, k8sClient)
+	if err != nil {
+		return "", err
+	}
+	if len(workers) == 0 {
+		return "", fmt.Errorf("no worker node to put into the node pool; is the cluster single-node?")
 	}
 
-	return "", fmt.Errorf("no worker node to put into the node pool; is the cluster single-node?")
+	return workers[0], SetLabel(ctx, k8sClient, workers[0], labelKey, labelValue)
 }
 
 // SetLabel adds or replaces one label on a node.

@@ -14,6 +14,8 @@ import (
 
 	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -127,6 +129,33 @@ func ForPodRunning(ctx goctx.Context, k8sClient client.Client, namespace, name s
 	}).WithContext(ctx).WithTimeout(constant.PodTimeout).WithPolling(constant.Interval).Should(gomega.Succeed())
 
 	return pod
+}
+
+// ForPodGroup returns the pod group the pod-grouper made for a pod.
+//
+// Resolved through the annotation the pod-grouper stamps on the pod rather than by listing
+// the namespace: listing would tie the caller to there being exactly one pod group, which
+// stops being true the moment a spec submits a second workload.
+func ForPodGroup(
+	ctx goctx.Context, k8sClient client.Client, namespace, podName string,
+) *kaiv2alpha2.PodGroup {
+	var podGroupName string
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		pod := &corev1.Pod{}
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: podName}, pod)).
+			To(gomega.Succeed())
+
+		podGroupName = pod.Annotations[kaiconstants.PodGroupAnnotationForPod]
+		g.Expect(podGroupName).ToNot(gomega.BeEmpty(),
+			"pod %s/%s is not grouped into a pod group yet", namespace, podName)
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	podGroup := &kaiv2alpha2.PodGroup{}
+	key := types.NamespacedName{Namespace: namespace, Name: podGroupName}
+	getObject(ctx, k8sClient, key, podGroup, "pod group "+podGroupName)
+
+	return podGroup
 }
 
 // ForDeleted waits until the object is gone from the API server.
