@@ -63,10 +63,18 @@ func WithEnforceScheduler(enforce bool) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.EnforceKaiScheduler = enforce }
 }
 
+// WithDefaultNodePools narrows the project's defaults to a subset of the pools it has
+// queues for. The webhook only requires the reverse - a queue for every default pool -
+// so a spec that needs to drop one queue can keep that pool out of the defaults and
+// leave the rest of the project alone.
+func WithDefaultNodePools(nodePools ...string) ProjectOption {
+	return func(project *kaires.Project) { project.Spec.DefaultNodePools = nodePools }
+}
+
 // Project builds a project with one queue per node pool, and those same pools as
 // its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than
-// passed separately.
+// passed separately; WithDefaultNodePools narrows the defaults afterwards.
 func Project(name string, nodePools []string, options ...ProjectOption) *kaires.Project {
 	project := &kaires.Project{
 		ObjectMeta: objectMeta(name),

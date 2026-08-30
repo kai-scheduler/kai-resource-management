@@ -10,6 +10,7 @@ package wait
 
 import (
 	goctx "context"
+	"fmt"
 
 	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
@@ -17,6 +18,7 @@ import (
 	"github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -125,6 +127,72 @@ func ForPodRunning(ctx goctx.Context, k8sClient client.Client, namespace, name s
 	}).WithContext(ctx).WithTimeout(constant.PodTimeout).WithPolling(constant.Interval).Should(gomega.Succeed())
 
 	return pod
+}
+
+// ForDeleted waits until the object is gone from the API server.
+//
+// Deletion is not immediate here: nodepool-controller and project-controller both hold
+// finalizers, so a spec that returns as soon as Delete succeeds leaves the object
+// Terminating for the next spec, or the next run's preflight, to trip over.
+func ForDeleted(ctx goctx.Context, k8sClient client.Client, obj client.Object) {
+	key := client.ObjectKeyFromObject(obj)
+	var lastErr error
+
+	gomega.EventuallyWithOffset(1, func() bool {
+		lastErr = k8sClient.Get(ctx, key, obj)
+		return apierrors.IsNotFound(lastErr)
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).
+		Should(gomega.BeTrue(), func() string {
+			return fmt.Sprintf("waiting for %T %s to be deleted (last error: %v)", obj, key.String(), lastErr)
+		})
+}
+
+// ForNodePoolCondition waits for a nodePool to report conditionType as True and returns
+// it, so the caller can assert on the reason and message it carries.
+func ForNodePoolCondition(
+	ctx goctx.Context, k8sClient client.Client, name string, conditionType kaires.NodePoolConditionType,
+) kaires.NodePoolCondition {
+	var reported kaires.NodePoolCondition
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		nodePool := &kaires.NodePool{}
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, nodePool)).To(gomega.Succeed())
+
+		condition := getNodePoolConditionOfType(nodePool, conditionType)
+		g.Expect(condition).ToNot(gomega.BeNil(),
+			"nodepool %q has no %q condition, only %v", name, conditionType, getReportedNodePoolConditionTypes(nodePool))
+		g.Expect(condition.Status).To(gomega.Equal(corev1.ConditionTrue),
+			"nodepool %q condition %q: %s", name, conditionType, condition.Message)
+
+		reported = *condition
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return reported
+}
+
+// getNodePoolConditionOfType finds a condition by type. NodePool carries its own condition type
+// rather than metav1.Condition, so meta.FindStatusCondition does not apply.
+func getNodePoolConditionOfType(
+	nodePool *kaires.NodePool, conditionType kaires.NodePoolConditionType,
+) *kaires.NodePoolCondition {
+	for i := range nodePool.Status.Conditions {
+		if nodePool.Status.Conditions[i].Type == conditionType {
+			return &nodePool.Status.Conditions[i]
+		}
+	}
+
+	return nil
+}
+
+// getReportedNodePoolConditionTypes lists what the nodePool does report, so a timeout on a missing
+// condition says what was there instead.
+func getReportedNodePoolConditionTypes(nodePool *kaires.NodePool) []kaires.NodePoolConditionType {
+	reported := make([]kaires.NodePoolConditionType, 0, len(nodePool.Status.Conditions))
+	for _, condition := range nodePool.Status.Conditions {
+		reported = append(reported, condition.Type)
+	}
+
+	return reported
 }
 
 // getObject polls until the object exists, for kinds whose creation is the whole
