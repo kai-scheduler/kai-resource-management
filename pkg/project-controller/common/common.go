@@ -36,6 +36,12 @@ const (
 	AppLabel                  = "app"
 	OcpClusterMonitoringLabel = "openshift.io/cluster-monitoring"
 
+	// ManagedByLabel marks the per-project RoleBindings this controller created. Owner
+	// references are a garbage-collection contract, not a claim of authorship, so only
+	// bindings carrying this label may be pruned.
+	ManagedByLabel        = "app.kubernetes.io/managed-by"
+	ProjectControllerName = "project-controller"
+
 	DockerRegistryAssetKind = "docker-registry"
 	PasswordAssetKind       = "password"
 	AccessKeyAssetKind      = "access-key"

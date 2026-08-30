@@ -103,6 +103,8 @@ var _ = Describe("Role Binding Resource Handler", func() {
 			Expect(jobControllerRoleBindingFound.Subjects[0].Kind).To(Equal(ServiceAccountKind))
 			Expect(jobControllerRoleBindingFound.Subjects[0].Name).To(Equal(ProjectControllerServiceAccountName))
 			Expect(jobControllerRoleBindingFound.Subjects[0].Namespace).To(Equal(config.Get().InstallNamespace))
+			Expect(jobControllerRoleBindingFound.Labels).To(HaveKeyWithValue(
+				ManagedByLabel, ProjectControllerName))
 
 			projectPvcRoleBindingFound := &rbacv1.RoleBinding{}
 			Expect(k8sClient.Get(context.TODO(),
@@ -169,6 +171,7 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		obsoleteRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
 			Name:      "obsolete-project-role-binding",
 			Namespace: namespace,
+			Labels:    map[string]string{ManagedByLabel: ProjectControllerName},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: project.APIVersion,
 				Kind:       project.Kind,
@@ -188,9 +191,22 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
-	It("preserves omitted RoleBindings that are not controlled by the Project", func() {
+	It("preserves omitted RoleBindings that this controller does not manage", func() {
 		unownedRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
 			Name: "workload-controller-rw", Namespace: namespace,
+		}}
+		// A RoleBinding owned by the Project but not created here: no managed-by label,
+		// so it must not be pruned.
+		otherControllerRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "foreign-project-owned-binding",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: project.APIVersion,
+				Kind:       project.Kind,
+				Name:       project.Name,
+				UID:        project.UID,
+				Controller: &TrueRef,
+			}},
 		}}
 		otherProjectRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
 			Name:      "other-project-role-binding",
@@ -203,8 +219,31 @@ var _ = Describe("Role Binding Resource Handler", func() {
 				Controller: &TrueRef,
 			}},
 		}}
+		// Carries the managed-by label but belongs to another Project, so this Project's
+		// reconcile must leave it alone.
+		labelledOtherProjectRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "labelled-other-project-role-binding",
+			Namespace: namespace,
+			Labels:    map[string]string{ManagedByLabel: ProjectControllerName},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: project.APIVersion,
+				Kind:       project.Kind,
+				Name:       "other-project",
+				UID:        "other-project-uid",
+				Controller: &TrueRef,
+			}},
+		}}
+		// Carries the managed-by label but has no owner at all.
+		labelledUnownedRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name:      "labelled-unowned-role-binding",
+			Namespace: namespace,
+			Labels:    map[string]string{ManagedByLabel: ProjectControllerName},
+		}}
 		Expect(k8sClient.Create(context.TODO(), unownedRoleBinding)).To(Succeed())
 		Expect(k8sClient.Create(context.TODO(), otherProjectRoleBinding)).To(Succeed())
+		Expect(k8sClient.Create(context.TODO(), otherControllerRoleBinding)).To(Succeed())
+		Expect(k8sClient.Create(context.TODO(), labelledOtherProjectRoleBinding)).To(Succeed())
+		Expect(k8sClient.Create(context.TODO(), labelledUnownedRoleBinding)).To(Succeed())
 
 		_, err := handler.HandleResource(project)
 		Expect(err).Should(Succeed())
@@ -214,6 +253,15 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		}, &rbacv1.RoleBinding{})).To(Succeed())
 		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
 			Name: otherProjectRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: otherControllerRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: labelledOtherProjectRoleBinding.Name, Namespace: namespace,
+		}, &rbacv1.RoleBinding{})).To(Succeed())
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: labelledUnownedRoleBinding.Name, Namespace: namespace,
 		}, &rbacv1.RoleBinding{})).To(Succeed())
 	})
 
@@ -260,6 +308,7 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		obsoleteRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{
 			Name:      "obsolete-project-role-binding",
 			Namespace: namespace,
+			Labels:    map[string]string{ManagedByLabel: ProjectControllerName},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: project.APIVersion,
 				Kind:       project.Kind,
