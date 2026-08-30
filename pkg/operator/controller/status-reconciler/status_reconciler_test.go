@@ -84,7 +84,9 @@ var _ = Describe("StatusReconciler", func() {
 			WithStatusSubresource(krmConfig).
 			Build()
 		deployable = &fakeDeployable{deployed: true, available: true}
-		reconciler = New(runtimeClient, deployable)
+		// The fake deployable ignores the reader it is handed, so the same
+		// client stands in for the uncached one.
+		reconciler = New(runtimeClient, runtimeClient, deployable)
 	})
 
 	conditionOf := func(conditionType krmv1alpha1.KRMConfigConditionType) *metav1.Condition {

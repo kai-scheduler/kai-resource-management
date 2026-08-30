@@ -242,14 +242,12 @@ var _ = Describe("the operand contract", func() {
 		Expect((&ProjectController{}).Name()).To(Equal("ProjectController"))
 	})
 
-	It("has no dependencies and nothing to monitor", func() {
+	// Dependencies are covered in dependencies_test.go, which needs a reader that
+	// knows about CustomResourceDefinitions.
+	It("has nothing to monitor", func() {
 		operand := &ProjectController{}
-		krmConfig := newKRMConfig()
 
-		missing, err := operand.HasMissingDependencies(context.Background(), newClient(), krmConfig)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(missing).To(BeEmpty())
-		Expect(operand.Monitor(context.Background(), newClient(), krmConfig)).To(Succeed())
+		Expect(operand.Monitor(context.Background(), newClient(), newKRMConfig())).To(Succeed())
 	})
 
 	It("reports nothing deployed before DesiredState has run", func() {

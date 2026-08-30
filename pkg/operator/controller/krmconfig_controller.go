@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,12 +36,25 @@ type KRMConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
+	// dependencyCheckInterval re-runs a reconcile even when nothing about the
+	// KRMConfig changed. Nothing watches what the installation depends on —
+	// KAI Scheduler is installed and upgraded on its own schedule — so this is
+	// what notices a dependency disappearing and, once it is back, what clears
+	// the condition again. Zero turns the periodic re-check off.
+	dependencyCheckInterval time.Duration
+
 	deployable *deployable.DeployableOperands
 	*statusreconciler.StatusReconciler
 }
 
-func NewKRMConfigReconciler(runtimeClient client.Client, scheme *runtime.Scheme) *KRMConfigReconciler {
-	return &KRMConfigReconciler{Client: runtimeClient, Scheme: scheme}
+func NewKRMConfigReconciler(
+	runtimeClient client.Client, scheme *runtime.Scheme, dependencyCheckInterval time.Duration,
+) *KRMConfigReconciler {
+	return &KRMConfigReconciler{
+		Client:                  runtimeClient,
+		Scheme:                  scheme,
+		dependencyCheckInterval: dependencyCheckInterval,
+	}
 }
 
 func (r *KRMConfigReconciler) SetOperands(operandsToDeploy []operands.Operand) {
@@ -87,14 +101,14 @@ func (r *KRMConfigReconciler) Reconcile(
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.dependencyCheckInterval}, nil
 }
 
 func (r *KRMConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	if r.deployable == nil {
 		r.SetOperands(KRMConfigReconcilerOperands)
 	}
-	r.StatusReconciler = statusreconciler.New(r.Client, r.deployable)
+	r.StatusReconciler = statusreconciler.New(r.Client, mgr.GetAPIReader(), r.deployable)
 
 	for _, collectable := range knowntypes.KRMConfigOwned {
 		if slices.Contains(knowntypes.Initiated, collectable) {

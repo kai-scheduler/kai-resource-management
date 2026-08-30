@@ -14,6 +14,7 @@ import (
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/common"
 )
@@ -93,8 +94,19 @@ func (p *ProjectController) Monitor(
 	return nil
 }
 
+// HasMissingDependencies reports the KAI Scheduler CRDs project-controller reads
+// and the cluster does not have. Keep the list in step with the kinds
+// cmd/project-controller registers: a kind whose CRD is absent is exactly what
+// the service fails on at runtime.
 func (p *ProjectController) HasMissingDependencies(
-	_ context.Context, _ client.Reader, _ *krmv1alpha1.KRMConfig,
+	ctx context.Context, reader client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (string, error) {
-	return "", nil
+	// A service the configuration does not install needs nothing.
+	if !*krmConfig.Spec.ProjectController.Service.Enabled {
+		return "", nil
+	}
+
+	return dependencies.MissingCRDs(ctx, reader,
+		dependencies.CRDRequirement{Name: "queues.scheduling.run.ai", Version: "v2"},
+	)
 }

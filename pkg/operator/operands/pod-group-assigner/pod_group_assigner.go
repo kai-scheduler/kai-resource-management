@@ -13,6 +13,7 @@ import (
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/common"
 )
@@ -89,8 +90,21 @@ func (p *PodGroupAssigner) Monitor(
 	return nil
 }
 
+// HasMissingDependencies reports the KAI Scheduler CRDs pod-group-assigner reads
+// and the cluster does not have. Keep the list in step with the kinds
+// pkg/pod-group-assigner/scheme registers: a kind whose CRD is absent is exactly
+// what the service fails on at runtime.
 func (p *PodGroupAssigner) HasMissingDependencies(
-	_ context.Context, _ client.Reader, _ *krmv1alpha1.KRMConfig,
+	ctx context.Context, reader client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (string, error) {
-	return "", nil
+	// A service the configuration does not install needs nothing.
+	if !*krmConfig.Spec.PodGroupAssigner.Service.Enabled {
+		return "", nil
+	}
+
+	return dependencies.MissingCRDs(ctx, reader,
+		dependencies.CRDRequirement{Name: "queues.scheduling.run.ai", Version: "v2"},
+		dependencies.CRDRequirement{Name: "podgroups.scheduling.run.ai", Version: "v2alpha2"},
+		dependencies.CRDRequirement{Name: "topologies.kai.scheduler", Version: "v1alpha1"},
+	)
 }

@@ -15,12 +15,16 @@ import (
 
 type StatusReconciler struct {
 	client.Client
+	apiReader  client.Reader
 	deployable deployable.Deployable
 }
 
-func New(runtimeClient client.Client, deployableOperands deployable.Deployable) *StatusReconciler {
+func New(
+	runtimeClient client.Client, apiReader client.Reader, deployableOperands deployable.Deployable,
+) *StatusReconciler {
 	return &StatusReconciler{
 		Client:     runtimeClient,
+		apiReader:  apiReader,
 		deployable: deployableOperands,
 	}
 }
@@ -159,7 +163,7 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 ) metav1.Condition {
 	generation := krmConfig.GetGeneration()
 
-	missingDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
+	missingDependencies, err := r.deployable.HasMissingDependencies(ctx, r.apiReader, krmConfig)
 	if err != nil {
 		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
 			krmv1alpha1.KRMConfigReasonDependenciesMissing, err.Error(), generation)

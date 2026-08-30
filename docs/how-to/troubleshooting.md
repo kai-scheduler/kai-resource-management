@@ -42,6 +42,29 @@ Look at the other conditions — they say which part is outstanding.
 kubectl -n kai-resource-management logs deploy/krm-operator --tail=100
 ```
 
+### `DependenciesFulfilled` names a missing CRD
+
+```text
+NodePoolController is missing CRDs schedulingshards.kai.scheduler/v1, topologies.kai.scheduler/v1alpha1
+```
+
+The KAI Scheduler CRDs that service reads are not installed, or no longer serve
+the API version it reads them through — KAI is installed and upgraded separately,
+so it can be removed or rolled back under a running KRM. Confirm with:
+
+```bash
+kubectl get crd | grep -E 'kai\.scheduler|scheduling\.run\.ai'
+kubectl get crd queues.scheduling.run.ai -o jsonpath='{.spec.versions[*].name}'
+```
+
+Reinstall or re-upgrade KAI Scheduler. Nothing needs restarting afterwards: the
+operator re-checks every `--dependency-check-interval` (default one minute) and
+clears the condition itself. Until then it keeps the services deployed, so
+`Deployed` and `Available` stay meaningful — the pods will be failing on the
+missing CRD, which is what this condition explains.
+
+[Which CRDs each service needs](../reference/conditions-and-phases.md#what-dependenciesfulfilled-covers).
+
 ### No `KRMConfig` exists at all
 
 ```bash
