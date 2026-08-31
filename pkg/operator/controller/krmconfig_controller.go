@@ -17,6 +17,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/config"
 	statusreconciler "github.com/kai-scheduler/kai-resource-management/pkg/operator/controller/status-reconciler"
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"
@@ -108,7 +109,8 @@ func (r *KRMConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	if r.deployable == nil {
 		r.SetOperands(KRMConfigReconcilerOperands)
 	}
-	r.StatusReconciler = statusreconciler.New(r.Client, r.deployable)
+	r.StatusReconciler = statusreconciler.New(
+		r.Client, mgr.GetAPIReader(), r.deployable, &dependencies.KAIScheduler{})
 
 	for _, collectable := range knowntypes.KRMConfigOwned {
 		if slices.Contains(knowntypes.Initiated, collectable) {

@@ -156,13 +156,19 @@ tests:
             resources: ["customresourcedefinitions"]
             verbs: ["get", "list", "watch"]
 
-  # KRM consumes the scheduler's config; writing it is not ours to do.
-  - it: is granted nothing on the scheduler's own API group
+  # KRM consumes the scheduler's config to report on it; writing it is not ours to do.
+  - it: can read the scheduler's config but never write it
     template: templates/krm-operator/clusterrole.yaml
     documentSelector:
       path: kind
       value: ClusterRole
     asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.scheduler"]
+            resources: ["configs"]
+            verbs: ["get"]
       - notContains:
           path: rules
           content:

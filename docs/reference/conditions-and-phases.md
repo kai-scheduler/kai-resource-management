@@ -148,8 +148,25 @@ The chart bundles KAI Scheduler as a subchart, so a default install brings it
 along — but KRM does not own it from then on. It can be upgraded or uninstalled
 on its own afterwards, and an installation can be pointed at a scheduler someone
 else put there. However they got there, the CRDs have to be present, and the
-operator cannot assume they still are. It re-checks on every reconcile that each
-enabled service has the KAI CRDs it reads, serving the API version it reads them
+operator cannot assume they still are. It re-checks two things on every reconcile.
+
+**The scheduler itself.** The cluster-scoped `Config` named `kai-config` can be
+read, and reports `Ready`. One read covers both an uninstalled scheduler — the
+`kai.scheduler/v1` API does not resolve at all — and an installed one whose CR
+was never applied. The readiness verdict is KAI's own, repeated rather than
+re-derived, so the two never disagree:
+
+```text
+KAI Scheduler is not installed: no kai.scheduler/v1 Config API
+KAI Scheduler Config "kai-config" does not exist
+KAI Scheduler Config "kai-config" is not ready: <what KAI says>
+KAI Scheduler Config "kai-config" has not reported readiness
+```
+
+The last is normal for a few seconds after KAI is installed, before its operator
+first reconciles the CR.
+
+**The CRDs each enabled service reads**, serving the API version it reads them
 through:
 
 | Service | CRDs |
@@ -162,10 +179,10 @@ A CRD that exists but no longer serves the listed version counts as missing —
 that is what a scheduler downgrade looks like. A service turned off in the
 `KRMConfig` is not checked, because nothing was deployed to depend on it.
 
-The message names each one, for example:
+Everything unmet lands in the one message, separated by `;`:
 
 ```text
-ProjectController is missing CRD queues.scheduling.run.ai/v2
+ProjectController is missing CRD queues.scheduling.run.ai/v2; KAI Scheduler Config "kai-config" does not exist
 ```
 
 Nothing here fails the reconcile: the operator keeps deploying and reporting

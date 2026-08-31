@@ -5,23 +5,41 @@ package statusreconciler
 
 import (
 	"context"
+	"strings"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 )
 
 type StatusReconciler struct {
 	client.Client
+
+	// schedulerReader is uncached: the checkers read KAI Scheduler's Config, whose
+	// CRD may not be installed, and the cache cannot start an informer for a kind
+	// the API server does not serve.
+	schedulerReader client.Reader
+
 	deployable deployable.Deployable
+
+	// checkers cover what belongs to the installation rather than to one operand.
+	checkers []dependencies.Checker
 }
 
-func New(runtimeClient client.Client, deployableOperands deployable.Deployable) *StatusReconciler {
+func New(
+	runtimeClient client.Client,
+	schedulerReader client.Reader,
+	deployableOperands deployable.Deployable,
+	checkers ...dependencies.Checker,
+) *StatusReconciler {
 	return &StatusReconciler{
-		Client:     runtimeClient,
-		deployable: deployableOperands,
+		Client:          runtimeClient,
+		schedulerReader: schedulerReader,
+		deployable:      deployableOperands,
+		checkers:        checkers,
 	}
 }
 
@@ -159,17 +177,63 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 ) metav1.Condition {
 	generation := krmConfig.GetGeneration()
 
-	missingDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
+	unmet, err := r.unmetDependencies(ctx, krmConfig)
 	if err != nil {
 		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
 			krmv1alpha1.KRMConfigReasonDependenciesMissing, err.Error(), generation)
 	}
-	if len(missingDependencies) > 0 {
+	if len(unmet) > 0 {
 		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
-			krmv1alpha1.KRMConfigReasonDependenciesMissing, missingDependencies, generation)
+			krmv1alpha1.KRMConfigReasonDependenciesMissing, unmet, generation)
 	}
 	return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, true,
 		krmv1alpha1.KRMConfigReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
+}
+
+// unmetDependencies joins the two sources into the one message the condition
+// carries, with the same separator the operands are already joined by.
+func (r *StatusReconciler) unmetDependencies(
+	ctx context.Context, krmConfig *krmv1alpha1.KRMConfig,
+) (string, error) {
+	// What each service needs for itself, which only the operand that installs it
+	// knows. An operand the configuration disabled reports nothing, because
+	// nothing was deployed to depend on it.
+	operandDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
+	if err != nil {
+		return "", err
+	}
+
+	installationDependencies, err := r.unmetInstallationDependencies(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var messages []string
+	for _, message := range []string{operandDependencies, installationDependencies} {
+		if message != "" {
+			messages = append(messages, message)
+		}
+	}
+	return strings.Join(messages, "; "), nil
+}
+
+// unmetInstallationDependencies covers what belongs to no single operand: the
+// scheduler every service drives, and anything else outside this installation
+// that all of it rests on.
+func (r *StatusReconciler) unmetInstallationDependencies(ctx context.Context) (string, error) {
+	var messages []string
+
+	for _, checker := range r.checkers {
+		message, err := checker.Check(ctx, r.schedulerReader)
+		if err != nil {
+			return "", err
+		}
+		if message != "" {
+			messages = append(messages, message)
+		}
+	}
+
+	return strings.Join(messages, "; "), nil
 }
 
 // readyCondition summarises the others, so a consumer watching only Ready — Helm

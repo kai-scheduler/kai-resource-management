@@ -5,6 +5,7 @@ package statusreconciler
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -56,6 +57,17 @@ func (d *fakeDeployable) HasMissingDependencies(
 	return d.missing, nil
 }
 
+// fakeChecker stands in for an installation-wide dependency, so the merging is
+// tested without a cluster to check against.
+type fakeChecker struct {
+	message string
+	err     error
+}
+
+func (c *fakeChecker) Check(_ context.Context, _ client.Reader) (string, error) {
+	return c.message, c.err
+}
+
 var _ = Describe("StatusReconciler", func() {
 	var (
 		ctx           context.Context
@@ -84,7 +96,9 @@ var _ = Describe("StatusReconciler", func() {
 			WithStatusSubresource(krmConfig).
 			Build()
 		deployable = &fakeDeployable{deployed: true, available: true}
-		reconciler = New(runtimeClient, deployable)
+		// The fake deployable and checkers ignore the reader they are handed, so
+		// the same client stands in for the uncached one.
+		reconciler = New(runtimeClient, runtimeClient, deployable)
 	})
 
 	conditionOf := func(conditionType krmv1alpha1.KRMConfigConditionType) *metav1.Condition {
@@ -203,6 +217,43 @@ var _ = Describe("StatusReconciler", func() {
 			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
 			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
 			Expect(fulfilled.Message).To(Equal("FakeOperand is missing the prometheus operator"))
+		})
+
+		// What an operand needs and what the installation as a whole needs are
+		// separate sources, and both belong on the one condition.
+		It("reports an installation-wide checker alongside the operands", func() {
+			deployable.missing = "FakeOperand is missing the prometheus operator"
+			reconciler = New(runtimeClient, runtimeClient, deployable,
+				&fakeChecker{message: "KAI Scheduler is not installed"})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
+			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
+			Expect(fulfilled.Message).To(Equal(
+				"FakeOperand is missing the prometheus operator; KAI Scheduler is not installed"))
+		})
+
+		It("stays fulfilled when a checker reports nothing", func() {
+			reconciler = New(runtimeClient, runtimeClient, deployable, &fakeChecker{})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled).Status).
+				To(Equal(metav1.ConditionTrue))
+		})
+
+		// A checker that could not ask the cluster is not one that found the
+		// dependency missing, and the condition says so.
+		It("reports a failed checker as the condition message", func() {
+			reconciler = New(runtimeClient, runtimeClient, deployable,
+				&fakeChecker{err: errors.New("apiserver unavailable")})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
+			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
+			Expect(fulfilled.Message).To(ContainSubstring("apiserver unavailable"))
 		})
 
 		// An unchanged condition must not be patched, or the write wakes the
