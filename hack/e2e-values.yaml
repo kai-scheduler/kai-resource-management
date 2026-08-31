@@ -21,6 +21,16 @@ projectController:
   resources:
     requests: { cpu: 50m, memory: 256Mi }
     limits: { cpu: 300m, memory: 2Gi }
+  # Without a blocker configured, deletionType Blocking blocks on nothing. Secrets rather
+  # than ConfigMaps: every namespace gets a kube-root-ca.crt ConfigMap, which would block
+  # every project forever. The selector narrows it to secrets an e2e run created.
+  deleteBlockers:
+    - displayName: Secrets
+      version: v1
+      kind: Secret
+      labelSelector:
+        matchLabels:
+          kai.resources/e2e: "true"
 
 podGroupAssigner:
   resources:

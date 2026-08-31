@@ -14,7 +14,9 @@ import (
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
+	projectcommon "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
 )
@@ -114,6 +116,25 @@ func WithParentDepartment(department string) ProjectOption {
 // forced onto the KAI scheduler, or only those that ask for it by name.
 func WithEnforceScheduler(enforce bool) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.EnforceKaiScheduler = enforce }
+}
+
+// WithBlockingDeletion makes the project refuse to finish deleting while its namespace
+// still holds anything the projectController.deleteBlockers chart value names.
+func WithBlockingDeletion() ProjectOption {
+	return func(project *kaires.Project) {
+		project.Spec.DeletionType = ptr.To(kaires.Blocking)
+	}
+}
+
+// WithForceDelete lets the project finish deleting even when a blocker reports its
+// namespace is not empty. Meaningful only with WithBlockingDeletion configured.
+func WithForceDelete() ProjectOption {
+	return func(project *kaires.Project) {
+		if project.Annotations == nil {
+			project.Annotations = map[string]string{}
+		}
+		project.Annotations[projectcommon.ForceDeleteAnnotation] = "true"
+	}
 }
 
 // WithDefaultNodePools narrows the project's defaults to a subset of the pools it has
@@ -233,6 +254,18 @@ func WithNodeAffinity(pairs ...NodeSelectorPair) PodOption {
 				},
 			},
 		}
+	}
+}
+
+// Secret builds an empty secret; the ownership labels are what the configured blocker
+// selects it by.
+func Secret(name, namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    constant.OwnerLabels(),
+		},
 	}
 }
 
