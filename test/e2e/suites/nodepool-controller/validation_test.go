@@ -48,3 +48,30 @@ var _ = Describe("The node pool webhook", Label("nodepool-controller"), func() {
 		Expect(testClient.Delete(ctx, defaultPool)).ToNot(Succeed())
 	})
 })
+
+// Immutability is a CEL rule on the CRD, not the webhook.
+var _ = Describe("The node pool CRD", Label("nodepool-controller"), func() {
+	It("refuses to change labelKey or labelValue after creation", func() {
+		nodePool := resources.GeneratedNodePool("npc-immutable", nodePoolLabelKey)
+		Expect(testClient.Create(ctx, nodePool)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(testClient.Delete(ctx, nodePool))).To(Succeed())
+			wait.ForDeleted(ctx, testClient, nodePool)
+		})
+
+		// Re-read each time: a rejected update leaves the local copy dirty.
+		changedKey := &kaires.NodePool{}
+		Expect(testClient.Get(ctx, client.ObjectKey{Name: nodePool.Name}, changedKey)).To(Succeed())
+		changedKey.Spec.LabelKey = nodePoolLabelKey + "-changed"
+
+		Expect(testClient.Update(ctx, changedKey)).
+			To(MatchError(ContainSubstring("immutable")), "labelKey was allowed to change")
+
+		changedValue := &kaires.NodePool{}
+		Expect(testClient.Get(ctx, client.ObjectKey{Name: nodePool.Name}, changedValue)).To(Succeed())
+		changedValue.Spec.LabelValue = nodePool.Spec.LabelValue + "-changed"
+
+		Expect(testClient.Update(ctx, changedValue)).
+			To(MatchError(ContainSubstring("immutable")), "labelValue was allowed to change")
+	})
+})
