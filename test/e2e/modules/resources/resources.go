@@ -79,6 +79,29 @@ func Topology(name string, nodeLabels ...string) *kaitopologyv1alpha1.Topology {
 	}
 }
 
+// ManagedNodesConfig builds the singleton config naming which nodes are managed; a node
+// not matching the criteria is moved to the excluded node pool. The name is fixed by
+// nodepool-controller's --managed-nodes-config-name flag.
+func ManagedNodesConfig(name string, terms ...corev1.NodeSelectorTerm) *kaires.ManagedNodesConfig {
+	return &kaires.ManagedNodesConfig{
+		ObjectMeta: objectMeta(name),
+		Spec: kaires.ManagedNodesConfigSpec{
+			InclusionCriteria: corev1.NodeSelector{NodeSelectorTerms: terms},
+		},
+	}
+}
+
+// WithoutNodeLabel includes every node not carrying the label key, which is how a node
+// gets excluded.
+func WithoutNodeLabel(labelKey string) corev1.NodeSelectorTerm {
+	return corev1.NodeSelectorTerm{
+		MatchExpressions: []corev1.NodeSelectorRequirement{{
+			Key:      labelKey,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		}},
+	}
+}
+
 // ProjectOption customises a Project before it is created.
 type ProjectOption func(*kaires.Project)
 
