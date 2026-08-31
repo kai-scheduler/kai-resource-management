@@ -50,6 +50,10 @@ krmOperator:
     qps: ""                     # --qps (default 50)
     burst: ""                   # --burst (default 300)
     dependencyCheckInterval: "" # --dependency-check-interval. Operator dependency check interval (default 1m)
+    # --min-kai-scheduler-version. Oldest KAI Scheduler supported. Unset uses the
+    # operator's built-in default, which tracks the kai-scheduler dependency pinned in
+    # Chart.yaml. Set it to 0.0.0 to accept any version.
+    minKaiSchedulerVersion: ""
 
 # Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
 # operator applies its own default for whatever is left unset, and those defaults are

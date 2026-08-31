@@ -11,6 +11,8 @@ import (
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,10 +22,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
-const configName = kaiconstants.DefaultKAIConfigSingeltonInstanceName
+const (
+	configName   = kaiconstants.DefaultKAIConfigSingeltonInstanceName
+	kaiNamespace = "kai-scheduler"
+	minimum      = "v0.17.0"
+)
+
+// kaiOperator is the Deployment whose image tag is the only record of the
+// running scheduler's version.
+func kaiOperator(image, msTag string) *appsv1.Deployment {
+	container := corev1.Container{Name: "operator", Image: image}
+	if msTag != "" {
+		container.Env = []corev1.EnvVar{{Name: "MS_TAG", Value: msTag}}
+	}
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "kai-operator", Namespace: kaiNamespace},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{container}},
+			},
+		},
+	}
+}
 
 func kaiScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
+	Expect(appsv1.AddToScheme(scheme)).To(Succeed())
 	Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
 	return scheme
 }
@@ -31,7 +55,10 @@ func kaiScheme() *runtime.Scheme {
 // kaiConfig builds the Config CR with the given Ready condition. Passing an empty
 // status leaves the condition off entirely, as it is before KAI first reconciles.
 func kaiConfig(readyStatus metav1.ConditionStatus, message string) *kaiv1.Config {
-	config := &kaiv1.Config{ObjectMeta: metav1.ObjectMeta{Name: configName}}
+	config := &kaiv1.Config{
+		ObjectMeta: metav1.ObjectMeta{Name: configName},
+		Spec:       kaiv1.ConfigSpec{Namespace: kaiNamespace},
+	}
 	if readyStatus == "" {
 		return config
 	}
@@ -147,5 +174,108 @@ var _ = Describe("KAIScheduler.Check", func() {
 		Expect(err).To(MatchError(ContainSubstring("apiserver unavailable")))
 		Expect(err).To(MatchError(ContainSubstring("kai-config")))
 		Expect(message).To(BeEmpty())
+	})
+})
+
+var _ = Describe("KAIScheduler.Check version", func() {
+	ctx := context.Background()
+	checker := &KAIScheduler{MinimumVersion: minimum}
+
+	checkWith := func(image, msTag string) string {
+		message, err := checker.Check(ctx,
+			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator(image, msTag)))
+		Expect(err).ToNot(HaveOccurred())
+		return message
+	}
+
+	It("accepts the minimum itself", func() {
+		Expect(checkWith("repo/operator:v0.17.0", "")).To(BeEmpty())
+	})
+
+	It("accepts a newer patch and minor", func() {
+		Expect(checkWith("repo/operator:v0.17.3", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.18.0", "")).To(BeEmpty())
+	})
+
+	It("reports one older than the minimum", func() {
+		Expect(checkWith("repo/operator:v0.14.2", "")).To(Equal(
+			"KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0"))
+	})
+
+	// A newer major may well work, so it must not hold the installation unready.
+	It("does not report a newer major as unmet", func() {
+		Expect(checkWith("repo/operator:v1.0.0", "")).To(BeEmpty())
+	})
+
+	// Semver orders a prerelease below the release it qualifies, so the FIPS
+	// suffix has to come off or v0.17.0-fips reads as older than v0.17.0.
+	It("accepts the FIPS build of the minimum", func() {
+		Expect(checkWith("repo/operator:v0.17.0-fips", "")).To(BeEmpty())
+	})
+
+	It("reads the tag through a registry port", func() {
+		Expect(checkWith("registry.local:5000/kai/operator:v0.14.0", "")).To(
+			ContainSubstring("older than"))
+	})
+
+	It("falls back to MS_TAG when the image is pinned by digest", func() {
+		Expect(checkWith("repo/operator@sha256:"+
+			"1111111111111111111111111111111111111111111111111111111111111111", "v0.14.0")).
+			To(ContainSubstring("older than"))
+	})
+
+	// Guessing wrong here would hold back an installation that is fine.
+	DescribeTable("skips a version it cannot read",
+		func(image, msTag string) {
+			Expect(checkWith(image, msTag)).To(BeEmpty())
+		},
+		Entry("a tag that is not a version", "repo/operator:latest", ""),
+		Entry("no tag at all", "repo/operator", ""),
+		Entry("a digest with no MS_TAG", "repo/operator@sha256:"+
+			"1111111111111111111111111111111111111111111111111111111111111111", ""),
+	)
+
+	It("skips the check when no minimum is configured", func() {
+		message, err := (&KAIScheduler{}).Check(ctx,
+			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", "")))
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(BeEmpty())
+	})
+
+	It("skips the check when a minimum is not a version", func() {
+		message, err := (&KAIScheduler{MinimumVersion: "not-a-version"}).Check(ctx,
+			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", "")))
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(BeEmpty())
+	})
+
+	// Its Config reports ready, so something is running it another way.
+	It("skips the check when the operator Deployment is absent", func() {
+		message, err := checker.Check(ctx, kaiReader(kaiConfig(metav1.ConditionTrue, "")))
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(BeEmpty())
+	})
+
+	It("skips the check when the Config names no namespace", func() {
+		config := kaiConfig(metav1.ConditionTrue, "")
+		config.Spec.Namespace = ""
+
+		message, err := checker.Check(ctx, kaiReader(config))
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(BeEmpty())
+	})
+
+	// The scheduler being down is the thing to fix; its version is the detail.
+	It("reports unreadiness rather than the version", func() {
+		message, err := checker.Check(ctx, kaiReader(
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.1.0", "")))
+
+		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(ContainSubstring("is not ready"))
+		Expect(message).ToNot(ContainSubstring("older than"))
 	})
 })

@@ -166,6 +166,21 @@ KAI Scheduler Config "kai-config" has not reported readiness
 The last is normal for a few seconds after KAI is installed, before its operator
 first reconciles the CR.
 
+Once it is up, its version is checked against the oldest this release supports:
+
+```text
+KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0
+```
+
+The version is read from the `kai-operator` Deployment's image tag, the only
+place the running version is written down, falling back to its `MS_TAG`
+environment variable when the image is pinned by digest. A tag that is not a
+version — `latest`, or an air-gapped mirror's own — is skipped rather than
+reported, because guessing wrong would hold back an installation that is fine;
+`--min-kai-scheduler-version=0.0.0` turns the check off entirely. A **newer
+major** scheduler is logged but not reported as unmet: it may well work, and
+failing it would block a forward upgrade.
+
 **The CRDs each enabled service reads**, serving the API version it reads them
 through:
 

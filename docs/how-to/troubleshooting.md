@@ -92,6 +92,20 @@ That verdict is KAI's own, copied onto our condition — the reason to act on is
 the `Config`, and it is KAI's operator to investigate, not KRM's. Expect it
 transiently during a KAI upgrade; it clears itself.
 
+A third names the version:
+
+```text
+KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0
+```
+
+```bash
+kubectl -n <kai-namespace> get deploy kai-operator \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+Upgrade KAI, or if the image is deliberately re-tagged (air-gapped mirrors do
+this) turn the check off with `krmOperator.args.minKaiSchedulerVersion=0.0.0`.
+
 ### No `KRMConfig` exists at all
 
 ```bash

@@ -83,7 +83,8 @@ func New() (*App, error) {
 	return &App{
 		manager: mgr,
 		krmConfigReconciler: controller.NewKRMConfigReconciler(
-			mgr.GetClient(), mgr.GetScheme(), opts.DependencyCheckInterval),
+			mgr.GetClient(), mgr.GetScheme(),
+			opts.DependencyCheckInterval, opts.MinimumSchedulerVersion),
 	}, nil
 }
 
