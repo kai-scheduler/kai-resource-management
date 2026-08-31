@@ -202,8 +202,8 @@ var _ = Describe("KAIScheduler.Check version", func() {
 			"KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0"))
 	})
 
-	// A newer major may well work, so it must not hold the installation unready.
-	It("does not report a newer major as unmet", func() {
+	// A floor only, so anything at or above the minimum passes.
+	It("accepts a newer major", func() {
 		Expect(checkWith("repo/operator:v1.0.0", "")).To(BeEmpty())
 	})
 

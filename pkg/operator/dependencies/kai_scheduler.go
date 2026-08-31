@@ -102,15 +102,10 @@ func (k *KAIScheduler) unsupportedVersionMessage(
 
 	// Reported as the tag rather than the parsed version, because that is what
 	// is written on the Deployment and what someone will go looking for.
+	// A floor only: anything at or above the minimum is accepted.
 	if !running.AtLeast(minimum) {
 		return fmt.Sprintf("KAI Scheduler %s is older than the minimum supported %s",
 			tag, k.MinimumVersion)
-	}
-	if running.Major() > minimum.Major() {
-		// Said out loud, but not treated as unmet: a newer major may well work,
-		// and holding the installation unready would block a forward upgrade.
-		logger.Info("KAI Scheduler is a newer major version than this release was built against",
-			"running", tag, "builtAgainst", k.MinimumVersion)
 	}
 	return ""
 }
