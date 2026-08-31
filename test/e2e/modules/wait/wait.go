@@ -176,6 +176,33 @@ func ForDeleted(ctx goctx.Context, k8sClient client.Client, obj client.Object) {
 		})
 }
 
+// ForManagedNodesCondition waits for the managed-nodes config to report conditionType with
+// the given status and returns it, so the caller can assert on the reason and message.
+//
+// Unlike NodePool and Project, ManagedNodesConfig uses metav1.Condition, so this one can
+// lean on meta.FindStatusCondition rather than a lookup of its own.
+func ForManagedNodesCondition(
+	ctx goctx.Context, k8sClient client.Client, name, conditionType string, status metav1.ConditionStatus,
+) metav1.Condition {
+	var reported metav1.Condition
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		config := &kaires.ManagedNodesConfig{}
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, config)).To(gomega.Succeed())
+
+		condition := meta.FindStatusCondition(config.Status.Conditions, conditionType)
+		g.Expect(condition).ToNot(gomega.BeNil(),
+			"managed nodes config %q has no %q condition, only %v",
+			name, conditionType, conditionSummary(config.Status.Conditions))
+		g.Expect(condition.Status).To(gomega.Equal(status),
+			"managed nodes config %q condition %q: %s", name, conditionType, condition.Message)
+
+		reported = *condition
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return reported
+}
+
 // ForNodePoolCondition waits for a nodePool to report conditionType as True and returns
 // it, so the caller can assert on the reason and message it carries.
 func ForNodePoolCondition(
