@@ -41,6 +41,12 @@ func WithPreferredNetworkTopology(topology string) NodePoolOption {
 	return func(nodePool *kaires.NodePool) { nodePool.Spec.PreferredNetworkTopologyName = topology }
 }
 
+// WithSchedulingShardConfig sets scheduler settings that nodepool-controller merges into
+// the SchedulingShard it derives from the pool.
+func WithSchedulingShardConfig(config *kaires.SchedulingShardConfig) NodePoolOption {
+	return func(nodePool *kaires.NodePool) { nodePool.Spec.SchedulingShardConfig = config }
+}
+
 // NodePool builds a nodePool selecting nodes by labelKey=labelValue. The webhook
 // requires a non-empty pair on every node pool but the default one.
 func NodePool(name, labelKey, labelValue string, options ...NodePoolOption) *kaires.NodePool {
