@@ -90,6 +90,42 @@ func getReportedProjectConditionTypes(project *kaires.Project) []kaires.ProjectC
 	return reported
 }
 
+// ForDepartmentCondition waits for a department to report conditionType with the given
+// status.
+func ForDepartmentCondition(
+	ctx goctx.Context, k8sClient client.Client, name string,
+	conditionType kaires.DepartmentConditionType, status corev1.ConditionStatus,
+) kaires.DepartmentCondition {
+	var reported kaires.DepartmentCondition
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		department := &kaires.Department{}
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, department)).To(gomega.Succeed())
+
+		condition := getDepartmentConditionOfType(department, conditionType)
+		g.Expect(condition).ToNot(gomega.BeNil(),
+			"department %q has no %q condition", name, conditionType)
+		g.Expect(condition.Status).To(gomega.Equal(status),
+			"department %q condition %q: %s", name, conditionType, condition.Message)
+
+		reported = *condition
+	}).WithContext(ctx).WithTimeout(constant.Timeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return reported
+}
+
+func getDepartmentConditionOfType(
+	department *kaires.Department, conditionType kaires.DepartmentConditionType,
+) *kaires.DepartmentCondition {
+	for i := range department.Status.Conditions {
+		if department.Status.Conditions[i].Type == conditionType {
+			return &department.Status.Conditions[i]
+		}
+	}
+
+	return nil
+}
+
 // ForNodePoolPhase waits for a nodePool to settle on the expected phase. Ready and
 // Empty are both healthy - Empty simply means no node matches the node pool's labels -
 // so the caller says which one it expects rather than the helper guessing.
