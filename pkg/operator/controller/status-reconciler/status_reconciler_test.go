@@ -57,8 +57,7 @@ func (d *fakeDeployable) HasMissingDependencies(
 	return d.missing, nil
 }
 
-// fakeChecker stands in for an installation-wide dependency, so the merging is
-// tested without a cluster to check against.
+// fakeChecker stands in for an installation-wide dependency.
 type fakeChecker struct {
 	message string
 	err     error
@@ -96,8 +95,7 @@ var _ = Describe("StatusReconciler", func() {
 			WithStatusSubresource(krmConfig).
 			Build()
 		deployable = &fakeDeployable{deployed: true, available: true}
-		// The fake deployable and checkers ignore the reader they are handed, so
-		// the same client stands in for the uncached one.
+		// The fakes ignore the reader, so one client stands in for both.
 		reconciler = New(runtimeClient, runtimeClient, deployable)
 	})
 
@@ -219,8 +217,7 @@ var _ = Describe("StatusReconciler", func() {
 			Expect(fulfilled.Message).To(Equal("FakeOperand is missing the prometheus operator"))
 		})
 
-		// What an operand needs and what the installation as a whole needs are
-		// separate sources, and both belong on the one condition.
+		// Two separate sources, both belonging on the one condition.
 		It("reports an installation-wide checker alongside the operands", func() {
 			deployable.missing = "FakeOperand is missing the prometheus operator"
 			reconciler = New(runtimeClient, runtimeClient, deployable,
@@ -243,8 +240,6 @@ var _ = Describe("StatusReconciler", func() {
 				To(Equal(metav1.ConditionTrue))
 		})
 
-		// A checker that could not ask the cluster is not one that found the
-		// dependency missing, and the condition says so.
 		It("reports a failed checker as the condition message", func() {
 			reconciler = New(runtimeClient, runtimeClient, deployable,
 				&fakeChecker{err: errors.New("apiserver unavailable")})

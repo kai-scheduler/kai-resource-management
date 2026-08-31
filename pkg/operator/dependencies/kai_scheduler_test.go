@@ -28,8 +28,7 @@ const (
 	minimum      = "v0.17.0"
 )
 
-// kaiOperator is the Deployment whose image tag is the only record of the
-// running scheduler's version.
+// kaiOperator carries the image tag the version is read from.
 func kaiOperator(image, msTag string) *appsv1.Deployment {
 	container := corev1.Container{Name: "operator", Image: image}
 	if msTag != "" {
@@ -52,8 +51,7 @@ func kaiScheme() *runtime.Scheme {
 	return scheme
 }
 
-// kaiConfig builds the Config CR with the given Ready condition. Passing an empty
-// status leaves the condition off entirely, as it is before KAI first reconciles.
+// kaiConfig builds the Config CR; an empty status omits the condition entirely.
 func kaiConfig(readyStatus metav1.ConditionStatus, message string) *kaiv1.Config {
 	config := &kaiv1.Config{
 		ObjectMeta: metav1.ObjectMeta{Name: configName},
@@ -87,8 +85,6 @@ var _ = Describe("KAIScheduler.Check", func() {
 		Expect(message).To(BeEmpty())
 	})
 
-	// The kind cannot be mapped at all, which is what an uninstalled KAI looks
-	// like — distinct from the Config merely being absent, below.
 	It("reports the scheduler as uninstalled when its API is absent", func() {
 		reader := fake.NewClientBuilder().WithScheme(kaiScheme()).
 			WithInterceptorFuncs(interceptor.Funcs{
@@ -134,7 +130,6 @@ var _ = Describe("KAIScheduler.Check", func() {
 		Expect(message).To(Equal(`KAI Scheduler Config "kai-config" is not ready`))
 	})
 
-	// The few seconds after KAI is installed, before its operator gets to it.
 	It("reports a Config that has not been reconciled yet", func() {
 		reader := kaiReader(kaiConfig("", ""))
 
@@ -154,7 +149,6 @@ var _ = Describe("KAIScheduler.Check", func() {
 			`KAI Scheduler Config "kai-config" is not ready: still starting`))
 	})
 
-	// A cluster that could not be asked is not a cluster that answered "absent".
 	It("returns an error rather than a message when reading the Config fails", func() {
 		reader := fake.NewClientBuilder().WithScheme(kaiScheme()).
 			WithInterceptorFuncs(interceptor.Funcs{
@@ -202,13 +196,11 @@ var _ = Describe("KAIScheduler.Check version", func() {
 			"KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0"))
 	})
 
-	// A floor only, so anything at or above the minimum passes.
 	It("accepts a newer major", func() {
 		Expect(checkWith("repo/operator:v1.0.0", "")).To(BeEmpty())
 	})
 
-	// Semver orders a prerelease below the release it qualifies, so the FIPS
-	// suffix has to come off or v0.17.0-fips reads as older than v0.17.0.
+	// Semver orders a prerelease below its release, so the suffix must come off.
 	It("accepts the FIPS build of the minimum", func() {
 		Expect(checkWith("repo/operator:v0.17.0-fips", "")).To(BeEmpty())
 	})
@@ -224,7 +216,6 @@ var _ = Describe("KAIScheduler.Check version", func() {
 			To(ContainSubstring("older than"))
 	})
 
-	// Guessing wrong here would hold back an installation that is fine.
 	DescribeTable("skips a version it cannot read",
 		func(image, msTag string) {
 			Expect(checkWith(image, msTag)).To(BeEmpty())
@@ -251,7 +242,6 @@ var _ = Describe("KAIScheduler.Check version", func() {
 		Expect(message).To(BeEmpty())
 	})
 
-	// Its Config reports ready, so something is running it another way.
 	It("skips the check when the operator Deployment is absent", func() {
 		message, err := checker.Check(ctx, kaiReader(kaiConfig(metav1.ConditionTrue, "")))
 
@@ -280,7 +270,6 @@ var _ = Describe("KAIScheduler.Check version", func() {
 		Expect(message).To(ContainSubstring("is not ready"))
 	})
 
-	// Readiness is still what is reported when the version is fine.
 	It("reports unreadiness when the version is supported", func() {
 		message, err := checker.Check(ctx, kaiReader(
 			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.17.0", "")))

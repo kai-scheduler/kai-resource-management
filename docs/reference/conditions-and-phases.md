@@ -179,7 +179,7 @@ place the running version is written down, falling back to its `MS_TAG`
 environment variable when the image is pinned by digest. A tag that is not a
 version — `latest`, or an air-gapped mirror's own — is skipped rather than
 reported, because guessing wrong would hold back an installation that is fine;
-`--min-kai-scheduler-version=0.0.0` turns the check off entirely.
+`--min-kai-scheduler-version=0.0.0` accepts any version.
 
 **The CRDs each enabled service reads**, serving the API version it reads them
 through:

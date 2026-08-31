@@ -20,32 +20,25 @@ import (
 )
 
 const (
-	// DefaultMinimumSchedulerVersion is the oldest KAI Scheduler this release is
-	// built against. Keep it in step with the kai-scheduler dependency pinned in
-	// deployments/kai-resource-management-chart/Chart.yaml.
+	// Oldest KAI Scheduler this release is built against. Keep in step with the
+	// kai-scheduler dependency pinned in the chart's Chart.yaml.
 	DefaultMinimumSchedulerVersion = "v0.17.0"
 
-	// The Deployment the KAI chart installs, and the container inside it whose
-	// image tag is the only place the running version is written down.
+	// The container whose image tag is the only record of the running version.
 	kaiOperatorDeploymentName = "kai-operator"
 	kaiOperatorContainerName  = "operator"
 
-	// msTagEnvVar is set from the same chart value as the image tag, and is read
-	// as a fallback for a Deployment whose image is pinned by digest.
+	// Same chart value as the image tag; the fallback when the image is a digest.
 	msTagEnvVar = "MS_TAG"
 
-	// fipsTagSuffix marks the FIPS build of a release. It has to come off before
-	// the tag is parsed: semver orders a prerelease *below* the release it
-	// qualifies, so v0.17.0-fips would otherwise read as older than v0.17.0.
+	// Stripped before parsing: semver orders a prerelease below its release, so
+	// v0.17.0-fips would otherwise read as older than v0.17.0.
 	fipsTagSuffix = "-fips"
 )
 
-// KAIScheduler reports on the scheduler the KRM services drive.
-//
-// It is one dependency of the installation as a whole rather than of any single
-// operand: every service talks to the same scheduler, and the Config CR names
-// the namespace it runs in. KAI Scheduler is installed, upgraded and removed on
-// its own schedule, so none of this can be assumed from a successful install.
+// KAIScheduler reports on the scheduler every KRM service drives. It belongs to
+// the installation rather than to one operand, and is upgraded on its own
+// schedule, so nothing about it follows from a successful install.
 type KAIScheduler struct {
 	MinimumVersion string
 }
@@ -59,8 +52,7 @@ func (k *KAIScheduler) Check(ctx context.Context, uncachedReader client.Reader) 
 	case meta.IsNoMatchError(err):
 		return "KAI Scheduler is not installed: no kai.scheduler/v1 Config API", nil
 	case apierrors.IsNotFound(err):
-		// KAI's own deployer hook was disabled, or the CR was deleted out from
-		// under it.
+		// KAI's deployer hook was disabled, or the CR was deleted under it.
 		return fmt.Sprintf("KAI Scheduler Config %q does not exist", configName), nil
 	case err != nil:
 		return "", fmt.Errorf("reading KAI Scheduler Config %s: %w", configName, err)
@@ -76,11 +68,8 @@ func (k *KAIScheduler) Check(ctx context.Context, uncachedReader client.Reader) 
 	return strings.Join(problems, "; "), nil
 }
 
-// unsupportedVersionMessage is best effort throughout, and never returns an
-// error. The running version is only written down as an image tag, and a tag is
-// not required to be a version at all — air-gapped mirrors re-tag, and images
-// can be pinned by digest. An unreadable tag is therefore not an unmet
-// dependency: guessing wrong would hold back an installation that is fine.
+// unsupportedVersionMessage never errors. A tag need not be a version at all, so
+// an unreadable one is skipped: guessing wrong would hold back a fine install.
 func (k *KAIScheduler) unsupportedVersionMessage(
 	ctx context.Context, reader client.Reader, kaiConfig *kaiv1.Config,
 ) string {
@@ -101,9 +90,8 @@ func (k *KAIScheduler) unsupportedVersionMessage(
 		return ""
 	}
 
-	// Reported as the tag rather than the parsed version, because that is what
-	// is written on the Deployment and what someone will go looking for.
-	// A floor only: anything at or above the minimum is accepted.
+	// A floor only, and reported as the tag rather than the parsed version, since
+	// the tag is what is written on the Deployment.
 	if !running.AtLeast(minimum) {
 		return fmt.Sprintf("KAI Scheduler %s is older than the minimum supported %s",
 			tag, k.MinimumVersion)
@@ -111,8 +99,7 @@ func (k *KAIScheduler) unsupportedVersionMessage(
 	return ""
 }
 
-// runningVersion reads the version off the KAI operator Deployment, returning it
-// alongside the tag it was read from, or nil when it cannot be determined.
+// runningVersion returns the version and the tag it came from, or nil.
 func (k *KAIScheduler) runningVersion(
 	ctx context.Context, reader client.Reader, namespace string,
 ) (*version.Version, string) {
@@ -127,8 +114,7 @@ func (k *KAIScheduler) runningVersion(
 	err := reader.Get(ctx,
 		client.ObjectKey{Namespace: namespace, Name: kaiOperatorDeploymentName}, deployment)
 	if err != nil {
-		// Its Config reports ready, so something is running it another way. Not
-		// ours to fail the installation over, whatever went wrong reading it.
+		// Its Config reports ready, so something runs it another way.
 		logger.V(1).Info("Cannot read the KAI Scheduler operator, skipping the version check",
 			"namespace", namespace, "name", kaiOperatorDeploymentName, "reason", err.Error())
 		return nil, ""
@@ -148,9 +134,8 @@ func (k *KAIScheduler) runningVersion(
 	return running, tag
 }
 
-// parseVersionTag answers with nil rather than an error for a tag that is not a
-// version — "latest", or an air-gapped mirror's own. Not knowing the version is
-// an ordinary outcome here, not a failure.
+// parseVersionTag returns nil for a tag that is not a version — "latest", or a
+// mirror's own. Not knowing is an ordinary outcome here, not a failure.
 func parseVersionTag(tag string) *version.Version {
 	parsed, err := version.ParseSemantic(strings.TrimSuffix(tag, fipsTagSuffix))
 	if err != nil {
@@ -159,8 +144,7 @@ func parseVersionTag(tag string) *version.Version {
 	return parsed
 }
 
-// versionTag prefers the image tag and falls back to the MS_TAG the KAI chart
-// sets from the same value, which survives an image pinned by digest.
+// versionTag prefers the image tag, falling back to MS_TAG for a digest pin.
 func versionTag(deployment *appsv1.Deployment) string {
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		if container.Name != kaiOperatorContainerName {
@@ -178,8 +162,7 @@ func versionTag(deployment *appsv1.Deployment) string {
 	return ""
 }
 
-// imageTag returns the tag of a container image reference, or empty when it
-// carries none. A colon before the last slash is a registry port, not a tag.
+// imageTag returns the tag, or empty. A colon before the last slash is a port.
 func imageTag(image string) string {
 	if digest := strings.Index(image, "@"); digest >= 0 {
 		image = image[:digest]
@@ -191,17 +174,13 @@ func imageTag(image string) string {
 	return image[colon+1:]
 }
 
-// readinessMessage is empty when KAI Scheduler reports itself ready, and
-// otherwise repeats its own verdict rather than re-deriving it, so the two never
-// disagree about whether the scheduler is up.
+// readinessMessage repeats KAI's own verdict rather than re-deriving it.
 func readinessMessage(kaiConfig *kaiv1.Config, configName string) string {
 	ready := meta.FindStatusCondition(kaiConfig.Status.Conditions, string(kaiv1.ConditionTypeReady))
 
 	switch {
 	case ready == nil:
-		// Normal for a few seconds after KAI is installed, and reported rather
-		// than ignored because it is indistinguishable from an operator that
-		// never got as far as reconciling it.
+		// Normal briefly after install, but indistinguishable from a stuck operator.
 		return fmt.Sprintf("KAI Scheduler Config %q has not reported readiness", configName)
 	case ready.Status == metav1.ConditionTrue:
 		return ""
