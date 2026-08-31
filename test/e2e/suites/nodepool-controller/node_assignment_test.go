@@ -67,4 +67,18 @@ var _ = Describe("A node pool", Ordered, Label("nodepool-controller"), func() {
 			g.Expect(node.Labels).To(HaveKeyWithValue(kaiconstants.DefaultNodePoolLabelKey, nodePool.Name))
 		}).Should(Succeed())
 	})
+
+	It("releases the node when that label goes", func() {
+		Expect(nodes.RemoveLabel(ctx, testClient, nodeName, nodePoolLabelKey)).To(Succeed())
+
+		released := wait.ForNodePoolPhase(ctx, testClient, nodePool.Name, kaires.NodePoolEmpty)
+		Expect(released.Status.Nodes).To(BeEmpty())
+
+		// The default pool is the absence of the key, not its name as a value.
+		Eventually(func(g Gomega) {
+			node := &corev1.Node{}
+			g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+			g.Expect(node.Labels).ToNot(HaveKey(kaiconstants.DefaultNodePoolLabelKey))
+		}).Should(Succeed())
+	})
 })
