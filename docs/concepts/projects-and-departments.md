@@ -165,6 +165,10 @@ What counts as "not empty" is configured at install time through the chart's
 deletion. With no blockers configured — the default — nothing blocks a project's deletion,
 and `deletionType: Blocking` has no effect.
 
+A configured blocker whose CRD is not installed on the cluster cannot have anything left
+behind, so it is ignored rather than treated as an error. A blocker the controller lacks
+RBAC to list is an error, and blocks.
+
 While blocked, the project reports a condition named after the blocker group, listing what
 is still there. Delete those resources and it proceeds.
 

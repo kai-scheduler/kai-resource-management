@@ -118,6 +118,22 @@ kubectl get queue -l '!kai.scheduler/node-pool'
 The unassigned sentinel — `kai-unexisting-node-pool` by default — is deliberately not an
 absent label: absence already means "the default node pool", so a third state was needed.
 
+## RoleBinding labels
+
+| Key | Default | R/W | Meaning |
+| --- | --- | --- | --- |
+| `app.kubernetes.io/managed-by` | fixed | Written | `project-controller` on the per-project RoleBindings it creates from its rolebindings ConfigMap |
+
+The project-controller sets each project as the owner of these RoleBindings, so they are
+garbage collected with it. Ownership alone does not mean the controller created it,
+though, so pruning is narrower: a RoleBinding is removed only when it carries this label
+*and* is owned by the project being reconciled. Anything else in the namespace — including
+a RoleBinding you gave the project as an owner yourself — is left alone.
+
+A RoleBinding named in the ConfigMap that has no owner at all is adopted: the controller
+sets itself as the project's, so it is garbage collected and prunable from then on. One
+already controlled by something else keeps its owner.
+
 ## NodePool annotations
 
 The only annotations you set yourself, rather than reading.
