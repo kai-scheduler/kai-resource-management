@@ -35,6 +35,9 @@ rules:
   - apiGroups: ["autoscaling.k8s.io"]
     resources: ["verticalpodautoscalers"]
     verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
   # Leader election, and the Events an operand reports failures through.
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]

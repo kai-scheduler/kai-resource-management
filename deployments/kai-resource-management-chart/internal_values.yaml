@@ -47,8 +47,9 @@ krmOperator:
     limits: { cpu: 500m, memory: 512Mi }
     requests: { cpu: 100m, memory: 128Mi }
   args:
-    qps: ""                  # --qps (default 50)
-    burst: ""                # --burst (default 300)
+    qps: ""                     # --qps (default 50)
+    burst: ""                   # --burst (default 300)
+    dependencyCheckInterval: "" # --dependency-check-interval. Operator dependency check interval (default 1m)
 
 # Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
 # operator applies its own default for whatever is left unset, and those defaults are

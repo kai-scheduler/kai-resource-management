@@ -142,6 +142,38 @@ Reasons attached to these are the condition name or its negation —
 `Deployed`/`NotDeployed`, `Available`/`NotAvailable`, `Ready`/`NotReady`,
 `DependenciesFulfilled`/`DependenciesMissing`, `Reconciled`/`Reconciling`.
 
+### What `DependenciesFulfilled` covers
+
+The chart bundles KAI Scheduler as a subchart, so a default install brings it
+along — but KRM does not own it from then on. It can be upgraded or uninstalled
+on its own afterwards, and an installation can be pointed at a scheduler someone
+else put there. However they got there, the CRDs have to be present, and the
+operator cannot assume they still are. It re-checks on every reconcile that each
+enabled service has the KAI CRDs it reads, serving the API version it reads them
+through:
+
+| Service | CRDs |
+| --- | --- |
+| nodepool-controller | `schedulingshards.kai.scheduler/v1`, `topologies.kai.scheduler/v1alpha1`, `podgroups.scheduling.run.ai/v2alpha2` |
+| project-controller | `queues.scheduling.run.ai/v2` |
+| pod-group-assigner | `queues.scheduling.run.ai/v2`, `podgroups.scheduling.run.ai/v2alpha2`, `topologies.kai.scheduler/v1alpha1` |
+
+A CRD that exists but no longer serves the listed version counts as missing —
+that is what a scheduler downgrade looks like. A service turned off in the
+`KRMConfig` is not checked, because nothing was deployed to depend on it.
+
+The message names each one, for example:
+
+```text
+ProjectController is missing CRD queues.scheduling.run.ai/v2
+```
+
+Nothing here fails the reconcile: the operator keeps deploying and reporting
+`Deployed` and `Available` truthfully, and clears the condition on its own once
+the dependency is back. Because nothing watches those CRDs, that takes up to one
+`--dependency-check-interval` (default one minute; `0` turns the periodic
+re-check off).
+
 ---
 
 ## Where a phase is *not* reported
