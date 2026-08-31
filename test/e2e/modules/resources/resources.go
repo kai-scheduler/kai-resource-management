@@ -96,8 +96,7 @@ func WithEnforceScheduler(enforce bool) ProjectOption {
 }
 
 // WithBlockingDeletion makes the project refuse to finish deleting while its namespace
-// still holds anything the projectController.deleteBlockers chart value names. Without it
-// the blockers are not consulted at all and the project deletes regardless.
+// still holds anything the projectController.deleteBlockers chart value names.
 func WithBlockingDeletion() ProjectOption {
 	return func(project *kaires.Project) {
 		project.Spec.DeletionType = ptr.To(kaires.Blocking)
@@ -105,10 +104,7 @@ func WithBlockingDeletion() ProjectOption {
 }
 
 // WithForceDelete lets the project finish deleting even when a blocker reports its
-// namespace is not empty. It only means anything alongside WithBlockingDeletion: the
-// blockers still run and still report, and force is what makes their error non-fatal.
-//
-// An annotation rather than a spec field, which is where project-controller reads it.
+// namespace is not empty. Meaningful only with WithBlockingDeletion configured.
 func WithForceDelete() ProjectOption {
 	return func(project *kaires.Project) {
 		if project.Annotations == nil {
@@ -238,9 +234,8 @@ func WithNodeAffinity(pairs ...NodeSelectorPair) PodOption {
 	}
 }
 
-// Secret builds an empty secret in a project's namespace. It exists to be something a
-// project's deletion can block on, so its contents are beside the point; the ownership
-// labels are what the configured blocker selects it by.
+// Secret builds an empty secret; the ownership labels are what the configured blocker
+// selects it by.
 func Secret(name, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

@@ -45,13 +45,7 @@ func ForProjectReady(ctx goctx.Context, k8sClient client.Client, name string) *k
 	return project
 }
 
-// ForProjectCondition waits for a project to report conditionType with the given status and
-// returns it, so the caller can assert on the reason and message it carries.
-//
-// Project has its own condition type, as NodePool does but with different fields, so
-// neither meta.FindStatusCondition nor the nodePool helpers below apply. A third shape
-// arrives with ManagedNodesConfig, which uses metav1.Condition; at that point these
-// lookups are worth pulling into a package of their own.
+// ForProjectCondition waits for a project to report conditionType with the given status.
 func ForProjectCondition(
 	ctx goctx.Context, k8sClient client.Client, name string,
 	conditionType kaires.ProjectConditionType, status corev1.ConditionStatus,
@@ -86,8 +80,7 @@ func getProjectConditionOfType(
 	return nil
 }
 
-// getReportedProjectConditionTypes lists what the project does report, so a timeout on a
-// missing condition says what was there instead.
+// getReportedProjectConditionTypes lists what the project does report, for the failure message.
 func getReportedProjectConditionTypes(project *kaires.Project) []kaires.ProjectConditionType {
 	reported := make([]kaires.ProjectConditionType, 0, len(project.Status.Conditions))
 	for _, condition := range project.Status.Conditions {

@@ -21,13 +21,9 @@ projectController:
   resources:
     requests: { cpu: 50m, memory: 256Mi }
     limits: { cpu: 300m, memory: 2Gi }
-  # A project with deletionType Blocking blocks on nothing unless something is
-  # configured here, so the deletion suite has nothing to assert against without it.
-  #
-  # Secrets rather than ConfigMaps: every namespace is given a kube-root-ca.crt
-  # ConfigMap, which would block every project in the cluster from ever deleting. The
-  # label selector then narrows it to secrets the e2e run created, so a secret belonging
-  # to anything else cannot hold a project the suites are trying to tear down.
+  # Without a blocker configured, deletionType Blocking blocks on nothing. Secrets rather
+  # than ConfigMaps: every namespace gets a kube-root-ca.crt ConfigMap, which would block
+  # every project forever. The selector narrows it to secrets an e2e run created.
   deleteBlockers:
     - displayName: Secrets
       version: v1
