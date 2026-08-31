@@ -49,7 +49,6 @@ var _ = Describe("The node pool webhook", Label("nodepool-controller"), func() {
 	})
 })
 
-// Immutability is a CEL rule on the CRD, not the webhook.
 var _ = Describe("The node pool CRD", Label("nodepool-controller"), func() {
 	It("refuses to change labelKey or labelValue after creation", func() {
 		nodePool := resources.GeneratedNodePool("npc-immutable", nodePoolLabelKey)
