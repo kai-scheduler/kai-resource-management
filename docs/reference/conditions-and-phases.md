@@ -166,7 +166,9 @@ KAI Scheduler Config "kai-config" has not reported readiness
 The last is normal for a few seconds after KAI is installed, before its operator
 first reconciles the CR.
 
-Once it is up, its version is checked against the oldest this release supports:
+Its version is checked against the oldest this release supports, and reported
+*ahead* of readiness — a scheduler downgraded past the minimum usually reports
+itself unready as well, and the version is the message that names the cause:
 
 ```text
 KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0

@@ -66,13 +66,16 @@ func (k *KAIScheduler) Check(ctx context.Context, reader client.Reader) (string,
 		return "", fmt.Errorf("reading KAI Scheduler Config %s: %w", configName, err)
 	}
 
-	if unready := unreadyMessage(kaiConfig, configName); unready != "" {
-		// Returned without also checking the version: a scheduler that is not up
-		// is the thing to fix, and its version is the less urgent detail.
-		return unready, nil
+	// Version before readiness, because a scheduler too old to support names the
+	// cause where readiness only names the symptom — and a downgrade past the
+	// minimum tends to make KAI report itself unready too, so checking readiness
+	// first would hide the one message that says what to do about it. When the
+	// version is fine this returns empty and readiness reports as normal.
+	if unsupported := k.unsupportedVersionMessage(ctx, reader, kaiConfig); unsupported != "" {
+		return unsupported, nil
 	}
 
-	return k.unsupportedVersionMessage(ctx, reader, kaiConfig), nil
+	return unreadyMessage(kaiConfig, configName), nil
 }
 
 // unsupportedVersionMessage is best effort throughout, and never returns an

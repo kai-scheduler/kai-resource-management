@@ -269,13 +269,23 @@ var _ = Describe("KAIScheduler.Check version", func() {
 		Expect(message).To(BeEmpty())
 	})
 
-	// The scheduler being down is the thing to fix; its version is the detail.
-	It("reports unreadiness rather than the version", func() {
+	// A downgrade past the minimum tends to make KAI report itself unready too,
+	// so readiness first would hide the message that names the cause.
+	It("reports the version rather than unreadiness when both are wrong", func() {
 		message, err := checker.Check(ctx, kaiReader(
 			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.1.0", "")))
 
 		Expect(err).ToNot(HaveOccurred())
+		Expect(message).To(ContainSubstring("older than"))
+		Expect(message).ToNot(ContainSubstring("is not ready"))
+	})
+
+	// Readiness is still what is reported when the version is fine.
+	It("reports unreadiness when the version is supported", func() {
+		message, err := checker.Check(ctx, kaiReader(
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.17.0", "")))
+
+		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("is not ready"))
-		Expect(message).ToNot(ContainSubstring("older than"))
 	})
 })
