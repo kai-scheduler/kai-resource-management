@@ -177,10 +177,7 @@ func ForDeleted(ctx goctx.Context, k8sClient client.Client, obj client.Object) {
 }
 
 // ForManagedNodesCondition waits for the managed-nodes config to report conditionType with
-// the given status and returns it, so the caller can assert on the reason and message.
-//
-// Unlike NodePool and Project, ManagedNodesConfig uses metav1.Condition, so this one can
-// lean on meta.FindStatusCondition rather than a lookup of its own.
+// the given status.
 func ForManagedNodesCondition(
 	ctx goctx.Context, k8sClient client.Client, name, conditionType string, status metav1.ConditionStatus,
 ) metav1.Condition {

@@ -1,9 +1,7 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-// Package managed_nodes covers the managed-nodes half of nodepool-controller: which nodes
-// the resource management stack manages, and what happens to one it stops managing.
-package managed_nodes
+package nodepool_controller
 
 import (
 	kaiconstants "github.com/kai-scheduler/api/constants"
@@ -20,8 +18,18 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
 
-// Serial: the config is a cluster-wide singleton under a name the controller fixes, and
-// excluding a node takes it out of whatever pool another suite might be using.
+// Names nodepool-controller uses by default, so this suite cannot choose them.
+const (
+	managedNodesConfigName = "kai-managed-nodes-config"
+	excludedNodePoolName   = "kai-excluded-nodes"
+	toExcludeLabelKey      = "kai.scheduler/to-exclude"
+)
+
+// excludeLabelKey marks the node these specs take out of the managed set.
+const excludeLabelKey = "kai.resources/e2e-exclude"
+
+// Serial: the config is a cluster-wide singleton, and excluding a node takes it out of
+// whatever pool another spec is using.
 var _ = Describe("A node the managed-nodes config excludes", Ordered, Serial,
 	Label("managed-nodes"), func() {
 		var (
@@ -34,22 +42,19 @@ var _ = Describe("A node the managed-nodes config excludes", Ordered, Serial,
 			nodeName, err = nodes.LabelWorker(ctx, testClient, excludeLabelKey, "true")
 			Expect(err).ToNot(HaveOccurred())
 
-			// Managed means matching the inclusion criteria, so excluding this node is
-			// expressed as including every node that does not carry its label.
+			// Excluding a node is expressed as including every node without its label.
 			config = resources.ManagedNodesConfig(managedNodesConfigName,
 				resources.WithoutNodeLabel(excludeLabelKey))
 			Expect(testClient.Create(ctx, config)).To(Succeed())
 
 			DeferCleanup(func() {
-				// Config first: while it stands, the node stays excluded and putting it
-				// back in its pool would just be undone on the next reconcile.
+				// Config first: while it stands the node would just be excluded again.
 				Expect(client.IgnoreNotFound(testClient.Delete(ctx, config))).To(Succeed())
 				wait.ForDeleted(ctx, testClient, config)
 
 				Expect(nodes.RemoveLabel(ctx, testClient, nodeName, excludeLabelKey)).To(Succeed())
 
-				// Leaving the node parked in the excluded pool would strand it for every
-				// suite that runs after this one.
+				// A node left in the excluded pool is stranded for every later spec.
 				Eventually(func(g Gomega) {
 					node := &corev1.Node{}
 					g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
@@ -68,8 +73,6 @@ var _ = Describe("A node the managed-nodes config excludes", Ordered, Serial,
 		})
 
 		It("leaves the config reporting that every node is where it belongs", func() {
-			// True with the reason below means no node still needs draining before it can
-			// be excluded, which is the same thing as the move above having completed.
 			applied := wait.ForManagedNodesCondition(ctx, testClient, config.Name,
 				string(kaires.MNCConditionTypeApplied), metav1.ConditionTrue)
 

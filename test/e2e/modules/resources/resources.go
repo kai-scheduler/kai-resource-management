@@ -79,13 +79,9 @@ func Topology(name string, nodeLabels ...string) *kaitopologyv1alpha1.Topology {
 	}
 }
 
-// ManagedNodesConfig builds the singleton config naming which nodes the resource
-// management stack manages. A node matching the inclusion criteria is managed and stays in
-// its node pool; one that does not is moved to the excluded node pool. Passing no terms
-// leaves the criteria empty, which manages every node.
-//
-// The name is not the caller's to invent: nodepool-controller watches one config, whose
-// name comes from its --managed-nodes-config-name flag.
+// ManagedNodesConfig builds the singleton config naming which nodes are managed; a node
+// not matching the criteria is moved to the excluded node pool. The name is fixed by
+// nodepool-controller's --managed-nodes-config-name flag.
 func ManagedNodesConfig(name string, terms ...corev1.NodeSelectorTerm) *kaires.ManagedNodesConfig {
 	return &kaires.ManagedNodesConfig{
 		ObjectMeta: objectMeta(name),
@@ -95,8 +91,8 @@ func ManagedNodesConfig(name string, terms ...corev1.NodeSelectorTerm) *kaires.M
 	}
 }
 
-// WithoutNodeLabel is an inclusion criterion matching every node that does not carry the
-// label key, which is how a node is excluded: excluding is the absence of inclusion.
+// WithoutNodeLabel includes every node not carrying the label key, which is how a node
+// gets excluded.
 func WithoutNodeLabel(labelKey string) corev1.NodeSelectorTerm {
 	return corev1.NodeSelectorTerm{
 		MatchExpressions: []corev1.NodeSelectorRequirement{{
