@@ -271,13 +271,13 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	// A downgrade past the minimum tends to make KAI report itself unready too,
 	// so readiness first would hide the message that names the cause.
-	It("reports the version rather than unreadiness when both are wrong", func() {
+	It("reports both the version and unreadiness when both are wrong", func() {
 		message, err := checker.Check(ctx, kaiReader(
 			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.1.0", "")))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("older than"))
-		Expect(message).ToNot(ContainSubstring("is not ready"))
+		Expect(message).To(ContainSubstring("is not ready"))
 	})
 
 	// Readiness is still what is reported when the version is fine.

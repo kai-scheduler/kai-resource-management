@@ -17,29 +17,22 @@ import (
 
 type StatusReconciler struct {
 	client.Client
-
-	// schedulerReader is uncached: the checkers read KAI Scheduler's Config, whose
-	// CRD may not be installed, and the cache cannot start an informer for a kind
-	// the API server does not serve.
-	schedulerReader client.Reader
-
-	deployable deployable.Deployable
-
-	// checkers cover what belongs to the installation rather than to one operand.
-	checkers []dependencies.Checker
+	schedulerUncachedReader client.Reader
+	deployable              deployable.Deployable
+	checkers                []dependencies.Checker
 }
 
 func New(
 	runtimeClient client.Client,
-	schedulerReader client.Reader,
+	schedulerUncachedReader client.Reader,
 	deployableOperands deployable.Deployable,
 	checkers ...dependencies.Checker,
 ) *StatusReconciler {
 	return &StatusReconciler{
-		Client:          runtimeClient,
-		schedulerReader: schedulerReader,
-		deployable:      deployableOperands,
-		checkers:        checkers,
+		Client:                  runtimeClient,
+		schedulerUncachedReader: schedulerUncachedReader,
+		deployable:              deployableOperands,
+		checkers:                checkers,
 	}
 }
 
@@ -224,7 +217,7 @@ func (r *StatusReconciler) unmetInstallationDependencies(ctx context.Context) (s
 	var messages []string
 
 	for _, checker := range r.checkers {
-		message, err := checker.Check(ctx, r.schedulerReader)
+		message, err := checker.Check(ctx, r.schedulerUncachedReader)
 		if err != nil {
 			return "", err
 		}

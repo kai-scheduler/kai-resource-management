@@ -17,9 +17,8 @@ import (
 // means the cluster could not be asked, which is deliberately a different answer
 // from the dependency not being there.
 //
-// reader must be uncached: what these read may include a kind whose CRD is not
-// installed, and the cache cannot start an informer for a kind the API server
-// does not serve.
+// The reader has to be uncached: the cache cannot start an informer for a kind
+// whose CRD is absent, which is one of the things a Checker reports on.
 type Checker interface {
-	Check(ctx context.Context, reader client.Reader) (string, error)
+	Check(ctx context.Context, uncachedReader client.Reader) (string, error)
 }

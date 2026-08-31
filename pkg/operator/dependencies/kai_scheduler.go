@@ -50,11 +50,11 @@ type KAIScheduler struct {
 	MinimumVersion string
 }
 
-func (k *KAIScheduler) Check(ctx context.Context, reader client.Reader) (string, error) {
+func (k *KAIScheduler) Check(ctx context.Context, uncachedReader client.Reader) (string, error) {
 	kaiConfig := &kaiv1.Config{}
 	configName := kaiconstants.DefaultKAIConfigSingeltonInstanceName
 
-	err := reader.Get(ctx, client.ObjectKey{Name: configName}, kaiConfig)
+	err := uncachedReader.Get(ctx, client.ObjectKey{Name: configName}, kaiConfig)
 	switch {
 	case meta.IsNoMatchError(err):
 		return "KAI Scheduler is not installed: no kai.scheduler/v1 Config API", nil
@@ -66,16 +66,14 @@ func (k *KAIScheduler) Check(ctx context.Context, reader client.Reader) (string,
 		return "", fmt.Errorf("reading KAI Scheduler Config %s: %w", configName, err)
 	}
 
-	// Version before readiness, because a scheduler too old to support names the
-	// cause where readiness only names the symptom — and a downgrade past the
-	// minimum tends to make KAI report itself unready too, so checking readiness
-	// first would hide the one message that says what to do about it. When the
-	// version is fine this returns empty and readiness reports as normal.
-	if unsupported := k.unsupportedVersionMessage(ctx, reader, kaiConfig); unsupported != "" {
-		return unsupported, nil
+	var problems []string
+	if unsupported := k.unsupportedVersionMessage(ctx, uncachedReader, kaiConfig); unsupported != "" {
+		problems = append(problems, unsupported)
 	}
-
-	return unreadyMessage(kaiConfig, configName), nil
+	if unready := readinessMessage(kaiConfig, configName); unready != "" {
+		problems = append(problems, unready)
+	}
+	return strings.Join(problems, "; "), nil
 }
 
 // unsupportedVersionMessage is best effort throughout, and never returns an
@@ -193,9 +191,10 @@ func imageTag(image string) string {
 	return image[colon+1:]
 }
 
-// unreadyMessage repeats what KAI Scheduler says about itself rather than
-// re-deriving it, so the two never disagree about whether the scheduler is up.
-func unreadyMessage(kaiConfig *kaiv1.Config, configName string) string {
+// readinessMessage is empty when KAI Scheduler reports itself ready, and
+// otherwise repeats its own verdict rather than re-deriving it, so the two never
+// disagree about whether the scheduler is up.
+func readinessMessage(kaiConfig *kaiv1.Config, configName string) string {
 	ready := meta.FindStatusCondition(kaiConfig.Status.Conditions, string(kaiv1.ConditionTypeReady))
 
 	switch {
