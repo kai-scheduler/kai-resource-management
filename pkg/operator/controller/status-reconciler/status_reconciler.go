@@ -18,9 +18,7 @@ import (
 type StatusReconciler struct {
 	client.Client
 
-	// schedulerReader is uncached: the checkers read KAI Scheduler's Config, whose
-	// CRD may not be installed, and the cache cannot start an informer for a kind
-	// the API server does not serve.
+	// Uncached: the cache cannot inform on KAI's Config when its CRD is absent.
 	schedulerReader client.Reader
 
 	deployable deployable.Deployable
@@ -190,14 +188,11 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 		krmv1alpha1.KRMConfigReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
 }
 
-// unmetDependencies joins the two sources into the one message the condition
-// carries, with the same separator the operands are already joined by.
+// unmetDependencies joins both sources into the one message the condition carries.
 func (r *StatusReconciler) unmetDependencies(
 	ctx context.Context, krmConfig *krmv1alpha1.KRMConfig,
 ) (string, error) {
-	// What each service needs for itself, which only the operand that installs it
-	// knows. An operand the configuration disabled reports nothing, because
-	// nothing was deployed to depend on it.
+	// Per-service needs; a disabled operand reports nothing.
 	operandDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
 	if err != nil {
 		return "", err
@@ -217,9 +212,7 @@ func (r *StatusReconciler) unmetDependencies(
 	return strings.Join(messages, "; "), nil
 }
 
-// unmetInstallationDependencies covers what belongs to no single operand: the
-// scheduler every service drives, and anything else outside this installation
-// that all of it rests on.
+// unmetInstallationDependencies covers what belongs to no single operand.
 func (r *StatusReconciler) unmetInstallationDependencies(ctx context.Context) (string, error) {
 	var messages []string
 
