@@ -104,7 +104,7 @@ kubectl -n <kai-namespace> get deploy kai-operator \
 ```
 
 Upgrade KAI, or if the image is deliberately re-tagged (air-gapped mirrors do
-this) turn the check off with `krmOperator.args.minKaiSchedulerVersion=0.0.0`.
+this) accept any version by setting `krmOperator.args.minKaiSchedulerVersion=0.0.0`.
 
 ### No `KRMConfig` exists at all
 
