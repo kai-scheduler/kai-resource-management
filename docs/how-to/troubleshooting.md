@@ -232,6 +232,15 @@ kubectl annotate project research kai/force-delete=true
 
 Anything left in the namespace is then yours to clean up.
 
+A condition that names resources you cannot find usually means the controller cannot list
+that kind. It reports the blocker as failed either way, so check its RBAC before hunting
+for the resources:
+
+```bash
+kubectl auth can-i list persistentvolumeclaims \
+  --as=system:serviceaccount:<install namespace>:project-controller -A
+```
+
 ### An object is not being reconciled
 
 Check for the manual-override label, which tells the controller to leave it alone:

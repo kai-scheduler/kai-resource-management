@@ -169,6 +169,35 @@ A configured blocker whose CRD is not installed on the cluster cannot have anyth
 behind, so it is ignored rather than treated as an error. A blocker the controller lacks
 RBAC to list is an error, and blocks.
 
+Granting that RBAC is your job. A blocker names any resource kind, so the chart cannot know
+which ones to grant ahead of time. Give the project-controller cluster-scoped `get`, `list`
+and `watch` on each kind you configure — it lists them through a cache, so `list` alone is
+not enough:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kai-project-controller-delete-blockers
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kai-project-controller-delete-blockers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kai-project-controller-delete-blockers
+subjects:
+  - kind: ServiceAccount
+    name: project-controller
+    namespace: <the namespace you installed into>
+```
+
 While blocked, the project reports a condition named after the blocker group, listing what
 is still there. Delete those resources and it proceeds.
 
