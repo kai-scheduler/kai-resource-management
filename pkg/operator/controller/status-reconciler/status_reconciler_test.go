@@ -63,7 +63,7 @@ type fakeChecker struct {
 	err     error
 }
 
-func (c *fakeChecker) Check(_ context.Context, _ client.Reader) (string, error) {
+func (c *fakeChecker) Check(_ context.Context, _, _ client.Reader) (string, error) {
 	return c.message, c.err
 }
 

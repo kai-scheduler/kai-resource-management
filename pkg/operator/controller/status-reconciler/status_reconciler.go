@@ -214,7 +214,7 @@ func (r *StatusReconciler) unmetInstallationDependencies(ctx context.Context) (s
 
 	var errs []error
 	for _, checker := range r.checkers {
-		message, err := checker.Check(ctx, r.uncachedReader)
+		message, err := checker.Check(ctx, r.Client, r.uncachedReader)
 		if err != nil {
 			errs = append(errs, err)
 		}

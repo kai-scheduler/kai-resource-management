@@ -70,6 +70,14 @@ func kaiConfig(readyStatus metav1.ConditionStatus, message string) *kaiv1.Config
 	return config
 }
 
+// check runs a Checker against one fake cluster, standing in for both readers.
+func check(
+	k *KAIScheduler, ctx context.Context, objects ...client.Object,
+) (string, error) {
+	reader := kaiReader(objects...)
+	return k.Check(ctx, reader, reader)
+}
+
 func kaiReader(objects ...client.Object) client.Reader {
 	return fake.NewClientBuilder().WithScheme(kaiScheme()).WithObjects(objects...).Build()
 }
@@ -79,7 +87,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 	It("reports nothing when the Config exists and is ready", func() {
 		reader := kaiReader(kaiConfig(metav1.ConditionTrue, ""))
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(BeEmpty())
@@ -98,14 +106,14 @@ var _ = Describe("KAIScheduler.Check", func() {
 				},
 			}).Build()
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal("KAI Scheduler is not installed: no kai.scheduler/v1 Config API"))
 	})
 
 	It("reports a missing Config when the API is there without it", func() {
-		message, err := (&KAIScheduler{}).Check(ctx, kaiReader())
+		message, err := check(&KAIScheduler{}, ctx)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal(`KAI Scheduler Config "kai-config" does not exist`))
@@ -114,7 +122,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 	It("repeats what KAI says about itself when it is not ready", func() {
 		reader := kaiReader(kaiConfig(metav1.ConditionFalse, "binder is not available"))
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal(
@@ -124,7 +132,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 	It("reports an unready Config that gives no message", func() {
 		reader := kaiReader(kaiConfig(metav1.ConditionFalse, ""))
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal(`KAI Scheduler Config "kai-config" is not ready`))
@@ -133,7 +141,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 	It("reports a Config that has not been reconciled yet", func() {
 		reader := kaiReader(kaiConfig("", ""))
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal(`KAI Scheduler Config "kai-config" has not reported readiness`))
@@ -142,7 +150,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 	It("treats an Unknown readiness as not ready", func() {
 		reader := kaiReader(kaiConfig(metav1.ConditionUnknown, "still starting"))
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(Equal(
@@ -163,7 +171,7 @@ var _ = Describe("KAIScheduler.Check", func() {
 				},
 			}).Build()
 
-		message, err := (&KAIScheduler{}).Check(ctx, reader)
+		message, err := (&KAIScheduler{}).Check(ctx, reader, reader)
 
 		Expect(err).To(MatchError(ContainSubstring("apiserver unavailable")))
 		Expect(err).To(MatchError(ContainSubstring("kai-config")))
@@ -176,8 +184,8 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	checker := &KAIScheduler{MinimumVersion: minimum}
 
 	checkWith := func(image, msTag string) string {
-		message, err := checker.Check(ctx,
-			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator(image, msTag)))
+		message, err := check(checker, ctx,
+			kaiConfig(metav1.ConditionTrue, ""), kaiOperator(image, msTag))
 		Expect(err).ToNot(HaveOccurred())
 		return message
 	}
@@ -227,23 +235,23 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	)
 
 	It("skips the check when no minimum is configured", func() {
-		message, err := (&KAIScheduler{}).Check(ctx,
-			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", "")))
+		message, err := check(&KAIScheduler{}, ctx,
+			kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(BeEmpty())
 	})
 
 	It("skips the check when a minimum is not a version", func() {
-		message, err := (&KAIScheduler{MinimumVersion: "not-a-version"}).Check(ctx,
-			kaiReader(kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", "")))
+		message, err := check(&KAIScheduler{MinimumVersion: "not-a-version"}, ctx,
+			kaiConfig(metav1.ConditionTrue, ""), kaiOperator("repo/operator:v0.1.0", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(BeEmpty())
 	})
 
 	It("skips the check when the operator Deployment is absent", func() {
-		message, err := checker.Check(ctx, kaiReader(kaiConfig(metav1.ConditionTrue, "")))
+		message, err := check(checker, ctx, kaiConfig(metav1.ConditionTrue, ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(BeEmpty())
@@ -253,7 +261,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 		config := kaiConfig(metav1.ConditionTrue, "")
 		config.Spec.Namespace = ""
 
-		message, err := checker.Check(ctx, kaiReader(config))
+		message, err := check(checker, ctx, config)
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(BeEmpty())
@@ -262,8 +270,8 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	// A downgrade past the minimum tends to make KAI report itself unready too,
 	// so readiness first would hide the message that names the cause.
 	It("reports both the version and unreadiness when both are wrong", func() {
-		message, err := checker.Check(ctx, kaiReader(
-			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.1.0", "")))
+		message, err := check(checker, ctx,
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.1.0", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("older than"))
@@ -271,8 +279,8 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	})
 
 	It("reports unreadiness when the version is supported", func() {
-		message, err := checker.Check(ctx, kaiReader(
-			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.17.0", "")))
+		message, err := check(checker, ctx,
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.17.0", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("is not ready"))

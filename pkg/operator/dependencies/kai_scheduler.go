@@ -43,7 +43,9 @@ type KAIScheduler struct {
 	MinimumVersion string
 }
 
-func (k *KAIScheduler) Check(ctx context.Context, uncachedReader client.Reader) (string, error) {
+func (k *KAIScheduler) Check(
+	ctx context.Context, cachedReader, uncachedReader client.Reader,
+) (string, error) {
 	kaiConfig := &kaiv1.Config{}
 	configName := kaiconstants.DefaultKAIConfigSingeltonInstanceName
 

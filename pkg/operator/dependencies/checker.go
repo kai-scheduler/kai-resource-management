@@ -13,6 +13,9 @@ import (
 // install. An empty message means met; a non-empty one goes onto the
 // DependenciesFulfilled condition as-is. An error means the cluster could not be
 // asked, which is not the same as the dependency being absent.
+//
+// Read through cachedReader by default. uncachedReader is for a kind whose CRD
+// may be absent, which the cache cannot start an informer for.
 type Checker interface {
-	Check(ctx context.Context, uncachedReader client.Reader) (string, error)
+	Check(ctx context.Context, cachedReader, uncachedReader client.Reader) (string, error)
 }
