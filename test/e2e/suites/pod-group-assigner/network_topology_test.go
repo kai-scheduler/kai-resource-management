@@ -17,59 +17,58 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/assigner"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
-	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/nodes"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/resources"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
 
-// The topology's levels, highest first. The assigner stamps the lowest one.
-//
-// kind nodes carry the hostname label already but no zone label, and nodepool-controller
-// reports a node missing any of a topology's levels as a mismatch - so the suite puts the
-// zone label on the node itself rather than dropping to a single-level topology, which
-// would make "the lowest level" the only level and prove nothing.
+// Topology levels, highest first. The assigner stamps the lowest.
 const (
 	highestTopologyLevel = "topology.kubernetes.io/zone"
 	lowestTopologyLevel  = "kubernetes.io/hostname"
-	topologyZone         = "e2e-zone"
 )
 
 const userConstraintGracePeriod = 7 * time.Second
 
-var _ = Describe("A pod group in a node pool with a network topology", Ordered, Label("pod-group-assigner"), func() {
+var _ = Describe("A pod group in node pools with a network topology", Ordered, Label("pod-group-assigner"), func() {
 	var (
 		topology  *kaitopologyv1alpha1.Topology
-		nodePool  *kaires.NodePool
-		nodeName  string
-		project   *kaires.Project
+		nodePools []*kaires.NodePool
 		namespace string
 		pod       *corev1.Pod
+		podGroup  *kaiv2alpha2.PodGroup
 	)
+
+	setTopologyOnPools := func(topologyName string) {
+		for _, nodePool := range nodePools {
+			setNodePoolTopology(nodePool.Name, topologyName)
+		}
+	}
 
 	BeforeAll(func() {
 		topology = resources.Topology(utils.GenerateName("pga-topo"),
 			highestTopologyLevel, lowestTopologyLevel)
 		Expect(testClient.Create(ctx, topology)).To(Succeed())
 
-		nodePool = resources.GeneratedNodePool("pga-topo-pool", nodePoolLabelKey,
-			resources.WithPreferredNetworkTopology(topology.Name))
-		Expect(testClient.Create(ctx, nodePool)).To(Succeed())
+		poolNames := []string{}
+		for _, prefix := range []string{"pga-topo-a", "pga-topo-b"} {
+			nodePool := resources.GeneratedNodePool(prefix, nodePoolLabelKey,
+				resources.WithPreferredNetworkTopology(topology.Name))
+			Expect(testClient.Create(ctx, nodePool)).To(Succeed())
+			wait.ForNodePoolPhase(ctx, testClient, nodePool.Name, kaires.NodePoolEmpty)
 
-		var err error
-		nodeName, err = nodes.LabelWorker(ctx, testClient, nodePool.Spec.LabelKey, nodePool.Spec.LabelValue)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(nodes.SetLabel(ctx, testClient, nodeName, highestTopologyLevel, topologyZone)).To(Succeed())
+			nodePools = append(nodePools, nodePool)
+			poolNames = append(poolNames, nodePool.Name)
+		}
 
-		wait.ForNodePoolPhase(ctx, testClient, nodePool.Name, kaires.NodePoolReady)
-
-		project = resources.Project(utils.GenerateName("pga-topo-proj"), []string{nodePool.Name},
+		project := resources.Project(utils.GenerateName("pga-topo-proj"), poolNames,
 			resources.WithEnforceScheduler(true))
 		Expect(testClient.Create(ctx, project)).To(Succeed())
 		namespace = wait.ForProjectReady(ctx, testClient, project.Name).Status.Namespace
 
 		pod = resources.Pod(utils.GenerateName("pga-topo-pod"), namespace)
 		Expect(testClient.Create(ctx, pod)).To(Succeed())
+		podGroup = wait.ForPodGroup(ctx, testClient, namespace, pod.Name)
 
 		DeferCleanup(func() {
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, pod))).To(Succeed())
@@ -78,22 +77,17 @@ var _ = Describe("A pod group in a node pool with a network topology", Ordered, 
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, project))).To(Succeed())
 			wait.ForDeleted(ctx, testClient, project)
 
-			Expect(nodes.RemoveLabel(ctx, testClient, nodeName, nodePoolLabelKey)).To(Succeed())
-			Expect(nodes.RemoveLabel(ctx, testClient, nodeName, highestTopologyLevel)).To(Succeed())
-
-			Expect(client.IgnoreNotFound(testClient.Delete(ctx, nodePool))).To(Succeed())
-			wait.ForDeleted(ctx, testClient, nodePool)
+			for _, nodePool := range nodePools {
+				Expect(client.IgnoreNotFound(testClient.Delete(ctx, nodePool))).To(Succeed())
+				wait.ForDeleted(ctx, testClient, nodePool)
+			}
 
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, topology))).To(Succeed())
 			wait.ForDeleted(ctx, testClient, topology)
 		})
 	})
 
-	It("is stamped with the pool's topology, at its lowest level and marked system-sourced", func() {
-		podGroup := wait.ForPodGroup(ctx, testClient, namespace, pod.Name)
-
-		// The pod-grouper creates the pod group; the assigner writes the constraint onto
-		// it afterwards, so the value has to be polled rather than read once.
+	It("is stamped with the topology, at its lowest level and marked system-sourced", func() {
 		Eventually(func(g Gomega) {
 			assigned := &kaiv2alpha2.PodGroup{}
 			g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), assigned)).To(Succeed())
@@ -107,10 +101,9 @@ var _ = Describe("A pod group in a node pool with a network topology", Ordered, 
 		}).Should(Succeed())
 	})
 
-	It("has it cleared again when the pool stops naming a topology", func() {
-		setNodePoolTopology(nodePool.Name, "")
+	It("has it cleared again once no pool names a topology", func() {
+		setTopologyOnPools("")
 
-		podGroup := wait.ForPodGroup(ctx, testClient, namespace, pod.Name)
 		Eventually(func(g Gomega) {
 			cleared := &kaiv2alpha2.PodGroup{}
 			g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), cleared)).To(Succeed())
@@ -120,9 +113,7 @@ var _ = Describe("A pod group in a node pool with a network topology", Ordered, 
 		}).Should(Succeed())
 	})
 
-	It("keeps a constraint the user set, even once the pool names a topology again", func() {
-		podGroup := wait.ForPodGroup(ctx, testClient, namespace, pod.Name)
-
+	It("keeps a constraint the user set, even once the pools name a topology again", func() {
 		// No source annotation goes with it, which is what marks it as the user's.
 		userConstraint := kaiv2alpha2.TopologyConstraint{
 			Topology:               topology.Name,
@@ -135,7 +126,7 @@ var _ = Describe("A pod group in a node pool with a network topology", Ordered, 
 			g.Expect(testClient.Update(ctx, latest)).To(Succeed())
 		}).Should(Succeed())
 
-		setNodePoolTopology(nodePool.Name, topology.Name)
+		setTopologyOnPools(topology.Name)
 
 		Consistently(func(g Gomega) {
 			untouched := &kaiv2alpha2.PodGroup{}
