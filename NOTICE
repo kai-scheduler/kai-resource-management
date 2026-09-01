@@ -483,19 +483,19 @@ Copyright The Kubernetes Authors.
 
 k8s.io/apiextensions-apiserver
 Licensed under the Apache License 2.0
-Copyright 2017 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 k8s.io/apimachinery
 Licensed under the Apache License 2.0
-Copyright The Kubernetes Authors.
+Copyright 2014 The Kubernetes Authors.
 
 k8s.io/apiserver
 Licensed under the Apache License 2.0
-Copyright 2016 The Kubernetes Authors.
+Copyright 2017 The Kubernetes Authors.
 
 k8s.io/autoscaler/vertical-pod-autoscaler
 Licensed under the Apache License 2.0
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 k8s.io/client-go
 Licensed under the Apache License 2.0
@@ -531,7 +531,7 @@ Copyright 2019 The Kubernetes Authors.
 
 k8s.io/dynamic-resource-allocation
 Licensed under the Apache License 2.0
-Copyright 2024 The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 k8s.io/klog/v2
 Licensed under the Apache License 2.0
@@ -575,7 +575,7 @@ Copyright 2014 The gofuzz Authors
 
 sigs.k8s.io/structured-merge-diff/v6
 Licensed under the Apache License 2.0
-Copyright 2019 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 sigs.k8s.io/yaml
 Licensed under the MIT License

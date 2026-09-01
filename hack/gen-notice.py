@@ -89,6 +89,7 @@ OVERRIDES = {
     },
     "gomodules.xyz/jsonpatch/v2": {"copyright": "Copyright (c) 2015 The Authors"},
     "k8s.io/kube-openapi": {"copyright": "Copyright The Kubernetes Authors."},
+    "github.com/kai-scheduler/api": {"copyright": "Copyright 2025 NVIDIA CORPORATION"},
     # Upstream's own NOTICE opens "Copyright Copyright 2025 NVIDIA CORPORATION".
     "github.com/kai-scheduler/KAI-scheduler": {"copyright": "Copyright 2025 NVIDIA CORPORATION"},
 }
@@ -101,6 +102,10 @@ LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING)", re.I)
 # Licences covering a module's documentation rather than its code. Extensions are not
 # excluded in general: license.md and LICENSE.md are the only licence a module ships.
 IGNORED_LICENSE_FILE = re.compile(r"\.docs$", re.I)
+
+# Source files scanned per module when falling back to header copyrights.
+# k8s.io/kubernetes alone ships over 5000, and reading them all costs a minute.
+SOURCE_SCAN_LIMIT = 200
 
 
 def run(args, **kw):
@@ -190,11 +195,13 @@ def copyright_for(directory):
     # Fall back to the most common source-file header, which is how projects whose
     # LICENSE is bare Apache boilerplate still state a holder.
     seen = []
+    scanned = 0
     for root, dirs, files in os.walk(directory):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "_")) and d != "testdata"]
-        for name in files:
+        dirs[:] = sorted(d for d in dirs if not d.startswith((".", "_")) and d != "testdata")
+        for name in sorted(files):
             if not name.endswith(".go"):
                 continue
+            scanned += 1
             try:
                 with open(os.path.join(root, name), encoding="utf-8", errors="replace") as fh:
                     for _ in range(12):
@@ -208,10 +215,11 @@ def copyright_for(directory):
                             break
             except OSError:
                 pass
-        if len(seen) > 40:
+        if scanned >= SOURCE_SCAN_LIMIT:
             break
     if seen:
-        return collections.Counter(seen).most_common(1)[0][0], "source header"
+        counts = collections.Counter(seen)
+        return min(counts, key=lambda text: (-counts[text], text)), "source header"
     return None, None
 
 
