@@ -6,6 +6,7 @@
 package pod_group_assigner
 
 import (
+	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	pgaconfig "github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/nodes"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/resources"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
@@ -102,6 +104,26 @@ var _ = Describe("A pod whose affinity matches one node pool's nodes", Ordered, 
 				g.Expect(node.Labels).
 					To(HaveKeyWithValue(kaiconstants.DefaultNodePoolLabelKey, nodePool.Name))
 			}
+		}).Should(Succeed())
+	})
+
+	It("is assigned the pool a second pod names by annotation instead", func() {
+		named := resources.Pod(utils.GenerateName("pga-named"), namespace,
+			resources.WithNodePoolAnnotation(pgaconfig.DefaultAnnotationNodepoolsKey, otherPool.Name))
+		Expect(testClient.Create(ctx, named)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(testClient.Delete(ctx, named))).To(Succeed())
+			wait.ForDeleted(ctx, testClient, named)
+		})
+
+		podGroup := wait.ForPodGroup(ctx, testClient, namespace, named.Name)
+		Eventually(func(g Gomega) {
+			assigned := &kaiv2alpha2.PodGroup{}
+			g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), assigned)).To(Succeed())
+
+			g.Expect(assigned.Labels).To(HaveKeyWithValue(
+				kaiconstants.DefaultNodePoolLabelKey, otherPool.Name))
+			g.Expect(assigned.Spec.Queue).To(Equal(resources.QueueName(project.Name, otherPool.Name)))
 		}).Should(Succeed())
 	})
 
