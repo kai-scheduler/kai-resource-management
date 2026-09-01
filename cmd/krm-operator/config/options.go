@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 )
 
 type Options struct {
@@ -18,6 +20,7 @@ type Options struct {
 	Qps                     int
 	Burst                   int
 	DependencyCheckInterval time.Duration
+	MinimumSchedulerVersion string
 	ZapOptions              zap.Options
 }
 
@@ -46,6 +49,11 @@ func (opts *Options) parseCommandLineArgs(flagSet *flag.FlagSet, options []strin
 			"DependenciesFulfilled condition. Nothing watches those components, so this "+
 			"also bounds how long it takes to notice one coming back. Zero disables the "+
 			"periodic re-check.")
+	flagSet.StringVar(&opts.MinimumSchedulerVersion, "min-kai-scheduler-version",
+		dependencies.DefaultMinimumSchedulerVersion,
+		"Oldest KAI Scheduler this release supports. An older one is reported on the "+
+			"KRMConfig DependenciesFulfilled condition. Set 0.0.0 to accept any version, "+
+			"which is what an air-gapped installation with re-tagged images wants.")
 
 	opts.ZapOptions = zap.Options{
 		Development: true,
