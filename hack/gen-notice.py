@@ -89,6 +89,8 @@ OVERRIDES = {
     },
     "gomodules.xyz/jsonpatch/v2": {"copyright": "Copyright (c) 2015 The Authors"},
     "k8s.io/kube-openapi": {"copyright": "Copyright The Kubernetes Authors."},
+    # Upstream's own NOTICE opens "Copyright Copyright 2025 NVIDIA CORPORATION".
+    "github.com/kai-scheduler/KAI-scheduler": {"copyright": "Copyright 2025 NVIDIA CORPORATION"},
 }
 
 # Apache-2.0 and MIT templates both carry a bracketed placeholder rather than a real
@@ -119,7 +121,8 @@ def closure():
     for name in binaries():
         for goos, goarch in PLATFORMS:
             env = dict(os.environ, GOOS=goos, GOARCH=goarch)
-            out = run(["go", "list", "-deps", "-f", fmt, f"./cmd/{name}"], cwd=REPO, env=env)
+            go = os.environ.get("GO", "go")
+            out = run([go, "list", "-deps", "-f", fmt, f"./cmd/{name}"], cwd=REPO, env=env)
             for line in out.splitlines():
                 if not line.strip():
                     continue
@@ -259,7 +262,17 @@ def summary(present):
     return "\n".join(lines)
 
 
+class TemplateError(Exception):
+    """The hand-written parts of NOTICE no longer match what the generator splits on."""
+
+
 def render(current, blocks, present):
+    # Only the summary and the component list are generated. The prose between them
+    # carries the written offer of source, so a missing marker must stop the run
+    # rather than silently drop it.
+    for marker in (SUMMARY_HEAD, SUMMARY_TAIL, MARK):
+        if marker not in current:
+            raise TemplateError(f"NOTICE is missing the marker text: {marker!r}")
     head, _, rest = current.partition(SUMMARY_HEAD)
     _, _, after = rest.partition(SUMMARY_TAIL)
     middle, _, _ = after.partition(MARK)
@@ -285,7 +298,11 @@ def main():
     blocks, problems = entries(mods)
     present = {spdx for _, spdx, _ in blocks}
     current = open(NOTICE, encoding="utf-8").read()
-    updated = render(current, blocks, present)
+    try:
+        updated = render(current, blocks, present)
+    except TemplateError as err:
+        print(f"::error::{err}", file=sys.stderr)
+        return 1
 
     if args.report:
         by_source = collections.Counter(src for _, _, src in blocks)
