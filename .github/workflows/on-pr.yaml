@@ -178,7 +178,7 @@ jobs:
 
   e2e-tests:
     name: Run E2E Tests
-    needs: [ build, check-build-and-test-required ]
+    needs: [ build, validate-and-test, check-build-and-test-required ]
     if: needs.check-build-and-test-required.outputs.code == 'true'
     runs-on: ubuntu-latest
     env:
