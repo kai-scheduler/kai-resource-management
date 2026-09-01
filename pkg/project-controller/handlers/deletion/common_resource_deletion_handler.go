@@ -26,13 +26,11 @@ type CommonResourceDeletionHandler struct {
 type ProjectConditionDeletionReason string
 
 const (
-	DataVolumesDeletionHandlerFailed ProjectConditionDeletionReason = "DataVolumesDeletionHandlerFailed"
-	NamespaceDeletionHandlerFailed   ProjectConditionDeletionReason = "NamespaceDeletionHandlerFailed"
-	WorkloadsDeletionHandlerFailed   ProjectConditionDeletionReason = "WorkloadsDeletionHandlerFailed"
-	LimitRangeDeletionHandlerFailed  ProjectConditionDeletionReason = "LimitRangeDeletionHandlerFailed"
-	QueuesDeletionHandlerFailed      ProjectConditionDeletionReason = "QueuesDeletionHandlerFailed"
-	SecretsDeletionHandlerFailed     ProjectConditionDeletionReason = "SecretsDeletionHandlerFailed"
-	PvcsDeletionHandlerFailed        ProjectConditionDeletionReason = "PvcsDeletionHandlerFailed"
+	NamespaceDeletionHandlerFailed  ProjectConditionDeletionReason = "NamespaceDeletionHandlerFailed"
+	WorkloadsDeletionHandlerFailed  ProjectConditionDeletionReason = "WorkloadsDeletionHandlerFailed"
+	LimitRangeDeletionHandlerFailed ProjectConditionDeletionReason = "LimitRangeDeletionHandlerFailed"
+	QueuesDeletionHandlerFailed     ProjectConditionDeletionReason = "QueuesDeletionHandlerFailed"
+	PvcsDeletionHandlerFailed       ProjectConditionDeletionReason = "PvcsDeletionHandlerFailed"
 )
 
 type ProjectIsNotEmptyError struct {

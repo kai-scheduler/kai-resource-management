@@ -43,12 +43,6 @@ func parseCommandLineArgs(flagSet *flag.FlagSet, options []string, opts *Options
 	flagSet.BoolVar(&opts.Debug, "debug", false, "Should use debug log level")
 	flagSet.StringVar(&config.RoleBindingsCm, "rolebindings-configmap-name", "", "The cm to read role bindings from")
 	flagSet.StringVar(&config.RoleBindingsCmNamespace, "rolebindings-configmap-namespace", "", "The namespace of the cm to read role bindings from")
-	flagSet.BoolVar(&config.ClusterWideSecrets, "cluster-wide-secrets", false,
-		"Enable cluster wide secret feature, means the project controller will listen on all secrets and create secrets")
-	flagSet.BoolVar(&config.ClusterWidePvcs, "cluster-wide-pvcs", false,
-		"Enable cluster wide pvcs feature, means the project controller will listen on all pvcs and create pvcs")
-	flagSet.BoolVar(&config.ClusterWideConfigMaps, "cluster-wide-config-maps", true,
-		"Enable cluster wide config maps feature, means the project controller will listen on all config maps and create config maps")
 	flagSet.BoolVar(&config.LimitRange, "limit-range", false, "Enable limit range feature")
 	flagSet.BoolVar(&config.IsOpenshift, "openshift", false, "Enable openshift specific features")
 
@@ -67,8 +61,8 @@ func parseCommandLineArgs(flagSet *flag.FlagSet, options []string, opts *Options
 		"Annotation key written on a project's namespace carrying Project.Spec.EnforceKaiScheduler; read back by the component that enforces the scheduler on pods")
 	flagSet.StringVar(&config.FinalizerDomain, "finalizer-domain", defaultFinalizerDomain, "DNS-style domain prefix used to compose the project finalizer string")
 	flagSet.StringVar(&config.InstallNamespace, "install-namespace", "",
-		"Namespace project-controller is installed in; where it reads replicated-resource sources"+
-			" (limit-range ConfigMap, cluster-wide secrets) from and watches")
+		"Namespace project-controller is installed in; where it reads the limit-range source"+
+			" ConfigMap from and watches it")
 	flagSet.StringVar(&config.ProjectNamePrefix, "project-name-prefix", defaultProjectNamePrefix,
 		"Prefix used to name and identify the namespaces project-controller manages (<prefix>-<project>)")
 	flagSet.StringVar(&config.ResourceManualOverrideLabelKey, "resource-manual-override-label-key", defaultResourceManualOverrideLabelKey,

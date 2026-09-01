@@ -5,8 +5,9 @@
 # Main project-controller ClusterRole — always created (not gated by a feature).
 # Grants the project-controller's core cluster access: projects/departments/queues, plus the
 # leader-election leases and event emission it always needs. Feature-specific access
-# (cluster-wide secrets/configmaps/pvcs, namespace/rolebinding creation, limit ranges) lives in
-# clusterrole_features.yaml, each gated by its projectController.features flag.
+# (namespace creation, rolebinding creation, limit ranges) lives in clusterrole_features.yaml,
+# each gated by its projectController.features flag. Access for a configured delete blocker is
+# neither: blockers are runtime config, so granting their RBAC is the administrator's job.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

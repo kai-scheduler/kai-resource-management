@@ -36,8 +36,6 @@ func FilterProjectEvent(object client.Object) (shouldAllowEvent bool) {
 		shouldAllowEvent = isNamespaceObjectOfProjectByLabel(object)
 	case *corev1.LimitRange:
 		shouldAllowEvent = isProjectPrefixedNamespace(object.GetNamespace())
-	case *corev1.Secret:
-		shouldAllowEvent = object.GetNamespace() == config.Get().InstallNamespace || isProjectPrefixedNamespace(object.GetNamespace())
 	case *kaiv2.Queue, *kaiv1alpha1.Project:
 		shouldAllowEvent = true
 	}

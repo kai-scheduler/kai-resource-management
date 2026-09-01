@@ -45,9 +45,6 @@ type ProjectReconcilerConfig struct {
 	CreateRoleBindings      bool
 	RoleBindingsCm          string
 	RoleBindingsCmNamespace string
-	ClusterWideSecrets      bool
-	ClusterWidePvcs         bool
-	ClusterWideConfigMaps   bool
 	LimitRange              bool
 	IsOpenshift             bool
 
@@ -103,9 +100,9 @@ type ProjectReconcilerConfig struct {
 	FinalizerDomain string
 
 	// InstallNamespace is the namespace project-controller is installed in, and
-	// from which it reads its replicated-resource sources (the limit-range source
-	// ConfigMap, the cluster-wide-secret source) and watches them. Flag-configurable
-	// (--install-namespace); the chart/operator inject their own namespace.
+	// from which it reads the limit-range source ConfigMap and watches it.
+	// Flag-configurable (--install-namespace); the chart/operator inject their own
+	// namespace.
 	InstallNamespace string
 
 	// ProjectNamePrefix is the prefix used to name and identify the namespaces
