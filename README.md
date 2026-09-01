@@ -1,6 +1,6 @@
 # KAI Resource Management
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE) [![Coverage](https://github.com/kai-scheduler/kai-resource-management/raw/coverage-badge/badges/coverage.svg)](https://github.com/kai-scheduler/kai-resource-management/blob/main/.github/workflows/update-coverage-badge.yaml)
 
 KAI Resource Management is an open source, Kubernetes-native resource management
 layer for [KAI Scheduler](https://github.com/kai-scheduler/KAI-Scheduler). It is
