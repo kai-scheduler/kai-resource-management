@@ -41,7 +41,7 @@ var _ = Describe("The project webhook", Label("project-controller"), func() {
 	It("refuses a default node pool the spec has no queue for", func() {
 		project := resources.Project(utils.GenerateName("pc-nodefaultqueue"),
 			[]string{testcontext.DefaultNodePoolName})
-		project.Spec.Queues = nil
+		project.Spec.Queues = []kaires.QueueConfig{}
 
 		Expect(testClient.Create(ctx, project)).To(MatchError(ContainSubstring("has no queue defined")))
 	})
