@@ -93,6 +93,14 @@ license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
 		$(LICENSE_IGNORES) .
 
+.PHONY: notice
+notice: ## Regenerate the third-party attribution in NOTICE from the linked modules.
+	python3 hack/gen-notice.py
+
+.PHONY: notice-check
+notice-check: ## Verify NOTICE matches the modules linked into the binaries.
+	python3 hack/gen-notice.py --check
+
 .PHONY: sync-crds
 sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
 	cp $(API_CRD_DIR)/*.yaml $(CHART_CRD_DIR)/
@@ -129,7 +137,7 @@ scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted
 	bash hack/scc-check.sh $(CHART_DIR)
 
 .PHONY: validate
-validate: mod-check lint license-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
+validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

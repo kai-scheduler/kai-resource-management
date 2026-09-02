@@ -17,14 +17,14 @@ tests:
   - it: carries the feature flags, including the ones that are off
     asserts:
       - equal: {path: spec.projectController.features.createNamespaces, value: true}
-      - equal: {path: spec.projectController.features.clusterWideSecret, value: true}
+      - equal: {path: spec.projectController.features.createRoleBindings, value: true}
       - equal: {path: spec.projectController.features.limitRange, value: false}
 
   - it: follows a feature that is turned off
     set:
-      projectController.features.clusterWideSecret: false
+      projectController.features.createRoleBindings: false
     asserts:
-      - equal: {path: spec.projectController.features.clusterWideSecret, value: false}
+      - equal: {path: spec.projectController.features.createRoleBindings, value: false}
 
   # The chart renders the webhook configurations and mints their certificates, so
   # these must agree with it or the controller serves a webhook nothing calls.

@@ -18,11 +18,15 @@ This project also includes software components licensed under various open-sourc
 ## BSD Licenses
 
 - BSD 3-Clause "New" or "Revised" License
+- BSD 2-Clause "Simplified" License
 
 ## ISC License
 
 - ISC License
 
+## Mozilla Public License (MPL)
+
+- Mozilla Public License 2.0
 These licenses apply to the components used in this project and are in compliance with the corresponding open-source licensing terms. For further information on each specific license, please refer to the official documentation or contact the original authors of the components.
 
 ---
@@ -39,17 +43,51 @@ date of the distribution of this product by NVIDIA CORPORATION.
 
 ## The following components are included in this product:
 
+cel.dev/expr
+Licensed under the Apache License 2.0
+Copyright Google LLC
+
+github.com/ai-dynamo/grove/operator/api
+Licensed under the Apache License 2.0
+Copyright 2024 The Grove Authors
+
+github.com/antlr4-go/antlr/v4
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2012-2023 The ANTLR Project. All rights reserved.
+
 github.com/beorn7/perks
 Licensed under the MIT License
 Copyright (C) 2013 Blake Mizerany
+
+github.com/blang/semver/v4
+Licensed under the MIT License
+Copyright (c) 2014 Benedikt Lang <github at benediktlang.de>
+
+github.com/cenkalti/backoff/v5
+Licensed under the MIT License
+Copyright (c) 2014 Cenk Altı
 
 github.com/cespare/xxhash/v2
 Licensed under the MIT License
 Copyright (c) 2016 Caleb Spare
 
+github.com/cyphar/filepath-securejoin
+Licensed under the Mozilla Public License 2.0 and the BSD 3-Clause "New" or "Revised" License
+(SPDX-License-Identifier: BSD-3-Clause AND MPL-2.0; both apply, see the module's COPYING.md)
+Copyright (C) 2024-2025 Aleksa Sarai <cyphar@cyphar.com>; Copyright (C) 2024-2025 SUSE LLC (MPL-2.0 portions)
+Copyright (C) 2014-2015 Docker Inc & Go Authors; Copyright (C) 2017-2024 SUSE LLC (BSD-3-Clause portions)
+
 github.com/davecgh/go-spew
 Licensed under the ISC License
 Copyright (c) 2012-2016 Dave Collins <dave@davec.name>
+
+github.com/distribution/reference
+Licensed under the Apache License 2.0
+Copyright The containerd Authors.
+
+github.com/dustin/go-humanize
+Licensed under the MIT License
+Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net>
 
 github.com/emicklei/go-restful/v3
 Licensed under the MIT License
@@ -59,6 +97,10 @@ github.com/evanphx/json-patch/v5
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2014, Evan Phoenix
 
+github.com/felixge/httpsnoop
+Licensed under the MIT License
+Copyright (c) 2016 Felix Geisendörfer (felix@debuggable.com)
+
 github.com/fsnotify/fsnotify
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright © 2012 The Go Authors. All rights reserved.
@@ -67,9 +109,29 @@ github.com/fxamacker/cbor/v2
 Licensed under the MIT License
 Copyright (c) 2019-present Faye Amacker
 
+github.com/gabriel-vasile/mimetype
+Licensed under the MIT License
+Copyright (c) 2018 Gabriel Vasile
+
+github.com/gin-contrib/pprof
+Licensed under the MIT License
+Copyright (c) 2016 Gin-Gonic
+
+github.com/gin-contrib/sse
+Licensed under the MIT License
+Copyright (c) 2014 Manuel Martínez-Almeida
+
+github.com/gin-gonic/gin
+Licensed under the MIT License
+Copyright (c) 2014 Manuel Martínez-Almeida
+
 github.com/go-logr/logr
 Licensed under the Apache License 2.0
 Copyright 2021 The logr Authors.
+
+github.com/go-logr/stdr
+Licensed under the Apache License 2.0
+Copyright 2019 The logr Authors.
 
 github.com/go-logr/zapr
 Licensed under the Apache License 2.0
@@ -87,17 +149,61 @@ github.com/go-openapi/swag
 Licensed under the Apache License 2.0
 Copyright 2015 go-swagger maintainers
 
+github.com/go-playground/locales
+Licensed under the MIT License
+Copyright (c) 2016 Go Playground
+
+github.com/go-playground/universal-translator
+Licensed under the MIT License
+Copyright (c) 2016 Go Playground
+
+github.com/go-playground/validator/v10
+Licensed under the MIT License
+Copyright (c) 2015 Dean Karn
+
+github.com/goccy/go-yaml
+Licensed under the MIT License
+Copyright (c) 2019 Masaaki Goshima
+
+github.com/gogo/protobuf
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2013, The GoGo Authors. All rights reserved.
+
 github.com/google/btree
 Licensed under the Apache License 2.0
 Copyright 2014 Google Inc.
+
+github.com/google/cel-go
+Licensed under the Apache License 2.0
+Copyright (c) 2018 The Go Authors. All rights reserved.
 
 github.com/google/gnostic-models
 Licensed under the Apache License 2.0
 Copyright 2017 Google LLC. All Rights Reserved.
 
+github.com/google/go-cmp
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2017 The Go Authors. All rights reserved.
+
 github.com/google/uuid
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2009,2014 Google Inc. All rights reserved.
+
+github.com/gorilla/websocket
+Licensed under the BSD 2-Clause "Simplified" License
+Copyright (c) 2013 The Gorilla WebSocket Authors. All rights reserved.
+
+github.com/grpc-ecosystem/grpc-gateway/v2
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2015, Gengo, Inc.
+
+github.com/hashicorp/errwrap
+Licensed under the Mozilla Public License 2.0
+Copyright HashiCorp, Inc.
+
+github.com/hashicorp/go-multierror
+Licensed under the Mozilla Public License 2.0
+Copyright HashiCorp, Inc.
 
 github.com/josharian/intern
 Licensed under the MIT License
@@ -107,6 +213,10 @@ github.com/json-iterator/go
 Licensed under the MIT License
 Copyright (c) 2016 json-iterator
 
+github.com/k8stopologyawareschedwg/noderesourcetopology-api
+Licensed under the Apache License 2.0
+Copyright 2023 The Kubernetes Authors.
+
 github.com/kai-scheduler/api
 Licensed under the Apache License 2.0
 Copyright 2025 NVIDIA CORPORATION
@@ -115,9 +225,33 @@ github.com/kai-scheduler/kai-resource-management-api
 Licensed under the Apache License 2.0
 Copyright 2026 NVIDIA CORPORATION
 
+github.com/kai-scheduler/KAI-scheduler
+Licensed under the Apache License 2.0
+Copyright 2025 NVIDIA CORPORATION
+
+github.com/leodido/go-urn
+Licensed under the MIT License
+Copyright (c) 2018 Leonardo Di Donato
+
 github.com/mailru/easyjson
 Licensed under the MIT License
 Copyright (c) 2016 Mail.Ru Group
+
+github.com/mattn/go-colorable
+Licensed under the MIT License
+Copyright (c) 2016 Yasuhiro Matsumoto
+
+github.com/mattn/go-isatty
+Licensed under the MIT License
+Copyright (c) Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+
+github.com/moby/spdystream
+Licensed under the Apache License 2.0
+Copyright 2014-2021 Docker Inc.
+
+github.com/moby/sys/mountinfo
+Licensed under the Apache License 2.0
+Copyright The Moby Authors
 
 github.com/modern-go/concurrent
 Licensed under the Apache License 2.0
@@ -131,6 +265,22 @@ github.com/munnerz/goautoneg
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2011, Open Knowledge Foundation Ltd.
 
+github.com/mxk/go-flowrate
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2014 The Go-FlowRate Authors. All rights reserved.
+
+github.com/opencontainers/go-digest
+Licensed under the Apache License 2.0
+Copyright 2019, 2020 OCI Contributors
+
+github.com/opencontainers/selinux
+Licensed under the Apache License 2.0
+Copyright The opencontainers/selinux Authors
+
+github.com/pelletier/go-toml/v2
+Licensed under the MIT License
+Copyright (c) 2021 - 2023 Thomas Pelletier
+
 github.com/pmezard/go-difflib
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2013, Patrick Mezard
@@ -141,27 +291,107 @@ Copyright 2018 The prometheus-operator Authors
 
 github.com/prometheus/client_golang
 Licensed under the Apache License 2.0
-Copyright 2014 The Prometheus Authors
+Copyright 2012-2015 The Prometheus Authors
 
 github.com/prometheus/client_model
 Licensed under the Apache License 2.0
-Copyright 2013 Prometheus Team
+Copyright 2012-2015 The Prometheus Authors
 
 github.com/prometheus/common
 Licensed under the Apache License 2.0
-Copyright 2013 The Prometheus Authors
+Copyright 2015 The Prometheus Authors
 
 github.com/prometheus/procfs
 Licensed under the Apache License 2.0
-Copyright 2019 The Prometheus Authors
+Copyright 2014-2015 The Prometheus Authors
+
+github.com/quic-go/qpack
+Licensed under the MIT License
+Copyright 2019 Marten Seemann
+
+github.com/quic-go/quic-go
+Licensed under the MIT License
+Copyright (c) 2016 the quic-go authors & Google, Inc.
+
+github.com/robfig/cron/v3
+Licensed under the MIT License
+Copyright (C) 2012 Rob Figueiredo
+
+github.com/rs/zerolog
+Licensed under the MIT License
+Copyright (c) 2017 Olivier Poitrey
+
+github.com/spf13/cobra
+Licensed under the Apache License 2.0
+Copyright 2013-2023 The Cobra Authors
 
 github.com/spf13/pflag
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2012 Alex Ogier. All rights reserved.
 
+github.com/stoewer/go-strcase
+Licensed under the MIT License
+Copyright (c) 2017, Adrian Stoewer <adrian.stoewer@rz.ifi.lmu.de>
+
+github.com/thoas/go-funk
+Licensed under the MIT License
+Copyright (c) 2016 Florent Messa
+
+github.com/ugorji/go/codec
+Licensed under the MIT License
+Copyright (c) 2012-2020 Ugorji Nwoke.
+
 github.com/x448/float16
 Licensed under the MIT License
 Copyright (c) 2019 Montgomery Edwards⁴⁴⁸ and Faye Amacker
+
+github.com/xhit/go-str2duration/v2
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2009 The Go Authors. All rights reserved.
+
+go.mongodb.org/mongo-driver/v2
+Licensed under the Apache License 2.0
+Copyright (C) MongoDB, Inc. 2017-present.
+
+go.opentelemetry.io/auto/sdk
+Licensed under the Apache License 2.0
+Copyright The OpenTelemetry Authors
+
+go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
+Licensed under the Apache License 2.0
+Copyright The OpenTelemetry Authors
+
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel/exporters/otlp/otlptrace
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel/metric
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel/sdk
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/otel/trace
+Licensed under the Apache License 2.0
+Copyright 2009 The Go Authors.
+
+go.opentelemetry.io/proto/otlp
+Licensed under the Apache License 2.0
+Copyright 2019, OpenTelemetry Authors
 
 go.uber.org/multierr
 Licensed under the MIT License
@@ -169,7 +399,7 @@ Copyright (c) 2017-2021 Uber Technologies, Inc.
 
 go.uber.org/zap
 Licensed under the MIT License
-Copyright (c) 2016-2017 Uber Technologies, Inc.
+Copyright (c) 2016-2024 Uber Technologies, Inc.
 
 go.yaml.in/yaml/v2
 Licensed under the Apache License 2.0
@@ -178,6 +408,14 @@ Copyright 2011-2016 Canonical Ltd. (includes libyaml portions under the MIT Lice
 go.yaml.in/yaml/v3
 Licensed under the Apache License 2.0
 Copyright (c) 2006-2010 Kirill Simonov
+
+golang.org/x/crypto
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/exp
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
 
 golang.org/x/net
 Licensed under the BSD 3-Clause "New" or "Revised" License
@@ -211,6 +449,18 @@ gomodules.xyz/jsonpatch/v2
 Licensed under the Apache License 2.0
 Copyright (c) 2015 The Authors
 
+google.golang.org/genproto/googleapis/api
+Licensed under the Apache License 2.0
+Copyright 2026 Google LLC
+
+google.golang.org/genproto/googleapis/rpc
+Licensed under the Apache License 2.0
+Copyright 2026 Google LLC
+
+google.golang.org/grpc
+Licensed under the Apache License 2.0
+Copyright 2014 gRPC authors.
+
 google.golang.org/protobuf
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2018 The Go Authors. All rights reserved.
@@ -239,6 +489,10 @@ k8s.io/apimachinery
 Licensed under the Apache License 2.0
 Copyright 2014 The Kubernetes Authors.
 
+k8s.io/apiserver
+Licensed under the Apache License 2.0
+Copyright 2017 The Kubernetes Authors.
+
 k8s.io/autoscaler/vertical-pod-autoscaler
 Licensed under the Apache License 2.0
 Copyright The Kubernetes Authors.
@@ -247,6 +501,38 @@ k8s.io/client-go
 Licensed under the Apache License 2.0
 Copyright The Kubernetes Authors.
 
+k8s.io/cloud-provider
+Licensed under the Apache License 2.0
+Copyright 2018 The Kubernetes Authors.
+
+k8s.io/component-base
+Licensed under the Apache License 2.0
+Copyright 2019 The Kubernetes Authors.
+
+k8s.io/component-helpers
+Licensed under the Apache License 2.0
+Copyright 2025 The Kubernetes Authors.
+
+k8s.io/controller-manager
+Licensed under the Apache License 2.0
+Copyright 2021 The Kubernetes Authors.
+
+k8s.io/cri-api
+Licensed under the Apache License 2.0
+Copyright 2016 The Kubernetes Authors.
+
+k8s.io/cri-client
+Licensed under the Apache License 2.0
+Copyright 2017 The Kubernetes Authors.
+
+k8s.io/csi-translation-lib
+Licensed under the Apache License 2.0
+Copyright 2019 The Kubernetes Authors.
+
+k8s.io/dynamic-resource-allocation
+Licensed under the Apache License 2.0
+Copyright 2025 The Kubernetes Authors.
+
 k8s.io/klog/v2
 Licensed under the Apache License 2.0
 Copyright 2021 The Kubernetes Authors.
@@ -254,6 +540,22 @@ Copyright 2021 The Kubernetes Authors.
 k8s.io/kube-openapi
 Licensed under the Apache License 2.0
 Copyright The Kubernetes Authors.
+
+k8s.io/kube-scheduler
+Licensed under the Apache License 2.0
+Copyright 2025 The Kubernetes Authors.
+
+k8s.io/kubelet
+Licensed under the Apache License 2.0
+Copyright The Kubernetes Authors.
+
+k8s.io/kubernetes
+Licensed under the Apache License 2.0
+Copyright 2018 The Kubernetes Authors.
+
+k8s.io/mount-utils
+Licensed under the Apache License 2.0
+Copyright 2014 The Kubernetes Authors.
 
 k8s.io/utils
 Licensed under the Apache License 2.0
@@ -278,4 +580,3 @@ Copyright 2018 The Kubernetes Authors.
 sigs.k8s.io/yaml
 Licensed under the MIT License
 Copyright (c) 2014 Sam Ghods
-

@@ -190,9 +190,6 @@ projectController:
   features:
     createNamespaces: true
     createRoleBindings: true
-    clusterWideSecret: true
-    clusterWideConfigMap: true
-    clusterWidePvc: true
     limitRange: false
   # Extra per-project RoleBindings, for components owned by other charts. The ClusterRole
   # must already exist; clusterRoleName defaults to name. For example:

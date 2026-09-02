@@ -17,6 +17,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/config"
 	statusreconciler "github.com/kai-scheduler/kai-resource-management/pkg/operator/controller/status-reconciler"
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"
@@ -43,17 +44,22 @@ type KRMConfigReconciler struct {
 	// the condition again. Zero turns the periodic re-check off.
 	dependencyCheckInterval time.Duration
 
+	// minimumSchedulerVersion is the oldest KAI Scheduler this release supports.
+	minimumSchedulerVersion string
+
 	deployable *deployable.DeployableOperands
 	*statusreconciler.StatusReconciler
 }
 
 func NewKRMConfigReconciler(
-	runtimeClient client.Client, scheme *runtime.Scheme, dependencyCheckInterval time.Duration,
+	runtimeClient client.Client, scheme *runtime.Scheme,
+	dependencyCheckInterval time.Duration, minimumSchedulerVersion string,
 ) *KRMConfigReconciler {
 	return &KRMConfigReconciler{
 		Client:                  runtimeClient,
 		Scheme:                  scheme,
 		dependencyCheckInterval: dependencyCheckInterval,
+		minimumSchedulerVersion: minimumSchedulerVersion,
 	}
 }
 
@@ -108,7 +114,8 @@ func (r *KRMConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	if r.deployable == nil {
 		r.SetOperands(KRMConfigReconcilerOperands)
 	}
-	r.StatusReconciler = statusreconciler.New(r.Client, r.deployable)
+	r.StatusReconciler = statusreconciler.New(
+		r.Client, mgr.GetAPIReader(), r.deployable, &dependencies.KAIScheduler{MinimumVersion: r.minimumSchedulerVersion})
 
 	for _, collectable := range knowntypes.KRMConfigOwned {
 		if slices.Contains(knowntypes.Initiated, collectable) {

@@ -66,6 +66,46 @@ missing CRD, which is what this condition explains.
 
 [Which CRDs each service needs](../reference/conditions-and-phases.md#what-dependenciesfulfilled-covers).
 
+### `DependenciesFulfilled` names the KAI Scheduler config
+
+```text
+KAI Scheduler Config "kai-config" does not exist
+```
+
+The scheduler's CRDs are installed but nothing applied its `Config` CR — usually
+because KAI was installed with `kaiConfigDeployer.enabled=false` and
+`kaiConfig.render=false`, so neither mechanism creates it, or because the CR was
+deleted out from under the deployer.
+
+```bash
+kubectl get config kai-config
+kubectl get config kai-config -o jsonpath='{.status.conditions}' | jq
+```
+
+A variant names readiness instead:
+
+```text
+KAI Scheduler Config "kai-config" is not ready: <reason>
+```
+
+That verdict is KAI's own, copied onto our condition — the reason to act on is on
+the `Config`, and it is KAI's operator to investigate, not KRM's. Expect it
+transiently during a KAI upgrade; it clears itself.
+
+A third names the version:
+
+```text
+KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0
+```
+
+```bash
+kubectl -n <kai-namespace> get deploy kai-operator \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+Upgrade KAI, or if the image is deliberately re-tagged (air-gapped mirrors do
+this) accept any version by setting `krmOperator.args.minKaiSchedulerVersion=0.0.0`.
+
 ### No `KRMConfig` exists at all
 
 ```bash
@@ -231,6 +271,18 @@ kubectl annotate project research kai/force-delete=true
 ```
 
 Anything left in the namespace is then yours to clean up.
+
+A condition that names resources you cannot find usually means the controller cannot watch
+or list that kind. It reports the blocker as failed either way, so check its RBAC before
+hunting for the resources. It lists through a cache, so `watch` is as necessary as `list`
+and is the one more often left out:
+
+```bash
+kubectl auth can-i watch persistentvolumeclaims \
+  --as=system:serviceaccount:<install namespace>:project-controller -A
+kubectl auth can-i list persistentvolumeclaims \
+  --as=system:serviceaccount:<install namespace>:project-controller -A
+```
 
 ### An object is not being reconciled
 

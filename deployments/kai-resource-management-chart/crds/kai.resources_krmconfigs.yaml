@@ -4231,18 +4231,6 @@ spec:
                       project namespaces, so turning one on here without the chart's matching grant
                       produces bindings to a ClusterRole that does not exist.
                     properties:
-                      clusterWideConfigMap:
-                        description: ClusterWideConfigMap replicates cluster-wide
-                          ConfigMaps into project namespaces.
-                        type: boolean
-                      clusterWidePvc:
-                        description: ClusterWidePvc replicates cluster-wide PersistentVolumeClaims
-                          into project namespaces.
-                        type: boolean
-                      clusterWideSecret:
-                        description: ClusterWideSecret replicates cluster-wide Secrets
-                          into project namespaces.
-                        type: boolean
                       createNamespaces:
                         description: CreateNamespaces creates a namespace for every
                           project.

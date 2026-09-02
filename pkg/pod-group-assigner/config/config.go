@@ -15,7 +15,7 @@ import (
 const (
 	defaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
 
-	defaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"
+	DefaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"
 
 	// defaultEnforceSchedulerAnnotationKey mirrors project-controller's own default for the
 	// annotation it writes on a project's namespace (see project-controller's
@@ -124,7 +124,7 @@ func AddLabelFlags(fs *flag.FlagSet) {
 			kaiconstants.DefaultNodePoolName,
 			"Name used to identify the default node pool")
 		fs.StringVar(&cfg.AnnotationNodepoolsKey, "annotation-nodepools-key",
-			defaultAnnotationNodepoolsKey,
+			DefaultAnnotationNodepoolsKey,
 			"Annotation key on Pods whose value is a space-separated list of explicitly requested node pool names")
 		fs.StringVar(&cfg.EnforceSchedulerAnnotationKey, "enforce-scheduler-annotation-key",
 			defaultEnforceSchedulerAnnotationKey,

@@ -40,8 +40,6 @@ const (
 	LimitRangeHandlerFailed   ProjectConditionReason = "LimitRangeHandlerFailed"
 	QueuesHandlerFailed       ProjectConditionReason = "QueuesHandlerFailed"
 	RoleBindingsHandlerFailed ProjectConditionReason = "RoleBindingsHandlerFailed"
-	SecretsHandlerFailed      ProjectConditionReason = "SecretsHandlerFailed"
-	PvcsHandlerFailed         ProjectConditionReason = "PvcsHandlerFailed"
 
 	PhaseDeleting = "Deleting"
 )

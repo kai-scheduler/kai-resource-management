@@ -13,6 +13,7 @@ import (
 	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -272,6 +273,30 @@ func Secret(name, namespace string) *corev1.Secret {
 			Namespace: namespace,
 			Labels:    constant.OwnerLabels(),
 		},
+	}
+}
+
+func ClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: objectMeta(name),
+		Rules:      rules,
+	}
+}
+
+func ClusterRoleBinding(name, clusterRoleName, serviceAccountName, serviceAccountNamespace string,
+) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: objectMeta(name),
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      serviceAccountName,
+			Namespace: serviceAccountNamespace,
+		}},
 	}
 }
 

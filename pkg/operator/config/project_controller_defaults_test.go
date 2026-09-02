@@ -44,9 +44,6 @@ var _ = Describe("project-controller defaults", func() {
 		features := projectController.Features
 		Expect(features.CreateNamespaces).To(Equal(ptr.To(true)))
 		Expect(features.CreateRoleBindings).To(Equal(ptr.To(true)))
-		Expect(features.ClusterWideSecret).To(Equal(ptr.To(false)))
-		Expect(features.ClusterWideConfigMap).To(Equal(ptr.To(true)))
-		Expect(features.ClusterWidePvc).To(Equal(ptr.To(false)))
 		Expect(features.LimitRange).To(Equal(ptr.To(false)))
 	})
 
@@ -67,13 +64,13 @@ var _ = Describe("project-controller defaults", func() {
 	It("keeps a feature that was explicitly turned off", func() {
 		spec := &krmv1alpha1.KRMConfigSpec{
 			ProjectController: &krmv1alpha1.ProjectController{
-				Features: &krmv1alpha1.ProjectControllerFeatures{ClusterWideConfigMap: ptr.To(false)},
+				Features: &krmv1alpha1.ProjectControllerFeatures{CreateRoleBindings: ptr.To(false)},
 			},
 		}
 
 		SetDefaultsWhereNeeded(spec)
 
-		Expect(spec.ProjectController.Features.ClusterWideConfigMap).To(Equal(ptr.To(false)))
+		Expect(spec.ProjectController.Features.CreateRoleBindings).To(Equal(ptr.To(false)))
 		Expect(spec.ProjectController.Features.CreateNamespaces).To(Equal(ptr.To(true)))
 	})
 
