@@ -19,11 +19,12 @@ GOLANGCI_LINTER_CONFIG_PATH ?= .golangci.yaml
 
 GOCACHE ?= $(CURDIR)/.gocache
 GOTMPDIR ?= $(CURDIR)/.gotmp
+
 COVERAGE_DIR ?= $(CURDIR)/coverage
 COVERAGE_PROFILE ?= $(COVERAGE_DIR)/coverage.out
-# Many tests live in a sibling _test package, so instrumenting only the package under test
-# would report most of the code as uncovered. cmd is left out: it is process wiring.
+# Sibling _test packages mean only -coverpkg reports real numbers; cmd is process wiring.
 COVERPKG ?= ./pkg/...
+
 GOCACHE_DOCKER_DIR ?= /tmp/.cache
 GOCACHE_HOST_DIR ?= $(HOME)/.cache/go-build-docker-gocache
 GOPATH_HOST_DIR ?= $(HOME)/.cache/go-build-docker-gopath
@@ -96,7 +97,6 @@ vet-go: | $(GOCACHE) $(GOTMPDIR)
 		echo "No Go packages to vet."; \
 	fi
 
-# atomic rather than the default set mode: counts stay correct across parallel tests.
 .PHONY: test-go
 test-go: | $(GOCACHE) $(GOTMPDIR) $(COVERAGE_DIR) ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
 	@if [ -n "$(strip $(TEST_TARGETS))" ]; then \
