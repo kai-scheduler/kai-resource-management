@@ -13,5 +13,13 @@ Scripts must:
 - Be exposed through the root Makefile when they are part of the supported
   developer workflow.
 
-End-to-end cluster setup and execution are intentionally deferred to the
-separate test-infrastructure work.
+End-to-end helpers:
+
+- `setup-e2e-cluster.sh` — create a kind cluster and install the chart built from
+  this tree. `--skip-krm-install` gives a cluster with no chart on it.
+- `run-e2e-kind.sh` — setup, then `make test-e2e`, then delete the cluster.
+- `run-e2e-upgrade-kind.sh` — setup, install the newest published release, then
+  run the upgrade suite against a chart built from this tree.
+
+All three mutate the cluster `KUBECONFIG` points at; `test/e2e/README.md` covers
+the safety contract they rely on.

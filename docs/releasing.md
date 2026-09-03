@@ -39,6 +39,13 @@ The packaged chart is also attached to the GitHub Release as an asset.
 GHCR is the authoritative registry for this project. No other registry mirrors
 these artifacts.
 
+After the **first** release, check that the chart package at
+`ghcr.io/kai-scheduler/kai-resource-management/kai-resource-management` is
+public. GHCR creates a package private on its first push. The upgrade e2e job
+looks for a release to upgrade from by resolving that chart anonymously, and a
+private package makes every candidate fail, so the job would go on skipping
+silently and nothing would say why.
+
 ## Prerequisites
 
 These are configured; they are listed so the requirements are not lost.

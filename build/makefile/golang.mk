@@ -110,10 +110,20 @@ coverage: test-go ## Print total statement coverage.
 	@$(GO) tool cover -func=$(COVERAGE_PROFILE) | tail -1
 
 # Kept out of `make test`: these mutate whatever KUBECONFIG points at.
+E2E_LABEL_FILTER ?= !upgrade
+
 .PHONY: test-e2e
-test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECONFIG; destructive.
+test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECONFIG; destructive. Excludes upgrade.
 	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --randomize-all \
-		--randomize-suites --trace -vv $(GINKGO_FLAGS) ./test/e2e/suites
+		--randomize-suites --trace -vv --label-filter '$(E2E_LABEL_FILTER)' \
+		$(GINKGO_FLAGS) ./test/e2e/suites
+
+# Not randomized: the suite is one Ordered container that upgrades the release
+# part way through, so its specs only mean anything in the order they are written.
+.PHONY: test-e2e-upgrade
+test-e2e-upgrade: | $(GOCACHE) $(GOTMPDIR) ## Upgrade the installed release to UPGRADE_CHART_PATH and verify it; destructive.
+	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --trace -vv \
+		--label-filter 'upgrade' $(GINKGO_FLAGS) ./test/e2e/suites/upgrade
 
 .PHONY: lint-go
 lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.
