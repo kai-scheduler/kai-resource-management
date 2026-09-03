@@ -20,6 +20,12 @@ CHART_CRD_DIR := deployments/kai-resource-management-chart/crds
 CRD_MANAGER_ROLE := deployments/kai-resource-management-chart/templates/rbac/crd-manager.yaml
 CHART_DIR := deployments/kai-resource-management-chart
 
+# Air-gap image locks. The registry is the one the release workflow pushes to;
+# values.yaml still carries the local default at this point, so it is passed in
+# rather than read from the chart.
+IMAGE_LOCK_REGISTRY ?= ghcr.io/kai-scheduler/kai-resource-management
+IMAGE_LOCK_OUT_DIR ?= $(CURDIR)/bin/imagelocks
+
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
 LICENSE_IGNORES := \
@@ -136,8 +142,22 @@ crd-rbac-check: ## Verify every chart CRD is named in the crd-manager ClusterRol
 scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted the OpenShift SCC.
 	bash hack/scc-check.sh $(CHART_DIR)
 
+.PHONY: image-lock
+image-lock: helm-deps ## Write the air-gap ImageLock files for a release; requires VERSION.
+	@# base.mk gives VERSION a 0.0.0 placeholder, so an unset version is not empty.
+	@test "$(VERSION)" != "0.0.0" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
+	$(GO) run ./cmd/imagelock \
+		--chart $(CHART_DIR) \
+		--version $(VERSION) \
+		--registry $(IMAGE_LOCK_REGISTRY) \
+		--out-dir $(IMAGE_LOCK_OUT_DIR)
+
+.PHONY: image-lock-check
+image-lock-check: helm-deps ## Verify every image the chart renders is one the lock generator knows.
+	$(GO) run ./cmd/imagelock --chart $(CHART_DIR) --verify-only
+
 .PHONY: validate
-validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
+validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check image-lock-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

@@ -28,8 +28,14 @@ make validate
 
 `make test` runs all non-e2e Go tests with the local Go toolchain and runs the
 chart unit tests. `make validate` verifies formatting, module tidiness, static
-analysis and source license headers without changing tracked files; it does not
-run the tests.
+analysis, source license headers and air-gap image lock coverage without changing
+tracked files; it does not run the tests.
+
+Image lock coverage is the one check that reads the rendered chart rather than the
+source: it fails if the chart would run a container image from a registry neither
+this release nor the bundled KAI Scheduler publishes to. Adding a service, or bumping
+KAI Scheduler, needs no change there. Pulling in a third-party image does — see
+[`cmd/imagelock`](../../cmd/imagelock/README.md).
 
 The root Makefile exposes one chart-specific test target:
 

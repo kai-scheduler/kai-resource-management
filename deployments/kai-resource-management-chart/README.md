@@ -65,6 +65,10 @@ helm upgrade --install kai-resource-management \
 chart does not hardcode an installation namespace. The default installation
 includes the KAI Scheduler subchart and creates a catch-all `default` NodePool.
 
+Installing without internet access needs the subchart's images redirected as well,
+and a digest-pinned list of what to mirror: see
+[Install in an air-gapped cluster](../../docs/how-to/install-in-an-air-gapped-cluster.md).
+
 ## Configure
 
 Review every public value and its default before installation:

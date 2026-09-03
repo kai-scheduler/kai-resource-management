@@ -42,6 +42,7 @@ Ready-to-apply manifests for every custom resource live in
 | [Place workloads across node pools](how-to/place-workloads-across-node-pools.md) | Choosing where a workload runs, and the fallback order |
 | [Exclude nodes from management](how-to/exclude-nodes-from-management.md) | Keeping nodes out of KRM's control |
 | [Tune per-node-pool scheduling](how-to/tune-per-node-pool-scheduling.md) | Placement strategy, fairness, NUMA |
+| [Install in an air-gapped cluster](how-to/install-in-an-air-gapped-cluster.md) | Mirroring the release's images and installing with no internet access |
 | [Troubleshooting](how-to/troubleshooting.md) | Symptom, what to check, what it means |
 
 ### Reference — look things up

@@ -11,6 +11,7 @@ reasoning as well as the commands, so you can adapt it rather than only copy it.
 | [Place workloads across node pools](place-workloads-across-node-pools.md) | You need control over where a workload lands, or a fallback when its first choice is full |
 | [Exclude nodes from management](exclude-nodes-from-management.md) | Some nodes must stay outside KRM's control |
 | [Tune per-node-pool scheduling](tune-per-node-pool-scheduling.md) | One pool needs different scheduling behaviour from another |
+| [Install in an air-gapped cluster](install-in-an-air-gapped-cluster.md) | The cluster has no route to the internet and every image has to come from your own registry |
 | [Troubleshooting](troubleshooting.md) | Something did not appear, or a workload is not running |
 
 If you are not sure which abstraction you need, read [concepts](../concepts/README.md)

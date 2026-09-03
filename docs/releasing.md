@@ -34,7 +34,27 @@ A version tag publishes to GitHub Container Registry under
 - The `kai-resource-management` Helm chart, pushed as an OCI artifact. One chart
   serves both image variants.
 
-The packaged chart is also attached to the GitHub Release as an asset.
+The GitHub Release carries the packaged chart as an asset, alongside four
+**image locks** — one per profile and architecture:
+
+```text
+imagelock-kai-resource-management-<version>-standard-linux-amd64.yaml
+imagelock-kai-resource-management-<version>-standard-linux-arm64.yaml
+imagelock-kai-resource-management-<version>-fips-linux-amd64.yaml
+imagelock-kai-resource-management-<version>-fips-linux-arm64.yaml
+```
+
+Each lists the five images built from this repository — including the three the
+krm-operator creates from the KRMConfig rather than the chart from a template —
+pinned to the digest its tag resolved to at release time.
+
+The bundled KAI Scheduler is deliberately not restated there: that project
+publishes and pins its own images, and duplicating its digests would create two
+records of one release that disagree as soon as a tag is re-pushed. An
+air-gapped site mirrors both, and a lock that spans the whole platform is
+composed from the per-project ones. See
+[Install in an air-gapped cluster](how-to/install-in-an-air-gapped-cluster.md),
+and [`cmd/imagelock/README.md`](../cmd/imagelock/README.md) for the generator.
 
 GHCR is the authoritative registry for this project. No other registry mirrors
 these artifacts.
@@ -99,7 +119,17 @@ already exist, then creates the tag and the GitHub Release.
 
 Pushing the tag runs **Upload artifacts to GitHub Container Registry**, which
 builds and pushes the controller images and the chart, and attaches the chart to
-the GitHub Release.
+the GitHub Release. A third job then generates the image locks and attaches those
+too — it needs both image sets to exist, so it runs after the other two.
+
+The lock job runs after the release is already published, so a failure there does
+not hold anything back. Re-run the job, or generate the locks by hand from a
+checkout of the tag:
+
+```bash
+make image-lock VERSION=v0.1.0
+gh release upload v0.1.0 ./bin/imagelocks/*.yaml --clobber
+```
 
 ## Releasing without the automation
 
