@@ -152,6 +152,25 @@ func WithDefaultNodePools(nodePools ...string) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.DefaultNodePools = nodePools }
 }
 
+// WithQueueResources gives every queue in the project the same resources and priority.
+func WithQueueResources(resources *kaires.QueueResourcesConfig, priority *int32) ProjectOption {
+	return func(project *kaires.Project) {
+		for i := range project.Spec.Queues {
+			project.Spec.Queues[i].Resources = resources
+			project.Spec.Queues[i].Priority = priority
+		}
+	}
+}
+
+// WithNamespace names an existing namespace instead of letting one be generated.
+func WithNamespace(namespace string) ProjectOption {
+	return func(project *kaires.Project) { project.Spec.Namespace = namespace }
+}
+
+func Namespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{ObjectMeta: objectMeta(name)}
+}
+
 // Project builds a project with one queue per node pool, and those same pools as
 // its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than

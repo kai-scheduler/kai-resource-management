@@ -13,8 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	testcontext "github.com/kai-scheduler/kai-resource-management/test/e2e/modules/context"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/nodes"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/resources"
+	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
 
@@ -86,5 +88,105 @@ var _ = Describe("A node the managed-nodes config excludes", Ordered, Serial,
 			Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
 
 			Expect(node.Labels).ToNot(HaveKey(toExcludeLabelKey))
+		})
+
+		// Last: widening the criteria undoes what the specs above set up.
+		It("returns to its pool once the criteria no longer excludes it", func() {
+			Expect(nodes.RemoveLabel(ctx, testClient, nodeName, excludeLabelKey)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				node := &corev1.Node{}
+				g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+				g.Expect(node.Labels).ToNot(HaveKey(kaiconstants.DefaultNodePoolLabelKey))
+			}).Should(Succeed())
+		})
+	})
+
+// A node still running work is cordoned and marked rather than excluded outright.
+var _ = Describe("A node the config excludes while it still runs work", Ordered, Serial,
+	Label("managed-nodes"), func() {
+		var (
+			config    *kaires.ManagedNodesConfig
+			project   *kaires.Project
+			pod       *corev1.Pod
+			namespace string
+			nodeName  string
+		)
+
+		BeforeAll(func() {
+			workers, err := nodes.Workers(ctx, testClient)
+			Expect(err).ToNot(HaveOccurred())
+			nodeName = workers[0]
+
+			// Only a running pod whose pod group names the node's own pool blocks it.
+			project = resources.Project(utils.GenerateName("mnc-drain-proj"),
+				[]string{testcontext.DefaultNodePoolName},
+				resources.WithEnforceScheduler(true))
+			Expect(testClient.Create(ctx, project)).To(Succeed())
+			namespace = wait.ForProjectReady(ctx, testClient, project.Name).Status.Namespace
+
+			pod = resources.Pod(utils.GenerateName("mnc-drain-pod"), namespace,
+				resources.WithNodeAffinity(resources.NodeSelectorPair{
+					Key: corev1.LabelHostname, Value: nodeName}))
+			Expect(testClient.Create(ctx, pod)).To(Succeed())
+			wait.ForPodRunning(ctx, testClient, namespace, pod.Name)
+
+			Expect(nodes.SetLabel(ctx, testClient, nodeName, excludeLabelKey, "true")).To(Succeed())
+			config = resources.ManagedNodesConfig(managedNodesConfigName,
+				resources.WithoutNodeLabel(excludeLabelKey))
+			Expect(testClient.Create(ctx, config)).To(Succeed())
+
+			DeferCleanup(func() {
+				Expect(client.IgnoreNotFound(testClient.Delete(ctx, config))).To(Succeed())
+				wait.ForDeleted(ctx, testClient, config)
+
+				Expect(nodes.RemoveLabel(ctx, testClient, nodeName, excludeLabelKey)).To(Succeed())
+
+				Expect(client.IgnoreNotFound(testClient.Delete(ctx, pod))).To(Succeed())
+				wait.ForDeleted(ctx, testClient, pod)
+
+				Expect(client.IgnoreNotFound(testClient.Delete(ctx, project))).To(Succeed())
+				wait.ForDeleted(ctx, testClient, project)
+
+				// Cordoned above and never uncordoned by the config going away.
+				Eventually(func(g Gomega) {
+					node := &corev1.Node{}
+					g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+					g.Expect(node.Labels).ToNot(HaveKey(toExcludeLabelKey))
+					g.Expect(node.Spec.Unschedulable).To(BeFalse())
+				}).Should(Succeed())
+			})
+		})
+
+		It("is marked as needing to be drained first", func() {
+			Eventually(func(g Gomega) {
+				node := &corev1.Node{}
+				g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+				g.Expect(node.Labels).To(HaveKeyWithValue(toExcludeLabelKey, "true"))
+			}).Should(Succeed())
+		})
+
+		It("is cordoned so nothing new lands on it", func() {
+			Eventually(func(g Gomega) {
+				node := &corev1.Node{}
+				g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+				g.Expect(node.Spec.Unschedulable).To(BeTrue())
+			}).Should(Succeed())
+		})
+
+		It("stays in its pool rather than moving to the excluded one", func() {
+			node := &corev1.Node{}
+			Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+
+			Expect(node.Labels).ToNot(HaveKeyWithValue(
+				kaiconstants.DefaultNodePoolLabelKey, excludedNodePoolName))
+		})
+
+		It("leaves the config reporting the node as still to be drained", func() {
+			applied := wait.ForManagedNodesCondition(ctx, testClient, config.Name,
+				string(kaires.MNCConditionTypeApplied), metav1.ConditionFalse)
+
+			Expect(applied.Reason).To(Equal(string(kaires.MNCConditionReasonToBeExcludedNodes)))
+			Expect(applied.Message).To(ContainSubstring(nodeName))
 		})
 	})
