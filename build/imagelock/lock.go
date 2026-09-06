@@ -1,13 +1,15 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-package imagelock
+package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"sigs.k8s.io/yaml"
 )
@@ -18,7 +20,65 @@ const (
 	lockName       = "kai-resource-management"
 )
 
-// imageLock is one release's images for one Profile on one Platform, every tag
+// profile is a build variant of the same release. The chart selects it with
+// global.fipsMode, which appends "-fips" to every image tag, so each profile
+// resolves to a different set of digests and gets its own lock.
+type profile string
+
+const (
+	profileStandard profile = "standard"
+	profileFIPS     profile = "fips"
+)
+
+type platform struct {
+	OS           string `json:"os"`
+	Architecture string `json:"architecture"`
+}
+
+func (p platform) String() string { return p.OS + "/" + p.Architecture }
+
+// defaultPlatforms are the platforms every release publishes images for.
+func defaultPlatforms() []platform {
+	return []platform{{OS: "linux", Architecture: "amd64"}, {OS: "linux", Architecture: "arm64"}}
+}
+
+// defaultProfiles are the build variants every release publishes.
+func defaultProfiles() []profile { return []profile{profileStandard, profileFIPS} }
+
+func parsePlatforms(entries []string) ([]platform, error) {
+	platforms := make([]platform, 0, len(entries))
+	for _, entry := range entries {
+		operatingSystem, architecture, ok := strings.Cut(entry, "/")
+		if !ok || operatingSystem == "" || architecture == "" || strings.Contains(architecture, "/") {
+			return nil, fmt.Errorf("bad platform %q, want os/arch", entry)
+		}
+		platforms = append(platforms, platform{OS: operatingSystem, Architecture: architecture})
+	}
+	if len(platforms) == 0 {
+		return nil, errors.New("no platforms given")
+	}
+	return platforms, nil
+}
+
+func parseProfiles(entries []string) ([]profile, error) {
+	profiles := make([]profile, 0, len(entries))
+	for _, entry := range entries {
+		switch profile(entry) {
+		case profileStandard:
+			profiles = append(profiles, profileStandard)
+		case profileFIPS:
+			profiles = append(profiles, profileFIPS)
+		default:
+			return nil, fmt.Errorf("unknown profile %q, want %s or %s", entry, profileStandard, profileFIPS)
+		}
+	}
+	if len(profiles) == 0 {
+		return nil, errors.New("no profiles given")
+	}
+	return profiles, nil
+}
+
+// imageLock is one release's images for one profile on one platform, every tag
 // resolved to the digest it pointed at when the release was published.
 type imageLock struct {
 	APIVersion string       `json:"apiVersion"`
@@ -33,14 +93,14 @@ type lockMetadata struct {
 }
 
 type lockSpec struct {
-	Profile  Profile       `json:"profile"`
-	Platform Platform      `json:"platform"`
+	Profile  profile       `json:"profile"`
+	Platform platform      `json:"platform"`
 	Images   []lockedImage `json:"images"`
 }
 
 type lockedImage struct {
 	Name string `json:"name"`
-	// Image is what to mirror: the repository at this Platform's manifest digest.
+	// Image is what to mirror: the repository at this platform's manifest digest.
 	Image string `json:"image"`
 	// Source is the tag the chart pulls, and so the tag the mirrored digest has to
 	// be published under in the private registry.
@@ -51,23 +111,20 @@ type lockedImage struct {
 	IndexDigest string `json:"indexDigest"`
 }
 
-// lockedImages is a resolved image set for one Profile, keyed the way buildLock
+// lockedImages is a resolved image set for one profile, keyed the way buildLock
 // consumes it.
 type lockedImages struct {
-	Profile Profile
+	profile profile
 	images  []chartImage
 	digests map[string]*resolved // keyed by image reference
-	// skipped counts the images another project locks, reported so a run says out
-	// loud that it saw them and left them alone.
-	skipped int
 }
 
-func buildLock(version string, plat Platform, set lockedImages) imageLock {
+func buildLock(version string, plat platform, set lockedImages) imageLock {
 	lock := imageLock{
 		APIVersion: lockAPIVersion,
 		Kind:       lockKind,
 		Metadata:   lockMetadata{Name: lockName, Version: version},
-		Spec:       lockSpec{Profile: set.Profile, Platform: plat},
+		Spec:       lockSpec{Profile: set.profile, Platform: plat},
 	}
 	for _, image := range set.images {
 		digests := set.digests[image.reference()]

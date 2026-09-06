@@ -35,7 +35,7 @@ Image lock coverage is the one check that reads the rendered chart rather than t
 source: it fails if the chart would run a container image from a registry neither
 this release nor the bundled KAI Scheduler publishes to. Adding a service, or bumping
 KAI Scheduler, needs no change there. Pulling in a third-party image does — see
-[`cmd/imagelock`](../../cmd/imagelock/README.md).
+[`build/imagelock`](../../build/imagelock/README.md).
 
 The root Makefile exposes one chart-specific test target:
 

@@ -1,7 +1,7 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-package imagelock
+package main
 
 import (
 	"strings"
@@ -98,43 +98,62 @@ func TestImagesFromManifestLocksOnlyThisRepositorysImages(t *testing.T) {
 		t.Fatalf("imagesFromManifest: %v", err)
 	}
 
-	want := []chartImage{
-		{name: "krm-operator", repo: "example.test/krm/krm-operator", tag: "v1.2.3"},
-	}
-	if len(images) != len(want) {
-		t.Fatalf("got %d images %v, want %d", len(images), images, len(want))
-	}
-	for i := range want {
-		if images[i] != want[i] {
-			t.Errorf("image %d: got %+v, want %+v", i, images[i], want[i])
-		}
+	want := chartImage{name: "krm-operator", repo: "example.test/krm/krm-operator", tag: "v1.2.3"}
+	if len(images) != 1 || images[0] != want {
+		t.Fatalf("got %+v, want only %+v", images, want)
 	}
 	if skipped != 3 {
 		t.Errorf("got %d skipped images, want the 3 the subchart runs", skipped)
 	}
 }
 
-// A third-party image belongs to no release's lock until someone decides it does,
-// so it has to stop the run rather than be skipped like the subchart's.
-func TestImagesFromManifestRejectsAnUnownedImage(t *testing.T) {
-	manifest := `
-apiVersion: v1
+func TestImagesFromManifestRejections(t *testing.T) {
+	tests := []struct {
+		name     string
+		manifest string
+		wantIn   []string
+	}{
+		{
+			// A third-party image belongs to no release's lock until someone decides
+			// it does, so it stops the run rather than being skipped like the
+			// subchart's.
+			name: "an image under neither registry",
+			manifest: `
 kind: Pod
 spec:
   containers:
     - image: registry.k8s.io/kubectl:v1.34.0
-`
-	_, _, err := imagesFromManifest([]byte(manifest), testCatalog())
-	if err == nil {
-		t.Fatal("expected an image under neither registry to fail the render")
+`,
+			wantIn: []string{"registry.k8s.io/kubectl"},
+		},
+		{
+			name: "one name at two tags",
+			manifest: `
+kind: Pod
+spec:
+  containers:
+    - image: example.test/krm/krm-operator:v1.2.3
+    - image: example.test/krm/krm-operator:v1.2.4
+`,
+			wantIn: []string{"v1.2.3", "v1.2.4"},
+		},
 	}
-	if !strings.Contains(err.Error(), "registry.k8s.io/kubectl") {
-		t.Errorf("error should name the repository, got: %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, _, err := imagesFromManifest([]byte(test.manifest), testCatalog())
+			if err == nil {
+				t.Fatalf("expected %s to fail the render", test.name)
+			}
+			for _, want := range test.wantIn {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error should mention %q, got: %v", want, err)
+				}
+			}
+		})
 	}
 }
 
 func TestCatalogClassify(t *testing.T) {
-	catalog := testCatalog()
 	tests := []struct {
 		repo   string
 		name   string
@@ -150,76 +169,12 @@ func TestCatalogClassify(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.repo, func(t *testing.T) {
-			name, locked, err := catalog.classify(test.repo)
+			name, locked, err := testCatalog().classify(test.repo)
 			if (err != nil) != test.fails {
 				t.Fatalf("got error %v, want failure=%v", err, test.fails)
 			}
 			if name != test.name || locked != test.locked {
 				t.Errorf("got (%q, %v), want (%q, %v)", name, locked, test.name, test.locked)
-			}
-		})
-	}
-}
-
-func TestImagesFromManifestRejectsOneNameWithTwoTags(t *testing.T) {
-	manifest := `
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-    - image: example.test/krm/krm-operator:v1.2.3
-    - image: example.test/krm/krm-operator:v1.2.4
-`
-	_, _, err := imagesFromManifest([]byte(manifest), testCatalog())
-	if err == nil {
-		t.Fatal("expected two tags of one image to be refused")
-	}
-	if !strings.Contains(err.Error(), "v1.2.3") || !strings.Contains(err.Error(), "v1.2.4") {
-		t.Errorf("error should name both references, got: %v", err)
-	}
-}
-
-func TestImageReference(t *testing.T) {
-	tests := []struct {
-		name string
-		node any
-		want string
-		ok   bool
-	}{
-		{name: "string", node: "example.test/a:v1", want: "example.test/a:v1", ok: true},
-		{name: "empty string", node: ""},
-		{name: "structured", node: map[string]any{"name": "a", "repository": "example.test", "tag": "v1"}, want: "example.test/a:v1", ok: true},
-		{name: "structured without repository", node: map[string]any{"name": "a", "tag": "v1"}, want: "a:v1", ok: true},
-		{name: "structured without tag", node: map[string]any{"name": "a", "repository": "example.test"}},
-		{name: "unrelated map", node: map[string]any{"pullPolicy": "IfNotPresent"}},
-		{name: "number", node: 7},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got, ok := imageReference(test.node)
-			if ok != test.ok || got != test.want {
-				t.Errorf("got (%q, %v), want (%q, %v)", got, ok, test.want, test.ok)
-			}
-		})
-	}
-}
-
-func TestSplitReference(t *testing.T) {
-	tests := []struct {
-		ref  string
-		repo string
-		tag  string
-	}{
-		{ref: "ghcr.io/org/name:v1.2.3", repo: "ghcr.io/org/name", tag: "v1.2.3"},
-		{ref: "localhost:5000/name:v1", repo: "localhost:5000/name", tag: "v1"},
-		{ref: "localhost:5000/name", repo: "localhost:5000/name"},
-		{ref: "name", repo: "name"},
-	}
-	for _, test := range tests {
-		t.Run(test.ref, func(t *testing.T) {
-			repo, tag := splitReference(test.ref)
-			if repo != test.repo || tag != test.tag {
-				t.Errorf("got (%q, %q), want (%q, %q)", repo, tag, test.repo, test.tag)
 			}
 		})
 	}
@@ -240,15 +195,55 @@ func TestNewImageCatalogFollowsTheReleaseRegistry(t *testing.T) {
 	}
 }
 
-func TestIsImageKey(t *testing.T) {
-	for _, key := range []string{"image", "scalingPodImage"} {
-		if !isImageKey(key) {
-			t.Errorf("%q should be treated as an image key", key)
+func TestReferenceParsing(t *testing.T) {
+	t.Run("imageReference", func(t *testing.T) {
+		tests := []struct {
+			name string
+			node any
+			want string
+			ok   bool
+		}{
+			{name: "string", node: "example.test/a:v1", want: "example.test/a:v1", ok: true},
+			{name: "empty string", node: ""},
+			{name: "structured", node: map[string]any{"name": "a", "repository": "example.test", "tag": "v1"}, want: "example.test/a:v1", ok: true},
+			{name: "structured without repository", node: map[string]any{"name": "a", "tag": "v1"}, want: "a:v1", ok: true},
+			{name: "structured without tag", node: map[string]any{"name": "a", "repository": "example.test"}},
+			{name: "unrelated map", node: map[string]any{"pullPolicy": "IfNotPresent"}},
+			{name: "number", node: 7},
 		}
-	}
-	for _, key := range []string{"images", "imagePullPolicy", "name"} {
-		if isImageKey(key) {
-			t.Errorf("%q should not be treated as an image key", key)
+		for _, test := range tests {
+			got, ok := imageReference(test.node)
+			if ok != test.ok || got != test.want {
+				t.Errorf("%s: got (%q, %v), want (%q, %v)", test.name, got, ok, test.want, test.ok)
+			}
 		}
-	}
+	})
+
+	t.Run("splitReference", func(t *testing.T) {
+		tests := []struct{ ref, repo, tag string }{
+			{ref: "ghcr.io/org/name:v1.2.3", repo: "ghcr.io/org/name", tag: "v1.2.3"},
+			{ref: "localhost:5000/name:v1", repo: "localhost:5000/name", tag: "v1"},
+			{ref: "localhost:5000/name", repo: "localhost:5000/name"},
+			{ref: "name", repo: "name"},
+		}
+		for _, test := range tests {
+			repo, tag := splitReference(test.ref)
+			if repo != test.repo || tag != test.tag {
+				t.Errorf("%s: got (%q, %q), want (%q, %q)", test.ref, repo, tag, test.repo, test.tag)
+			}
+		}
+	})
+
+	t.Run("isImageKey", func(t *testing.T) {
+		for _, key := range []string{"image", "scalingPodImage"} {
+			if !isImageKey(key) {
+				t.Errorf("%q should be treated as an image key", key)
+			}
+		}
+		for _, key := range []string{"images", "imagePullPolicy", "name"} {
+			if isImageKey(key) {
+				t.Errorf("%q should not be treated as an image key", key)
+			}
+		}
+	})
 }

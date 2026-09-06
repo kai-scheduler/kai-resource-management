@@ -1,7 +1,7 @@
 // Copyright 2026 NVIDIA CORPORATION
 // SPDX-License-Identifier: Apache-2.0
 
-package imagelock
+package main
 
 import (
 	"bufio"
@@ -17,16 +17,6 @@ import (
 
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
-)
-
-// Profile is a build variant of the same release. The chart selects it with
-// global.fipsMode, which appends "-fips" to every image tag, so each Profile
-// resolves to a different set of digests and gets its own lock.
-type Profile string
-
-const (
-	ProfileStandard Profile = "standard"
-	ProfileFIPS     Profile = "fips"
 )
 
 // kaiRegistry is where the bundled kai-scheduler subchart pulls from. Unlike the
@@ -84,21 +74,21 @@ func under(repo, registry string) bool {
 	return strings.HasPrefix(repo, registry+"/")
 }
 
-// renderChart runs `helm template` for one Profile. The chart's defaults already
+// renderChart runs `helm template` for one profile. The chart's defaults already
 // name every image an install can run - a component switched off still carries its
 // image block into the KRMConfig or the KAI Config - so nothing is forced on here.
-func renderChart(ctx context.Context, opts Options, prof Profile) ([]byte, error) {
-	args := []string{"template", "krm", opts.Chart,
-		"--set", "image.registry=" + opts.Registry,
-		"--set", "image.tag=" + opts.Version,
+func renderChart(ctx context.Context, opts options, prof profile) ([]byte, error) {
+	args := []string{"template", "krm", opts.chart,
+		"--set", "image.registry=" + opts.registry,
+		"--set", "image.tag=" + opts.version,
 	}
-	if prof == ProfileFIPS {
+	if prof == profileFIPS {
 		// Two keys, not one: Helm shares global.* into subcharts verbatim, and the
 		// pinned kai-scheduler release spells the same switch as a boolean.
 		args = append(args, "--set", "global.fipsMode=on", "--set", "kai-scheduler.global.fips=true")
 	}
 
-	helmBin := opts.HelmBin
+	helmBin := opts.helmBin
 	if helmBin == "" {
 		helmBin = "helm"
 	}

@@ -54,7 +54,7 @@ records of one release that disagree as soon as a tag is re-pushed. An
 air-gapped site mirrors both, and a lock that spans the whole platform is
 composed from the per-project ones. See
 [Install in an air-gapped cluster](how-to/install-in-an-air-gapped-cluster.md),
-and [`cmd/imagelock/README.md`](../cmd/imagelock/README.md) for the generator.
+and [`build/imagelock/README.md`](../build/imagelock/README.md) for the generator.
 
 GHCR is the authoritative registry for this project. No other registry mirrors
 these artifacts.

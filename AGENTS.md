@@ -46,8 +46,10 @@ fragment; dependency updates use `dependencies`.
 
 The repository deliberately uses one Go module and one Makefile.
 
-- `cmd/<name>/` — executable entry points and process wiring.
+- `cmd/<name>/` — entry points for the binaries the images ship.
 - `pkg/<name>/` — shared Go implementation.
+- `build/` — the shared makefiles, the builder image, and tooling that runs
+  only in the pipeline, each tool in one `build/<name>/` package.
 - `deployments/<name>/` — deployment configuration and Helm charts. The
   primary chart belongs at `deployments/kai-resource-management-chart/`.
 - `docs/` — user, administrator, reference, and developer documentation.
@@ -69,8 +71,10 @@ Examples and sample manifests belong beside their documentation under `docs/`.
 
 ### Package and command design
 
-- Keep `main` packages small. Configuration parsing and process wiring belong
-  in `cmd`; testable behavior belongs in `pkg`.
+- Keep the `main` packages under `cmd` small. Configuration parsing and process
+  wiring belong there; testable behavior belongs in `pkg`. A pipeline-only tool
+  under `build/` is the exception: nothing imports it, so its whole
+  implementation stays in its own `main` package and exports nothing.
 - Keep packages cohesive and domain-named. Avoid generic `utils`, `helpers`, or
   `common` packages unless the domain itself is genuinely common.
 - Prefer the standard library before introducing dependencies.

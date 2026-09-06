@@ -146,7 +146,7 @@ scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted
 image-lock: helm-deps ## Write the air-gap ImageLock files for a release; requires VERSION.
 	@# base.mk gives VERSION a 0.0.0 placeholder, so an unset version is not empty.
 	@test "$(VERSION)" != "0.0.0" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
-	$(GO) run ./cmd/imagelock \
+	$(GO) run ./build/imagelock \
 		--chart $(CHART_DIR) \
 		--version $(VERSION) \
 		--registry $(IMAGE_LOCK_REGISTRY) \
@@ -154,7 +154,7 @@ image-lock: helm-deps ## Write the air-gap ImageLock files for a release; requir
 
 .PHONY: image-lock-check
 image-lock-check: helm-deps ## Verify every image the chart renders is one the lock generator knows.
-	$(GO) run ./cmd/imagelock --chart $(CHART_DIR) --verify-only
+	$(GO) run ./build/imagelock --chart $(CHART_DIR) --verify-only
 
 .PHONY: validate
 validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check image-lock-check ## Run all repository validation without changing tracked files; tests are separate.
