@@ -221,6 +221,12 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 	}
 }
 
+// WithNodePoolLabel names a node pool for the pod mutating webhook, which turns it
+// into required node affinity.
+func WithNodePoolLabel(key, nodePool string) PodOption {
+	return func(pod *corev1.Pod) { pod.Labels[key] = nodePool }
+}
+
 // NodeSelectorPair is one node pool expressed the way a node carries it: the
 // label key the node pool selects on, and the value it selects.
 type NodeSelectorPair struct {
