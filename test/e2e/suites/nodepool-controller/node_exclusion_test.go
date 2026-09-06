@@ -102,7 +102,6 @@ var _ = Describe("A node the managed-nodes config excludes", Ordered, Serial,
 		})
 	})
 
-// A node still running work is cordoned and marked rather than excluded outright.
 var _ = Describe("A node the config excludes while it still runs work", Ordered, Serial,
 	Label("managed-nodes"), func() {
 		var (

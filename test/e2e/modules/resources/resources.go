@@ -152,17 +152,15 @@ func WithDefaultNodePools(nodePools ...string) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.DefaultNodePools = nodePools }
 }
 
-// WithQueueResources gives every queue in the project the same resources and priority.
-func WithQueueResources(resources *kaires.QueueResourcesConfig, priority *int32) ProjectOption {
+func WithQueueResources(queueResources *kaires.QueueResourcesConfig, priority *int32) ProjectOption {
 	return func(project *kaires.Project) {
 		for i := range project.Spec.Queues {
-			project.Spec.Queues[i].Resources = resources
+			project.Spec.Queues[i].Resources = queueResources
 			project.Spec.Queues[i].Priority = priority
 		}
 	}
 }
 
-// WithNamespace names an existing namespace instead of letting one be generated.
 func WithNamespace(namespace string) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.Namespace = namespace }
 }
@@ -240,8 +238,7 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 	}
 }
 
-// WithNodePoolLabel names a node pool for the pod mutating webhook, which turns it
-// into required node affinity.
+// WithNodePoolLabel names a node pool for the mutating webhook to turn into affinity.
 func WithNodePoolLabel(key, nodePool string) PodOption {
 	return func(pod *corev1.Pod) { pod.Labels[key] = nodePool }
 }

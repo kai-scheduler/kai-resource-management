@@ -13,8 +13,6 @@ import (
 )
 
 const (
-	// DefaultUnexistingNodepoolSentinel is the --unexisting-nodepool-sentinel default.
-	// Exported so callers reference it rather than restate the value.
 	DefaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
 
 	DefaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"

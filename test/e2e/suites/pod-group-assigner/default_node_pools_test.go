@@ -18,17 +18,14 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
 
-// Every spec reads the pod as admitted, so none of them needs a node or a scheduler.
 var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"), func() {
 	var (
-		defaultedPool *kaires.NodePool
-		otherPool     *kaires.NodePool
-		project       *kaires.Project
-		namespace     string
+		fallbackPool *kaires.NodePool
+		otherPool    *kaires.NodePool
+		project      *kaires.Project
+		namespace    string
 	)
 
-	// Flattened: the mutator adds one term per pool, and which term a pool landed in
-	// does not matter.
 	requirements := func(pod *corev1.Pod) []corev1.NodeSelectorRequirement {
 		affinity := pod.Spec.Affinity
 		if affinity == nil || affinity.NodeAffinity == nil ||
@@ -45,7 +42,7 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 		return all
 	}
 
-	admitted := func(options ...resources.PodOption) *corev1.Pod {
+	createAndFetchPod := func(options ...resources.PodOption) *corev1.Pod {
 		pod := resources.Pod(utils.GenerateName("pga-mutation"), namespace, options...)
 		Expect(testClient.Create(ctx, pod)).To(Succeed())
 		DeferCleanup(func() {
@@ -60,18 +57,17 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 	}
 
 	BeforeAll(func() {
-		defaultedPool = resources.GeneratedNodePool("pga-defaulted", nodePoolLabelKey)
+		fallbackPool = resources.GeneratedNodePool("pga-fallback", nodePoolLabelKey)
 		otherPool = resources.GeneratedNodePool("pga-notdefaulted", nodePoolLabelKey)
-		for _, nodePool := range []*kaires.NodePool{defaultedPool, otherPool} {
+		for _, nodePool := range []*kaires.NodePool{fallbackPool, otherPool} {
 			Expect(testClient.Create(ctx, nodePool)).To(Succeed())
 			wait.ForNodePoolPhase(ctx, testClient, nodePool.Name, kaires.NodePoolEmpty)
 		}
 
-		// A queue for both pools but only one among the defaults, so the other stays
-		// available to ask for by name.
+		// Only one pool among the defaults, so the other stays available to ask for.
 		project = resources.Project(utils.GenerateName("pga-defaults-proj"),
-			[]string{defaultedPool.Name, otherPool.Name},
-			resources.WithDefaultNodePools(defaultedPool.Name),
+			[]string{fallbackPool.Name, otherPool.Name},
+			resources.WithDefaultNodePools(fallbackPool.Name),
 			resources.WithEnforceScheduler(true))
 		Expect(testClient.Create(ctx, project)).To(Succeed())
 		namespace = wait.ForProjectReady(ctx, testClient, project.Name).Status.Namespace
@@ -80,7 +76,7 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, project))).To(Succeed())
 			wait.ForDeleted(ctx, testClient, project)
 
-			for _, nodePool := range []*kaires.NodePool{defaultedPool, otherPool} {
+			for _, nodePool := range []*kaires.NodePool{fallbackPool, otherPool} {
 				Expect(client.IgnoreNotFound(testClient.Delete(ctx, nodePool))).To(Succeed())
 				wait.ForDeleted(ctx, testClient, nodePool)
 			}
@@ -88,17 +84,17 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 	})
 
 	It("gives a pod that asks for nothing the project's default node pools", func() {
-		pod := admitted()
+		pod := createAndFetchPod()
 
 		Expect(requirements(pod)).To(ConsistOf(corev1.NodeSelectorRequirement{
-			Key:      defaultedPool.Spec.LabelKey,
+			Key:      fallbackPool.Spec.LabelKey,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{defaultedPool.Spec.LabelValue},
+			Values:   []string{fallbackPool.Spec.LabelValue},
 		}))
 	})
 
 	It("lets a node pool label on the pod win over those defaults", func() {
-		pod := admitted(resources.WithNodePoolLabel(
+		pod := createAndFetchPod(resources.WithNodePoolLabel(
 			kaiconstants.DefaultNodePoolLabelKey, otherPool.Name))
 
 		Expect(requirements(pod)).To(ConsistOf(corev1.NodeSelectorRequirement{
@@ -111,7 +107,7 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 	It("leaves a pod that already names a node pool in its affinity alone", func() {
 		asked := resources.NodeSelectorForNodePool(otherPool)
 
-		pod := admitted(resources.WithNodeAffinity(asked))
+		pod := createAndFetchPod(resources.WithNodeAffinity(asked))
 
 		Expect(requirements(pod)).To(ConsistOf(corev1.NodeSelectorRequirement{
 			Key:      asked.Key,
@@ -122,7 +118,7 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 
 	// The default nodepool is the absence of the label, not a value of it.
 	It("expresses the default node pool as the label being absent", func() {
-		pod := admitted(resources.WithNodePoolLabel(
+		pod := createAndFetchPod(resources.WithNodePoolLabel(
 			kaiconstants.DefaultNodePoolLabelKey, testcontext.DefaultNodePoolName))
 
 		Expect(requirements(pod)).To(ConsistOf(corev1.NodeSelectorRequirement{
@@ -163,7 +159,7 @@ var _ = Describe("The pod mutating webhook", Ordered, Label("pod-group-assigner"
 		Expect(testClient.Delete(ctx, deletingPool)).To(Succeed())
 		wait.ForNodePoolPhase(ctx, testClient, deletingPool.Name, kaires.NodePoolDeleting)
 
-		pod := admitted(resources.WithNodePoolLabel(
+		pod := createAndFetchPod(resources.WithNodePoolLabel(
 			kaiconstants.DefaultNodePoolLabelKey, deletingPool.Name))
 
 		Expect(requirements(pod)).To(BeEmpty())

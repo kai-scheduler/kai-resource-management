@@ -22,8 +22,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/wait"
 )
 
-// These pod groups have no pods on purpose: the assigner gives up on a pod group it
-// can find none for, so nothing overwrites what the webhook wrote.
+// No pods on purpose: the assigner gives up on a pod group it can find none for.
 var _ = Describe("The pod group mutating webhook", Ordered, Label("pod-group-assigner"), func() {
 	var (
 		nodePool  *kaires.NodePool
@@ -31,7 +30,7 @@ var _ = Describe("The pod group mutating webhook", Ordered, Label("pod-group-ass
 		namespace string
 	)
 
-	admitted := func(labels map[string]string, spec kaiv2alpha2.PodGroupSpec) *kaiv2alpha2.PodGroup {
+	createAndFetchPodGroup := func(labels map[string]string, spec kaiv2alpha2.PodGroupSpec) *kaiv2alpha2.PodGroup {
 		if labels == nil {
 			labels = map[string]string{}
 		}
@@ -79,14 +78,14 @@ var _ = Describe("The pod group mutating webhook", Ordered, Label("pod-group-ass
 	})
 
 	It("marks a pod group that names no node pool with the sentinel", func() {
-		podGroup := admitted(nil, kaiv2alpha2.PodGroupSpec{MinMember: ptr.To(int32(1))})
+		podGroup := createAndFetchPodGroup(nil, kaiv2alpha2.PodGroupSpec{MinMember: ptr.To(int32(1))})
 
 		Expect(podGroup.Labels).To(HaveKeyWithValue(
 			kaiconstants.DefaultNodePoolLabelKey, pgaconfig.DefaultUnexistingNodepoolSentinel))
 	})
 
 	It("leaves a pod group that already names one as it is", func() {
-		podGroup := admitted(
+		podGroup := createAndFetchPodGroup(
 			map[string]string{kaiconstants.DefaultNodePoolLabelKey: nodePool.Name},
 			kaiv2alpha2.PodGroupSpec{MinMember: ptr.To(int32(1))})
 
@@ -95,7 +94,7 @@ var _ = Describe("The pod group mutating webhook", Ordered, Label("pod-group-ass
 	})
 
 	It("takes over the scheduling backoff and unschedulable mark it was given", func() {
-		podGroup := admitted(nil, kaiv2alpha2.PodGroupSpec{
+		podGroup := createAndFetchPodGroup(nil, kaiv2alpha2.PodGroupSpec{
 			MinMember:         ptr.To(int32(1)),
 			MarkUnschedulable: ptr.To(true),
 			SchedulingBackoff: ptr.To(int32(assignercommon.NoSchedulingBackoff)),

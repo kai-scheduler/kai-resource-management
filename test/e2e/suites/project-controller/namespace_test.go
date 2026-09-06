@@ -25,7 +25,7 @@ var _ = Describe("A project pointed at a namespace of its own", Ordered, Label("
 	)
 
 	BeforeAll(func() {
-		// Naming a namespace that does not exist leaves the project NamespaceNotFound.
+		// Created first: a missing namespace leaves the project NamespaceNotFound.
 		namespace = resources.Namespace(utils.GenerateName("pc-external"))
 		Expect(testClient.Create(ctx, namespace)).To(Succeed())
 
@@ -58,7 +58,6 @@ var _ = Describe("A project pointed at a namespace of its own", Ordered, Label("
 		}).Should(Succeed())
 	})
 
-	// Two projects on one namespace would overwrite the label on every reconcile.
 	It("refuses to take a namespace another project already holds", func() {
 		second := resources.Project(utils.GenerateName("pc-external-second"),
 			[]string{testcontext.DefaultNodePoolName},

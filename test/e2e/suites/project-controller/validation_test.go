@@ -58,7 +58,6 @@ var _ = Describe("The project webhook", Label("project-controller"), func() {
 			To(MatchError(ContainSubstring("parent department")))
 	})
 
-	// The webhook registers for UPDATE too: what it refuses on create it must refuse here.
 	Context("on update", Ordered, func() {
 		var project *kaires.Project
 
@@ -74,8 +73,7 @@ var _ = Describe("The project webhook", Label("project-controller"), func() {
 			})
 		})
 
-		// Re-read each time: an update built on a stale copy fails as a conflict, not
-		// by the webhook.
+		// Re-read each time: a stale copy fails as a conflict, not by the webhook.
 		update := func(change func(*kaires.Project)) error {
 			latest := &kaires.Project{}
 			Expect(testClient.Get(ctx,
