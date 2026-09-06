@@ -33,8 +33,8 @@ type lockMetadata struct {
 }
 
 type lockSpec struct {
-	Profile  Profile       `json:"Profile"`
-	Platform Platform      `json:"Platform"`
+	Profile  Profile       `json:"profile"`
+	Platform Platform      `json:"platform"`
 	Images   []lockedImage `json:"images"`
 }
 

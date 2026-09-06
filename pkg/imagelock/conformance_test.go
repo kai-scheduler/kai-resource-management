@@ -4,7 +4,9 @@
 package imagelock
 
 import (
+	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -26,6 +28,9 @@ import (
 //   - image names are unique within a lock
 //   - indexDigest is a sha256 digest - not optional
 //   - image is repository@sha256:...
+//
+// The key names themselves are checked separately, by
+// TestLockKeysMatchTheComposerSchema.
 func TestLockSatisfiesTheComposerContract(t *testing.T) {
 	digestPattern := regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
@@ -104,4 +109,90 @@ func TestLocksAgreeAcrossPlatformsExceptTheDigest(t *testing.T) {
 			t.Errorf("%s: both platforms locked the same digest", a.Name)
 		}
 	}
+}
+
+// The composer decodes with KnownFields set, so it fails on a key it does not know
+// as surely as on a missing one - and a spelling this package changes on its side
+// only would still round-trip cleanly through its own struct. The key names are
+// therefore pinned against the bytes, spelled as the reader's struct tags spell
+// them, rather than being read back into the type that wrote them.
+func TestLockKeysMatchTheComposerSchema(t *testing.T) {
+	wantKeys := map[string][]string{
+		"":              {"apiVersion", "kind", "metadata", "spec"},
+		"metadata":      {"name", "version"},
+		"spec":          {"images", "platform", "profile"},
+		"spec.platform": {"architecture", "os"},
+		"spec.images[]": {"image", "indexDigest", "name", "source"},
+	}
+
+	encoded, err := yaml.Marshal(buildLock("v1.2.3", linuxAMD64, testLockedImages()))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(encoded, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	spec, _ := document["spec"].(map[string]any)
+	images, _ := spec["images"].([]any)
+	if len(images) == 0 {
+		t.Fatal("the lock encoded no images to check")
+	}
+	firstImage, _ := images[0].(map[string]any)
+
+	got := map[string]map[string]any{
+		"":              document,
+		"metadata":      asMapping(document["metadata"]),
+		"spec":          spec,
+		"spec.platform": asMapping(spec["platform"]),
+		"spec.images[]": firstImage,
+	}
+	for path, want := range wantKeys {
+		if diff := keyDiff(got[path], want); diff != "" {
+			t.Errorf("%q: %s", lockPath(path), diff)
+		}
+	}
+}
+
+func lockPath(path string) string {
+	if path == "" {
+		return "the lock document"
+	}
+	return path
+}
+
+func asMapping(node any) map[string]any {
+	mapping, _ := node.(map[string]any)
+	return mapping
+}
+
+// keyDiff reports the keys the composer expects and did not get, and the ones it
+// got and does not know; either kind stops it parsing the lock.
+func keyDiff(got map[string]any, want []string) string {
+	known := map[string]struct{}{}
+	var missing []string
+	for _, key := range want {
+		known[key] = struct{}{}
+		if _, ok := got[key]; !ok {
+			missing = append(missing, key)
+		}
+	}
+	var unknown []string
+	for key := range got {
+		if _, ok := known[key]; !ok {
+			unknown = append(unknown, key)
+		}
+	}
+	sort.Strings(unknown)
+
+	switch {
+	case len(missing) > 0 && len(unknown) > 0:
+		return fmt.Sprintf("missing %v, and %v is not a key the composer knows", missing, unknown)
+	case len(missing) > 0:
+		return fmt.Sprintf("missing %v", missing)
+	case len(unknown) > 0:
+		return fmt.Sprintf("%v is not a key the composer knows", unknown)
+	}
+	return ""
 }

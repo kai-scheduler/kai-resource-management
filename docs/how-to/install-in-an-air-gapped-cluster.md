@@ -37,9 +37,9 @@ on. If your cluster mixes architectures, mirror both files.
 Each entry looks like this:
 
 ```yaml
-- name: scheduler
-  image: ghcr.io/kai-scheduler/kai-scheduler/scheduler@sha256:89e1aab8…
-  source: ghcr.io/kai-scheduler/kai-scheduler/scheduler:v0.17.0
+- name: krm-operator
+  image: ghcr.io/kai-scheduler/kai-resource-management/krm-operator@sha256:89e1aab8…
+  source: ghcr.io/kai-scheduler/kai-resource-management/krm-operator:vX.Y.Z
   indexDigest: sha256:c6971f83…
 ```
 

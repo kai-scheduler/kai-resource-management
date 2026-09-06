@@ -152,7 +152,7 @@ func indexDigests(body []byte, platforms []Platform) (map[Platform]string, error
 	var index struct {
 		Manifests []struct {
 			Digest   string    `json:"digest"`
-			Platform *Platform `json:"Platform"`
+			Platform *Platform `json:"platform"`
 		} `json:"manifests"`
 	}
 	if err := json.Unmarshal(body, &index); err != nil {
