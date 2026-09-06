@@ -89,8 +89,6 @@ func renderChart(ctx context.Context, opts options, prof profile) ([]byte, error
 	if helmBin == "" {
 		helmBin = "helm"
 	}
-	// #nosec G204 -- helm binary and chart path are options of a developer tool;
-	// every other argument is built here.
 	helm := exec.CommandContext(ctx, helmBin, args...)
 	var stderr bytes.Buffer
 	helm.Stderr = &stderr

@@ -181,6 +181,7 @@ func generate(ctx context.Context, opts options) error {
 		return nil
 	}
 
+	locks := make([]imageLock, 0, len(sets)*len(opts.platforms))
 	for i := range sets {
 		sets[i].digests = map[string]*resolved{}
 		for _, image := range sets[i].images {
@@ -190,12 +191,8 @@ func generate(ctx context.Context, opts options) error {
 			}
 			sets[i].digests[image.reference()] = digests
 		}
-	}
-
-	locks := make([]imageLock, 0, len(sets)*len(opts.platforms))
-	for _, set := range sets {
 		for _, plat := range opts.platforms {
-			locks = append(locks, buildLock(opts.version, plat, set))
+			locks = append(locks, buildLock(opts.version, plat, sets[i]))
 		}
 	}
 
