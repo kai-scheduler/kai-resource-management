@@ -20,9 +20,8 @@ const (
 	lockName       = "kai-resource-management"
 )
 
-// profile is a build variant of the same release. The chart selects it with
-// global.fipsMode, which appends "-fips" to every image tag, so each profile
-// resolves to a different set of digests and gets its own lock.
+// profile is a build variant of the same release. global.fipsMode appends "-fips"
+// to every image tag, so each profile resolves to different digests.
 type profile string
 
 const (
@@ -37,12 +36,10 @@ type platform struct {
 
 func (p platform) String() string { return p.OS + "/" + p.Architecture }
 
-// defaultPlatforms are the platforms every release publishes images for.
 func defaultPlatforms() []platform {
 	return []platform{{OS: "linux", Architecture: "amd64"}, {OS: "linux", Architecture: "arm64"}}
 }
 
-// defaultProfiles are the build variants every release publishes.
 func defaultProfiles() []profile { return []profile{profileStandard, profileFIPS} }
 
 func parsePlatforms(entries []string) ([]platform, error) {
@@ -78,8 +75,8 @@ func parseProfiles(entries []string) ([]profile, error) {
 	return profiles, nil
 }
 
-// imageLock is one release's images for one profile on one platform, every tag
-// resolved to the digest it pointed at when the release was published.
+// imageLock is one profile on one platform, every tag resolved to the digest it
+// pointed at when the release was published.
 type imageLock struct {
 	APIVersion string       `json:"apiVersion"`
 	Kind       string       `json:"kind"`
@@ -103,16 +100,14 @@ type lockedImage struct {
 	// Image is what to mirror: the repository at this platform's manifest digest.
 	Image string `json:"image"`
 	// Source is the tag the chart pulls, and so the tag the mirrored digest has to
-	// be published under in the private registry.
+	// be republished under.
 	Source string `json:"source"`
-	// IndexDigest identifies the multi-arch index the platform manifest came from,
-	// so the same release can be recognised across platforms. Always set: the
-	// tooling that composes these locks requires it.
+	// IndexDigest identifies the index the platform manifest came from, so one
+	// release is recognisable across platforms. The composer requires it.
 	IndexDigest string `json:"indexDigest"`
 }
 
-// lockedImages is a resolved image set for one profile, keyed the way buildLock
-// consumes it.
+// lockedImages is a resolved image set for one profile.
 type lockedImages struct {
 	profile profile
 	images  []chartImage
@@ -147,8 +142,8 @@ func lockFileName(lock imageLock) string {
 		lock.Spec.Platform.OS, lock.Spec.Platform.Architecture)
 }
 
-// writeLocks marshals every lock before it writes any of them, so a failure part
-// way through leaves no half-written set behind for a release to pick up.
+// writeLocks marshals every lock before writing any, so a failure part way
+// through leaves no half-written set behind.
 func writeLocks(outDir string, locks []imageLock) ([]string, error) {
 	documents := make([][]byte, len(locks))
 	for i, lock := range locks {

@@ -8,10 +8,9 @@ import (
 	"testing"
 )
 
-// renderedManifest carries every shape the collector has to understand: a pod spec
-// image, a custom resource embedded as ConfigMap text whose images an operator
-// creates later, an image key that is not called "image", and a shell script that
-// must not be mistaken for a manifest.
+// renderedManifest carries every shape the collector must understand: a pod spec
+// image, a CR embedded as ConfigMap text, a key not called "image", and a shell
+// script that must not be mistaken for a manifest.
 const renderedManifest = `
 apiVersion: apps/v1
 kind: Deployment
@@ -62,8 +61,7 @@ spec:
           image: "example.test/kai/crd-upgrader:v0.17.0"
 `
 
-// testCatalog locks the chart's own registry and leaves the subchart's to the
-// project that publishes it, mirroring the real split.
+// testCatalog mirrors the real split: our registry locked, the subchart's skipped.
 func testCatalog() imageCatalog {
 	return imageCatalog{lock: "example.test/krm", skip: "example.test/kai"}
 }
@@ -90,8 +88,7 @@ func TestImageRefsFindsEverySpelling(t *testing.T) {
 	}
 }
 
-// The lock covers only what this repository builds; the subchart's images are
-// recognised, counted and left to the project that publishes them.
+// The subchart's images are recognised, counted, and left to its own lock.
 func TestImagesFromManifestLocksOnlyThisRepositorysImages(t *testing.T) {
 	images, skipped, err := imagesFromManifest([]byte(renderedManifest), testCatalog())
 	if err != nil {
@@ -114,9 +111,8 @@ func TestImagesFromManifestRejections(t *testing.T) {
 		wantIn   []string
 	}{
 		{
-			// A third-party image belongs to no release's lock until someone decides
-			// it does, so it stops the run rather than being skipped like the
-			// subchart's.
+			// Belongs to no lock until someone decides it does, so it stops the
+			// run rather than being skipped like the subchart's.
 			name: "an image under neither registry",
 			manifest: `
 kind: Pod
@@ -163,8 +159,8 @@ func TestCatalogClassify(t *testing.T) {
 		{repo: "example.test/krm/krm-operator", name: "krm-operator", locked: true},
 		{repo: "example.test/kai/scheduler"},
 		{repo: "registry.k8s.io/kubectl", fails: true},
-		// The boundary is a path separator, so a registry whose name merely prefixes
-		// ours is not mistaken for it.
+		// The boundary is a path separator, so a name that merely prefixes ours
+		// is not mistaken for it.
 		{repo: "example.test/krm-staging/krm-operator", fails: true},
 	}
 	for _, test := range tests {

@@ -32,9 +32,9 @@ analysis, source license headers and air-gap image lock coverage without changin
 tracked files; it does not run the tests.
 
 Image lock coverage is the one check that reads the rendered chart rather than the
-source: it fails if the chart would run a container image from a registry neither
-this release nor the bundled KAI Scheduler publishes to. Adding a service, or bumping
-KAI Scheduler, needs no change there. Pulling in a third-party image does — see
+source: it fails if the chart would run an image from a registry neither this
+release nor the bundled KAI Scheduler publishes to. Adding a service needs no
+change there; pulling in a third-party image does — see
 [`build/imagelock`](../../build/imagelock/README.md).
 
 The root Makefile exposes one chart-specific test target:

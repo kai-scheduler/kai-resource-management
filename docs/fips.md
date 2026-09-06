@@ -108,6 +108,5 @@ Releases publish these images from the `build-and-push-fips` job, which runs the
 same command and applies the check above to every binary it produced.
 
 Each release also carries a `fips` [image lock](how-to/install-in-an-air-gapped-cluster.md)
-alongside the `standard` one, listing the `-fips` images at the digests that
-release resolved to. Mirror that file, not the standard one, when installing the
-FIPS variant into an air-gapped cluster.
+alongside the `standard` one. Mirror that file, not the standard one, when
+installing the FIPS variant into an air-gapped cluster.

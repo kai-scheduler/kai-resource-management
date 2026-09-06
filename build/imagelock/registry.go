@@ -14,21 +14,19 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// resolveTimeout bounds one image's round trip to the registry. remote retries a
-// transient failure underneath this, so it covers the retries too.
+// resolveTimeout bounds one image's round trip, retries included.
 const resolveTimeout = 2 * time.Minute
 
-// resolved is one image's digests: the multi-arch index it was published as, and
-// the manifest each requested platform pulls out of that index.
+// resolved is one image's digests: its multi-arch index, and the manifest each
+// platform pulls out of that index.
 type resolved struct {
 	indexDigest string
 	perPlatform map[platform]string
 }
 
 // resolve reads a tag's index and picks each platform's manifest digest out of it.
-// The published images need no credentials, but this repository's own are private
-// until a release goes out; CI runs `docker login` first and the default keychain
-// reads what it wrote.
+// This repository's images are private until a release goes out, so CI runs
+// `docker login` first and the default keychain reads what it wrote.
 func resolve(ctx context.Context, ref string, platforms []platform) (*resolved, error) {
 	reference, err := name.ParseReference(ref)
 	if err != nil {
@@ -45,10 +43,9 @@ func resolve(ctx context.Context, ref string, platforms []platform) (*resolved, 
 	}
 
 	if !descriptor.MediaType.IsIndex() {
-		// Every image is published with buildx for both platforms, and the lock
-		// records an index digest for each one, which the tooling that composes
-		// these locks requires. A tag that is a bare manifest is a build problem,
-		// not something to paper over with the manifest's own digest.
+		// The composer requires an index digest per entry, and every image is
+		// pushed with buildx for both platforms. A bare manifest is a build
+		// problem, not something to paper over with the manifest's own digest.
 		return nil, fmt.Errorf("%s is published as a single manifest rather than a multi-arch index", ref)
 	}
 
@@ -67,9 +64,8 @@ func resolve(ctx context.Context, ref string, platforms []platform) (*resolved, 
 	return &resolved{indexDigest: descriptor.Digest.String(), perPlatform: perPlatform}, nil
 }
 
-// platformDigests picks each requested platform's manifest out of an index. A
-// platform that is missing, or that matches more than once, is an error: the lock
-// must name exactly one digest per platform or an air-gapped mirror is ambiguous.
+// platformDigests errors on a platform that is missing or matches twice: the lock
+// must name exactly one digest per platform or a mirror is ambiguous.
 func platformDigests(entries []ggcrv1.Descriptor, platforms []platform) (map[platform]string, error) {
 	digests := make(map[platform]string, len(platforms))
 	for _, want := range platforms {

@@ -48,11 +48,9 @@ Each lists the five images built from this repository — including the three th
 krm-operator creates from the KRMConfig rather than the chart from a template —
 pinned to the digest its tag resolved to at release time.
 
-The bundled KAI Scheduler is deliberately not restated there: that project
-publishes and pins its own images, and duplicating its digests would create two
-records of one release that disagree as soon as a tag is re-pushed. An
-air-gapped site mirrors both, and a lock that spans the whole platform is
-composed from the per-project ones. See
+KAI Scheduler is deliberately not restated there: it publishes and pins its own
+images, and duplicating them would create two records of one release that
+disagree as soon as a tag is re-pushed. An air-gapped site mirrors both. See
 [Install in an air-gapped cluster](how-to/install-in-an-air-gapped-cluster.md),
 and [`build/imagelock/README.md`](../build/imagelock/README.md) for the generator.
 
@@ -119,12 +117,11 @@ already exist, then creates the tag and the GitHub Release.
 
 Pushing the tag runs **Upload artifacts to GitHub Container Registry**, which
 builds and pushes the controller images and the chart, and attaches the chart to
-the GitHub Release. A third job then generates the image locks and attaches those
-too — it needs both image sets to exist, so it runs after the other two.
+the GitHub Release. A third job attaches the image locks; it needs both image sets
+to exist, so it runs last.
 
-The lock job runs after the release is already published, so a failure there does
-not hold anything back. Re-run the job, or generate the locks by hand from a
-checkout of the tag:
+That job runs after the release is published, so a failure there holds nothing
+back. Re-run it, or generate the locks by hand from a checkout of the tag:
 
 ```bash
 make image-lock VERSION=v0.1.0

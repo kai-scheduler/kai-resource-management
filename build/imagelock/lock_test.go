@@ -57,8 +57,7 @@ func TestBuildLock(t *testing.T) {
 		t.Errorf("spec: got profile %q platform %s", lock.Spec.Profile, lock.Spec.Platform)
 	}
 
-	// Sorted by name, so krm-operator comes before scheduler whatever order the
-	// chart rendered them in.
+	// Sorted by name, whatever order the chart rendered them in.
 	want := []lockedImage{
 		{
 			Name:        "krm-operator",
@@ -120,11 +119,9 @@ func TestWriteLocks(t *testing.T) {
 	}
 }
 
-// The locks this command writes are read back by the tooling that composes a
-// platform-wide artifact lock out of every project's. That reader validates what it
-// parses and rejects the whole set on a single bad entry, so the rules it enforces
-// are restated here: they are a contract with another repository, and nothing in
-// this one would otherwise notice a lock drifting out of shape.
+// The composer that reads these locks rejects the whole set on one bad entry, so
+// its rules are restated here: nothing in this repository would otherwise notice a
+// lock drifting out of shape.
 func TestLockSatisfiesTheComposerContract(t *testing.T) {
 	digestPattern := regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
@@ -168,11 +165,9 @@ func TestLockSatisfiesTheComposerContract(t *testing.T) {
 	}
 }
 
-// The composer decodes with KnownFields set, so it fails on a key it does not know
-// as surely as on a missing one - and a spelling this command changes on its side
-// only would still round-trip cleanly through its own struct. The key names are
-// therefore pinned against the bytes, spelled as the reader's struct tags spell
-// them, rather than being read back into the type that wrote them.
+// The composer decodes with KnownFields set, so an unknown key fails as surely as
+// a missing one - and a misspelling would still round-trip cleanly through the
+// struct that wrote it. So the keys are pinned against the encoded bytes.
 func TestLockKeysMatchTheComposerSchema(t *testing.T) {
 	wantKeys := map[string][]string{
 		"":              {"apiVersion", "kind", "metadata", "spec"},
@@ -215,9 +210,8 @@ func TestLockKeysMatchTheComposerSchema(t *testing.T) {
 	}
 }
 
-// The composer refuses a set in which two locks give one source different digests,
-// and it keys images on name plus source. Both platforms therefore have to agree on
-// everything except the platform digest itself.
+// The composer keys images on name plus source and refuses two locks that give one
+// source different digests, so only the platform digest may differ.
 func TestLocksAgreeAcrossPlatformsExceptTheDigest(t *testing.T) {
 	set := testLockedImages()
 	amd64 := buildLock("v1.2.3", linuxAMD64, set)
@@ -243,8 +237,7 @@ func asMapping(node any) map[string]any {
 	return mapping
 }
 
-// keyDiff reports the keys the composer expects and did not get, and the ones it
-// got and does not know; either kind stops it parsing the lock.
+// keyDiff reports missing and unknown keys; either kind stops the composer.
 func keyDiff(got map[string]any, want []string) string {
 	known := map[string]struct{}{}
 	var missing []string

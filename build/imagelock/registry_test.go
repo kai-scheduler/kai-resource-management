@@ -22,13 +22,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// testRegistry serves an in-memory registry over plain http from an ephemeral
-// port. go-containerregistry speaks http rather than https to 127.0.0.1, so
-// references against it resolve without a certificate.
+// testRegistry serves an in-memory registry over plain http: go-containerregistry
+// speaks http to 127.0.0.1, so references resolve without a certificate.
 func testRegistry(t *testing.T) string {
 	t.Helper()
-	// The registry logs every request; discard it so a failing test shows only its
-	// own output.
+	// Discard the per-request log so a failing test shows only its own output.
 	server := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0))))
 	t.Cleanup(server.Close)
 
@@ -39,8 +37,8 @@ func testRegistry(t *testing.T) string {
 	return parsed.Host
 }
 
-// pushIndex publishes a multi-arch index whose per-platform manifests each hold
-// different content, so their digests differ the way a real buildx push does.
+// pushIndex gives each platform different content, so the digests differ the way
+// a real buildx push does.
 func pushIndex(t *testing.T, ref string, platforms ...platform) {
 	t.Helper()
 	index := mutate.IndexMediaType(empty.Index, types.OCIImageIndex)
@@ -105,8 +103,7 @@ func TestResolveRejectsAMissingPlatform(t *testing.T) {
 	}
 }
 
-// A bare manifest carries no index digest, which the composer requires, and means
-// the image was not pushed for both platforms. That is a build problem to surface.
+// A bare manifest carries no index digest, which the composer requires.
 func TestResolveRejectsASingleManifest(t *testing.T) {
 	ref := testRegistry(t) + "/krm/krm-operator:v1.2.3"
 	image, err := random.Image(64, 1)

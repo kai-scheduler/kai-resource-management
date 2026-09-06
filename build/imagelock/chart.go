@@ -19,9 +19,9 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// kaiRegistry is where the bundled kai-scheduler subchart pulls from. Unlike the
-// chart's own registry it is not rewritten at release time: values.yaml pins
-// kai-scheduler.global.registry so a parent registry override cannot clobber it.
+// kaiRegistry is the bundled subchart's registry. Unlike the chart's own it is
+// never rewritten at release time: values.yaml pins it so a parent override
+// cannot clobber it.
 const kaiRegistry = "ghcr.io/kai-scheduler/kai-scheduler"
 
 type chartImage struct {
@@ -33,17 +33,15 @@ type chartImage struct {
 func (c chartImage) reference() string { return c.repo + ":" + c.tag }
 
 // imageCatalog decides who owns an image, and therefore who locks it. Ownership
-// follows the registry rather than a list of image names: both registries are
-// stable - one is where this release publishes, the other is pinned in values.yaml
-// - whereas names would have to be restated here whenever either chart gained an
-// image, including images this repository does not lock anyway.
+// follows the registry rather than a list of image names, because both registries
+// are stable whereas names would have to be restated here whenever either chart
+// gained an image.
 type imageCatalog struct {
-	// lock is where this release publishes. Everything under it goes in the lock,
-	// so a service added to the chart is covered without a change here.
+	// lock is where this release publishes, so a service added to the chart is
+	// covered without a change here.
 	lock string
-	// skip is the bundled subchart's registry. Its images are recognised so they do
-	// not trip the check in classify, and excluded because the kai-scheduler project
-	// publishes and pins them itself.
+	// skip is the bundled subchart's registry: recognised so it does not trip
+	// classify, excluded because the kai-scheduler project locks it itself.
 	skip string
 }
 
@@ -51,10 +49,9 @@ func newImageCatalog(registry string) imageCatalog {
 	return imageCatalog{lock: registry, skip: kaiRegistry}
 }
 
-// classify reports the name an image gets in the lock, and whether it belongs in
-// the lock at all. An image under neither registry belongs to nobody: a
-// third-party image reaches an air-gapped site only if someone adds it here on
-// purpose, so an unrecognised one stops the run rather than vanishing quietly.
+// classify reports the name an image gets and whether it belongs in the lock. An
+// image under neither registry stops the run rather than vanishing quietly: a
+// third-party image reaches an air-gapped site only if someone puts it there.
 func (c imageCatalog) classify(repo string) (name string, locked bool, err error) {
 	switch {
 	case under(repo, c.lock):
@@ -69,22 +66,22 @@ func (c imageCatalog) classify(repo string) (name string, locked bool, err error
 }
 
 // under matches on a path boundary, so a registry is not confused with one whose
-// name it happens to prefix.
+// name it prefixes.
 func under(repo, registry string) bool {
 	return strings.HasPrefix(repo, registry+"/")
 }
 
-// renderChart runs `helm template` for one profile. The chart's defaults already
-// name every image an install can run - a component switched off still carries its
-// image block into the KRMConfig or the KAI Config - so nothing is forced on here.
+// renderChart forces no toggles on: the chart's defaults already name every image
+// an install can run, since a component switched off still carries its image block
+// into the KRMConfig or the KAI Config.
 func renderChart(ctx context.Context, opts options, prof profile) ([]byte, error) {
 	args := []string{"template", "krm", opts.chart,
 		"--set", "image.registry=" + opts.registry,
 		"--set", "image.tag=" + opts.version,
 	}
 	if prof == profileFIPS {
-		// Two keys, not one: Helm shares global.* into subcharts verbatim, and the
-		// pinned kai-scheduler release spells the same switch as a boolean.
+		// Two keys: Helm shares global.* into subcharts verbatim, and the pinned
+		// kai-scheduler release spells the same switch as a boolean.
 		args = append(args, "--set", "global.fipsMode=on", "--set", "kai-scheduler.global.fips=true")
 	}
 
@@ -92,8 +89,8 @@ func renderChart(ctx context.Context, opts options, prof profile) ([]byte, error
 	if helmBin == "" {
 		helmBin = "helm"
 	}
-	// #nosec G204 -- the helm binary and chart path are caller-supplied options of a
-	// developer tool, and every other argument is built here.
+	// #nosec G204 -- helm binary and chart path are options of a developer tool;
+	// every other argument is built here.
 	helm := exec.CommandContext(ctx, helmBin, args...)
 	var stderr bytes.Buffer
 	helm.Stderr = &stderr
@@ -104,8 +101,8 @@ func renderChart(ctx context.Context, opts options, prof profile) ([]byte, error
 	return rendered, nil
 }
 
-// imagesFromManifest returns the images this release locks, and how many it
-// recognised as another project's to lock.
+// imagesFromManifest returns the images this release locks, and how many belong
+// to another project's lock.
 func imagesFromManifest(manifest []byte, catalog imageCatalog) (images []chartImage, skipped int, err error) {
 	refs, err := imageRefs(manifest)
 	if err != nil {
@@ -167,9 +164,8 @@ func imageRefs(manifest []byte) ([]string, error) {
 	return unique, nil
 }
 
-// collectImages walks a decoded document for image references. Both spellings
-// matter: a pod spec writes `image: repo:tag`, while the KAI Config and the
-// KRMConfig carry a {name, repository, tag} object the operators assemble.
+// collectImages handles both spellings: a pod spec's `image: repo:tag`, and the
+// {name, repository, tag} object the KAI and KRM operators assemble.
 func collectImages(node any, refs map[string]struct{}) {
 	switch typed := node.(type) {
 	case map[string]any:
@@ -190,8 +186,7 @@ func collectImages(node any, refs map[string]struct{}) {
 }
 
 // collectEmbeddedImages walks the custom resources the charts ship as ConfigMap
-// text. The KAI Config and the KRMConfig both reach the cluster that way, and the
-// images their operators create are named nowhere else in the render.
+// text. The images their operators later create are named nowhere else.
 func collectEmbeddedImages(node any, refs map[string]struct{}) {
 	document, ok := node.(map[string]any)
 	if !ok || document["kind"] != "ConfigMap" {
@@ -207,8 +202,7 @@ func collectEmbeddedImages(node any, refs map[string]struct{}) {
 			continue
 		}
 		var embedded any
-		// Most entries are scripts rather than manifests; anything that does not
-		// decode into a mapping simply holds no image.
+		// Most entries are scripts; anything that does not decode holds no image.
 		if err := yaml.Unmarshal([]byte(text), &embedded); err != nil {
 			continue
 		}
@@ -216,8 +210,8 @@ func collectEmbeddedImages(node any, refs map[string]struct{}) {
 	}
 }
 
-// isImageKey reports whether a key holds an image reference. The suffix form
-// catches the KAI Config's scalingPodImage, which sits outside a service block.
+// isImageKey accepts the suffix form for the KAI Config's scalingPodImage, which
+// sits outside a service block.
 func isImageKey(key string) bool {
 	return key == "image" || strings.HasSuffix(key, "Image")
 }
@@ -243,8 +237,8 @@ func imageReference(node any) (string, bool) {
 	return "", false
 }
 
-// splitReference divides repo:tag. A colon after the last slash is a tag; a colon
-// before it belongs to a registry port.
+// splitReference divides repo:tag. A colon after the last slash is a tag; before
+// it, a registry port.
 func splitReference(ref string) (repo, tag string) {
 	slash := strings.LastIndexByte(ref, '/')
 	if colon := strings.LastIndexByte(ref, ':'); colon > slash {
