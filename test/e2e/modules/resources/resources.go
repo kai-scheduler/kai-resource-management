@@ -152,6 +152,23 @@ func WithDefaultNodePools(nodePools ...string) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.DefaultNodePools = nodePools }
 }
 
+func WithQueueResources(queueResources *kaires.QueueResourcesConfig, priority *int32) ProjectOption {
+	return func(project *kaires.Project) {
+		for i := range project.Spec.Queues {
+			project.Spec.Queues[i].Resources = queueResources
+			project.Spec.Queues[i].Priority = priority
+		}
+	}
+}
+
+func WithNamespace(namespace string) ProjectOption {
+	return func(project *kaires.Project) { project.Spec.Namespace = namespace }
+}
+
+func Namespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{ObjectMeta: objectMeta(name)}
+}
+
 // Project builds a project with one queue per node pool, and those same pools as
 // its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than
@@ -219,6 +236,11 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 		}
 		pod.Annotations[key] = strings.Join(nodePools, " ")
 	}
+}
+
+// WithNodePoolLabel names a node pool for the mutating webhook to turn into affinity.
+func WithNodePoolLabel(key, nodePool string) PodOption {
+	return func(pod *corev1.Pod) { pod.Labels[key] = nodePool }
 }
 
 // NodeSelectorPair is one node pool expressed the way a node carries it: the
