@@ -1,5 +1,5 @@
 # KAI Resource Management
-Copyright 2026 NVIDIA CORPORATION
+Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 The base code for `.github/scripts/dco_check.py` was derived from christophebedard/dco-check, which is licensed under the Apache License, Version 2.0.
 Copyright (c) The christophebedard/dco-check Authors.
