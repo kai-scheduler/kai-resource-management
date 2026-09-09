@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 include build/makefile/index.mk
@@ -19,6 +19,10 @@ API_CRD_DIR = $(shell $(GO) list -m -f '{{.Dir}}' $(API_MODULE))/config/crd
 CHART_CRD_DIR := deployments/kai-resource-management-chart/crds
 CRD_MANAGER_ROLE := deployments/kai-resource-management-chart/templates/rbac/crd-manager.yaml
 CHART_DIR := deployments/kai-resource-management-chart
+
+# addlicense knows no .tpl comment style and skips those files silently, so
+# header-format-check covers them and enforces the exact wording this emits.
+LICENSE_HEADER := hack/license-header.txt
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
@@ -85,12 +89,12 @@ lint: fmt-check lint-go ## Run all static checks.
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.
-	$(ADDLICENSE) -c "NVIDIA CORPORATION" -s=only -l apache -v \
+	$(ADDLICENSE) -f $(LICENSE_HEADER) -v \
 		$(LICENSE_IGNORES) .
 
 .PHONY: license-check
 license-check: addlicense ## Verify Apache-2.0 headers without changing files.
-	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
+	$(ADDLICENSE) -check -f $(LICENSE_HEADER) \
 		$(LICENSE_IGNORES) .
 
 .PHONY: notice

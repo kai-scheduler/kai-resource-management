@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 """Regenerate the third-party attribution in NOTICE from the linked dependency set.
