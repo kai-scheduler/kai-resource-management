@@ -580,3 +580,85 @@ Copyright 2018 The Kubernetes Authors.
 sigs.k8s.io/yaml
 Licensed under the MIT License
 Copyright (c) 2014 Sam Ghods
+
+## The following components are declared in go.mod but are not linked into any binary distributed by this project:
+
+They are listed for completeness of the declared dependency set. Each is reached
+only by test binaries, by an encoder behind a build tag this project never sets, or
+by platform code no released build compiles. None ships in a container image.
+
+cyphar.com/go-pathrs
+Licensed under the Mozilla Public License 2.0
+Copyright (C) 2019-2025 Aleksa Sarai <cyphar@cyphar.com>
+
+github.com/bytedance/gopkg
+Licensed under the Apache License 2.0
+Copyright 2021 ByteDance Inc.
+
+github.com/bytedance/sonic
+Licensed under the Apache License 2.0
+Copyright 2021 ByteDance Inc.
+
+github.com/bytedance/sonic/loader
+Licensed under the Apache License 2.0
+Copyright 2024 CloudWeGo Authors
+
+github.com/cloudwego/base64x
+Licensed under the Apache License 2.0
+Copyright 2025 ByteDance Inc.
+
+github.com/go-task/slim-sprig/v3
+Licensed under the MIT License
+Copyright (C) 2013-2020 Masterminds
+
+github.com/goccy/go-json
+Licensed under the MIT License
+Copyright (c) 2020 Masaaki Goshima
+
+github.com/google/pprof
+Licensed under the Apache License 2.0
+Copyright 2014 Google Inc. All Rights Reserved.
+
+github.com/inconshreveable/mousetrap
+Licensed under the Apache License 2.0
+Copyright 2022 Alan Shreve (@inconshreveable)
+
+github.com/klauspost/cpuid/v2
+Licensed under the MIT License
+Copyright (c) 2015 Klaus Post
+
+github.com/kylelemons/godebug
+Licensed under the Apache License 2.0
+Copyright 2013 Google Inc.  All rights reserved.
+
+github.com/Masterminds/semver/v3
+Licensed under the MIT License
+Copyright (C) 2014-2019, Matt Butcher and Matt Farina
+
+github.com/Microsoft/go-winio
+Licensed under the MIT License
+Copyright (c) 2015 Microsoft
+
+github.com/onsi/ginkgo/v2
+Licensed under the MIT License
+Copyright (c) 2013-2014 Onsi Fakhouri
+
+github.com/onsi/gomega
+Licensed under the MIT License
+Copyright (c) 2013-2014 Onsi Fakhouri
+
+github.com/twitchyliquid64/golang-asm
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2009 The Go Authors. All rights reserved.
+
+golang.org/x/arch
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2015 The Go Authors.
+
+golang.org/x/mod
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
+
+golang.org/x/tools
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright 2009 The Go Authors.
