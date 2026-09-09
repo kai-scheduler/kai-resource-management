@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 {{/*
 Returns a non-empty string when installing on OpenShift: either forced via
 .Values.openshift or auto-detected from the OpenShift ClusterVersion CRD.
