@@ -97,6 +97,10 @@ license-check: addlicense ## Verify Apache-2.0 headers without changing files.
 	$(ADDLICENSE) -check -f $(LICENSE_HEADER) \
 		$(LICENSE_IGNORES) .
 
+.PHONY: header-format-check
+header-format-check: ## Verify the exact wording of the NVIDIA copyright header.
+	hack/check-license-headers.sh
+
 .PHONY: notice
 notice: ## Regenerate the third-party attribution in NOTICE from the linked modules.
 	python3 hack/gen-notice.py
@@ -141,7 +145,7 @@ scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted
 	bash hack/scc-check.sh $(CHART_DIR)
 
 .PHONY: validate
-validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
+validate: mod-check lint license-check header-format-check notice-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.
