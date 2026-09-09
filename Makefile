@@ -115,6 +115,7 @@ sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
 	@# The module cache is read-only, so the copies land unwritable and the
 	@# next sync would fail with "Permission denied".
 	chmod u+w $(CHART_CRD_DIR)/*.yaml
+	hack/normalize-crd-header.sh $(CHART_CRD_DIR)
 
 .PHONY: sync-crds-check
 sync-crds-check: ## Verify the chart CRDs match the pinned API module.
@@ -123,6 +124,8 @@ sync-crds-check: ## Verify the chart CRDs match the pinned API module.
 	@# added or removed by the API module, which a content-only check misses.
 	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
 	cp $(API_CRD_DIR)/*.yaml "$$tmp/"; \
+	chmod u+w "$$tmp"/*.yaml; \
+	hack/normalize-crd-header.sh "$$tmp"; \
 	if ! diff -ru "$$tmp" $(CHART_CRD_DIR); then \
 		echo "::error::Chart CRDs are out of sync with $(API_MODULE). Run 'make sync-crds' and commit the result."; \
 		exit 1; \
