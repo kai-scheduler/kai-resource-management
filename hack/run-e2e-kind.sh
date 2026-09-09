@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 CLUSTER_NAME=${CLUSTER_NAME:-krm-e2e}
