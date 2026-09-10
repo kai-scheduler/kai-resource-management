@@ -35,8 +35,12 @@ the run, because a third-party image reaches an air-gapped site only on purpose.
 
 ```bash
 make image-lock VERSION=v1.2.3   # write the locks into bin/imagelocks/
-make image-lock-check            # offline coverage check; no network, no files
+make image-lock-check            # coverage check only: no registry lookups, no locks written
 ```
+
+Both targets fetch the bundled subchart into `charts/` first, through `helm-deps`.
+The generator itself reaches no registry under `--verify-only`; the dependency
+fetch does.
 
 `image-lock-check` is part of `make validate`, so a chart change that introduces an
 unclassified image fails on the pull request rather than during a release.

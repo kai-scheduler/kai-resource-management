@@ -164,7 +164,7 @@ image-lock: helm-deps ## Write the air-gap ImageLock files for a release; requir
 
 .PHONY: image-lock-check
 image-lock-check: helm-deps ## Verify every image the chart renders is one the lock generator knows.
-	$(GO) run ./build/imagelock --chart $(CHART_DIR) --verify-only
+	$(GO) run ./build/imagelock --chart $(CHART_DIR) --registry $(IMAGE_LOCK_REGISTRY) --verify-only
 
 .PHONY: validate
 validate: mod-check lint license-check header-format-check notice-check sync-crds-check crd-rbac-check scc-check image-lock-check ## Run all repository validation without changing tracked files; tests are separate.
