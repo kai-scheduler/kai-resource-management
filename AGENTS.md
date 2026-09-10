@@ -263,7 +263,7 @@ Common types are `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, and
 Behavior changes require a changelog fragment. Refactors, tests, documentation,
 and CI-only changes do not.
 
-Every commit must include DCO sign-off as described in `CLA.md`.
+Every commit must include DCO sign-off as described in `CONTRIBUTING.md`.
 
 ## Completion checklist
 

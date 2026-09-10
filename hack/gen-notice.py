@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regenerate the third-party attribution in NOTICE from the linked dependency set.
+"""Regenerate the third-party attribution in NOTICE from the declared dependency set.
 
-NOTICE must describe what the published images actually carry, so the set it lists is
-the union of `go list -deps` over every cmd/ main for every released platform -- not
-go.mod, which also names test-only and build-only modules that reach no binary.
+NOTICE lists every module go.mod declares, in two sections. The first is what the
+published images actually carry: the union of `go list -deps` over every cmd/ main for
+every released platform. The second is the remainder of go.mod -- test-only modules,
+encoders behind build tags this project never sets, and platform code no released build
+reaches -- listed for completeness of the declared set and marked as reaching no binary.
+
+Keeping the split matters in both directions: an attribution file that under-reports the
+declared set invites a reviewer to check it by hand, and one that silently folds
+unshipped modules into the shipped list misstates what the container contains.
 
 Attribution is derived from the module cache, but two things resist derivation: a
 module can ship no copyright statement at all, and a module can be split-licensed. The
@@ -18,6 +24,7 @@ changes license is rewritten.
 import argparse
 import collections
 import difflib
+import json
 import os
 import re
 import subprocess
@@ -29,6 +36,12 @@ NOTICE = os.path.join(REPO, "NOTICE")
 PLATFORMS = [("linux", "amd64"), ("linux", "arm64")]
 
 MARK = "## The following components are included in this product:"
+UNLINKED_MARK = "## The following components are declared in go.mod but are not linked into any binary distributed by this project:"
+UNLINKED_NOTE = (
+    "They are listed for completeness of the declared dependency set. Each is reached\n"
+    "only by test binaries, by an encoder behind a build tag this project never sets, or\n"
+    "by platform code no released build compiles. None ships in a container image."
+)
 SUMMARY_HEAD = (
     "This project also includes software components licensed under various "
     "open-source licenses. The following licenses apply to the components used "
@@ -80,6 +93,8 @@ OVERRIDES = {
     "sigs.k8s.io/json": {
         "copyright": "Copyright The Kubernetes Authors. (includes portions under the BSD 3-Clause License, Copyright 2010 The Go Authors)"
     },
+    # Ships LICENSE and LICENSE-APACHE, the same Apache-2.0 text twice.
+    "github.com/cloudwego/base64x": {"license": "Apache-2.0"},
     # LICENSE carries only the Apache boilerplate; copyright taken from the project.
     "github.com/go-logr/logr": {"copyright": "Copyright 2021 The logr Authors."},
     "github.com/go-logr/zapr": {"copyright": "Copyright 2023 The logr Authors."},
@@ -134,6 +149,40 @@ def closure():
                 path, version, directory = line.split("|", 2)
                 mods[path] = (version, directory)
     mods.pop("github.com/kai-scheduler/kai-resource-management", None)
+    return mods
+
+
+def declared(exclude):
+    """module path -> (version, directory), for go.mod requires not already in `exclude`.
+
+    go.mod is the declared set a licence audit reads. Resolving it through `go list -m`
+    rather than trusting the file gives the module cache directory the attribution is
+    then derived from, exactly as the linked set does.
+    """
+    go = os.environ.get("GO", "go")
+    meta = json.loads(run([go, "mod", "edit", "-json"], cwd=REPO))
+    paths = sorted(
+        r["Path"] for r in (meta.get("Require") or []) if r["Path"] not in exclude
+    )
+    if not paths:
+        return {}
+    fmt = "{{.Path}}|{{.Version}}|{{.Dir}}"
+    out = run([go, "list", "-m", "-f", fmt, *paths], cwd=REPO)
+    mods, absent = {}, []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        path, version, directory = line.split("|", 2)
+        # An empty Dir means the module was never downloaded, so nothing can be read
+        # from it. Report it rather than silently dropping it from the attribution.
+        if not directory:
+            absent.append(path)
+            continue
+        mods[path] = (version, directory)
+    if absent:
+        raise SystemExit(
+            f"::error::not in the module cache: {', '.join(absent)}. Run 'go mod download'."
+        )
     return mods
 
 
@@ -274,7 +323,7 @@ class TemplateError(Exception):
     """The hand-written parts of NOTICE no longer match what the generator splits on."""
 
 
-def render(current, blocks, present):
+def render(current, blocks, unlinked, present):
     # Only the summary and the component list are generated. The prose between them
     # carries the written offer of source, so a missing marker must stop the run
     # rather than silently drop it.
@@ -292,6 +341,12 @@ def render(current, blocks, present):
         + MARK
         + "\n\n"
         + "\n\n".join(b for b, _, _ in blocks)
+        + "\n\n"
+        + UNLINKED_MARK
+        + "\n\n"
+        + UNLINKED_NOTE
+        + "\n\n"
+        + "\n\n".join(b for b, _, _ in unlinked)
         + "\n"
     )
 
@@ -304,19 +359,22 @@ def main():
 
     mods = closure()
     blocks, problems = entries(mods)
-    present = {spdx for _, spdx, _ in blocks}
+    unlinked_mods = declared(exclude=mods)
+    unlinked, unlinked_problems = entries(unlinked_mods)
+    problems += unlinked_problems
+    present = {spdx for _, spdx, _ in blocks + unlinked}
     current = open(NOTICE, encoding="utf-8").read()
     try:
-        updated = render(current, blocks, present)
+        updated = render(current, blocks, unlinked, present)
     except TemplateError as err:
         print(f"::error::{err}", file=sys.stderr)
         return 1
 
     if args.report:
-        by_source = collections.Counter(src for _, _, src in blocks)
-        by_license = collections.Counter(spdx for _, spdx, _ in blocks)
+        by_source = collections.Counter(src for _, _, src in blocks + unlinked)
+        by_license = collections.Counter(spdx for _, spdx, _ in blocks + unlinked)
         print(f"binaries: {', '.join(binaries())}")
-        print(f"modules linked: {len(blocks)}")
+        print(f"modules linked: {len(blocks)}; declared but not linked: {len(unlinked)}")
         print("licenses: " + ", ".join(f"{k} x{v}" for k, v in sorted(by_license.items())))
         print("attribution from: " + ", ".join(f"{k} x{v}" for k, v in sorted(by_source.items())))
 
@@ -336,19 +394,19 @@ def main():
             )
             sys.stderr.writelines(diff)
             print(
-                "::error::NOTICE does not match the linked dependency set. "
+                "::error::NOTICE does not match the declared dependency set. "
                 "Run 'make notice' and commit the result.",
                 file=sys.stderr,
             )
             return 1
-        print(f"NOTICE is up to date ({len(blocks)} modules).")
+        print(f"NOTICE is up to date ({len(blocks) + len(unlinked)} modules).")
         return 0
 
     if updated != current:
         open(NOTICE, "w", encoding="utf-8").write(updated)
-        print(f"NOTICE updated ({len(blocks)} modules).")
+        print(f"NOTICE updated ({len(blocks) + len(unlinked)} modules).")
     else:
-        print(f"NOTICE already up to date ({len(blocks)} modules).")
+        print(f"NOTICE already up to date ({len(blocks) + len(unlinked)} modules).")
     return 0
 
 

@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 include build/makefile/index.mk
@@ -24,6 +24,10 @@ CHART_DIR := deployments/kai-resource-management-chart
 # which still carries the local build default at this point.
 IMAGE_LOCK_REGISTRY ?= ghcr.io/kai-scheduler/kai-resource-management
 IMAGE_LOCK_OUT_DIR ?= $(CURDIR)/bin/imagelocks
+
+# addlicense knows no .tpl comment style and skips those files silently, so
+# header-format-check covers them and enforces the exact wording this emits.
+LICENSE_HEADER := hack/license-header.txt
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
@@ -90,13 +94,17 @@ lint: fmt-check lint-go ## Run all static checks.
 
 .PHONY: gen-license
 gen-license: addlicense ## Add missing Apache-2.0 headers to source and configuration files.
-	$(ADDLICENSE) -c "NVIDIA CORPORATION" -s=only -l apache -v \
+	$(ADDLICENSE) -f $(LICENSE_HEADER) -v \
 		$(LICENSE_IGNORES) .
 
 .PHONY: license-check
 license-check: addlicense ## Verify Apache-2.0 headers without changing files.
-	$(ADDLICENSE) -check -c "NVIDIA CORPORATION" -s=only -l apache \
+	$(ADDLICENSE) -check -f $(LICENSE_HEADER) \
 		$(LICENSE_IGNORES) .
+
+.PHONY: header-format-check
+header-format-check: ## Verify the exact wording of the NVIDIA copyright header.
+	hack/check-license-headers.sh
 
 .PHONY: notice
 notice: ## Regenerate the third-party attribution in NOTICE from the linked modules.
@@ -112,6 +120,7 @@ sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
 	@# The module cache is read-only, so the copies land unwritable and the
 	@# next sync would fail with "Permission denied".
 	chmod u+w $(CHART_CRD_DIR)/*.yaml
+	hack/normalize-crd-header.sh $(CHART_CRD_DIR)
 
 .PHONY: sync-crds-check
 sync-crds-check: ## Verify the chart CRDs match the pinned API module.
@@ -120,6 +129,8 @@ sync-crds-check: ## Verify the chart CRDs match the pinned API module.
 	@# added or removed by the API module, which a content-only check misses.
 	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
 	cp $(API_CRD_DIR)/*.yaml "$$tmp/"; \
+	chmod u+w "$$tmp"/*.yaml; \
+	hack/normalize-crd-header.sh "$$tmp"; \
 	if ! diff -ru "$$tmp" $(CHART_CRD_DIR); then \
 		echo "::error::Chart CRDs are out of sync with $(API_MODULE). Run 'make sync-crds' and commit the result."; \
 		exit 1; \
@@ -156,7 +167,7 @@ image-lock-check: helm-deps ## Verify every image the chart renders is one the l
 	$(GO) run ./build/imagelock --chart $(CHART_DIR) --verify-only
 
 .PHONY: validate
-validate: mod-check lint license-check notice-check sync-crds-check crd-rbac-check scc-check image-lock-check ## Run all repository validation without changing tracked files; tests are separate.
+validate: mod-check lint license-check header-format-check notice-check sync-crds-check crd-rbac-check scc-check image-lock-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
 changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.

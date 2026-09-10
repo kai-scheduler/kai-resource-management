@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package config
@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
+	DefaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
 
 	DefaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"
 
@@ -118,7 +118,7 @@ func AddLabelFlags(fs *flag.FlagSet) {
 			kaipgconstants.ProjectLabelKey,
 			"Label key for the project name on a workload/podgroup")
 		fs.StringVar(&cfg.UnexistingNodepoolSentinel, "unexisting-nodepool-sentinel",
-			defaultUnexistingNodepoolSentinel,
+			DefaultUnexistingNodepoolSentinel,
 			"Label value used to mark a podgroup as not yet assigned to any node pool")
 		fs.StringVar(&cfg.DefaultNodepoolName, "default-nodepool-name",
 			kaiconstants.DefaultNodePoolName,
