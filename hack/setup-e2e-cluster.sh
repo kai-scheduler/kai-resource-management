@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # This script sets up a kind cluster for e2e testing with kai-resource-management.

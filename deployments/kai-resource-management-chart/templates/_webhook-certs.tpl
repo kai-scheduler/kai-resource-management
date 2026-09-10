@@ -1,3 +1,6 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 {{/*
 Webhook serving certificate for a component. Returns YAML with base64-encoded ca/crt/key,
 so callers parse it once with fromYaml and render both the Secret and the webhook

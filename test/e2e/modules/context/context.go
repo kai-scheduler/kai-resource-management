@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package context connects the e2e suites to a cluster and guards that cluster
