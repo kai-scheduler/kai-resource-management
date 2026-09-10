@@ -66,6 +66,7 @@ DISPLAY = {spdx: name for spdx, _, name in LICENSES}
 OVERRIDES = {
     # Ships no copyright statement anywhere in the distributed module.
     "cel.dev/expr": {"copyright": "Copyright Google LLC"},
+    "github.com/docker/distribution": {"copyright": "Copyright The docker/distribution Authors"},
     "github.com/hashicorp/errwrap": {"copyright": "Copyright HashiCorp, Inc."},
     "github.com/hashicorp/go-multierror": {"copyright": "Copyright HashiCorp, Inc."},
     "github.com/moby/sys/mountinfo": {"copyright": "Copyright The Moby Authors"},

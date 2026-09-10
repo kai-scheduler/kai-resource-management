@@ -607,6 +607,22 @@ github.com/cloudwego/base64x
 Licensed under the Apache License 2.0
 Copyright 2025 ByteDance Inc.
 
+github.com/containerd/stargz-snapshotter/estargz
+Licensed under the Apache License 2.0
+Copyright The containerd Authors.
+
+github.com/docker/cli
+Licensed under the Apache License 2.0
+Copyright 2012-2017 Docker, Inc.
+
+github.com/docker/distribution
+Licensed under the Apache License 2.0
+Copyright The docker/distribution Authors
+
+github.com/docker/docker-credential-helpers
+Licensed under the MIT License
+Copyright (c) 2016 David Calavera
+
 github.com/go-task/slim-sprig/v3
 Licensed under the MIT License
 Copyright (C) 2013-2020 Masterminds
@@ -615,6 +631,10 @@ github.com/goccy/go-json
 Licensed under the MIT License
 Copyright (c) 2020 Masaaki Goshima
 
+github.com/google/go-containerregistry
+Licensed under the Apache License 2.0
+Copyright 2018 Google LLC All Rights Reserved.
+
 github.com/google/pprof
 Licensed under the Apache License 2.0
 Copyright 2014 Google Inc. All Rights Reserved.
@@ -622,6 +642,10 @@ Copyright 2014 Google Inc. All Rights Reserved.
 github.com/inconshreveable/mousetrap
 Licensed under the Apache License 2.0
 Copyright 2022 Alan Shreve (@inconshreveable)
+
+github.com/klauspost/compress
+Licensed under the Apache License 2.0
+Copyright (c) 2012 The Go Authors. All rights reserved.
 
 github.com/klauspost/cpuid/v2
 Licensed under the MIT License
@@ -639,6 +663,10 @@ github.com/Microsoft/go-winio
 Licensed under the MIT License
 Copyright (c) 2015 Microsoft
 
+github.com/mitchellh/go-homedir
+Licensed under the MIT License
+Copyright (c) 2013 Mitchell Hashimoto
+
 github.com/onsi/ginkgo/v2
 Licensed under the MIT License
 Copyright (c) 2013-2014 Onsi Fakhouri
@@ -647,9 +675,25 @@ github.com/onsi/gomega
 Licensed under the MIT License
 Copyright (c) 2013-2014 Onsi Fakhouri
 
+github.com/opencontainers/image-spec
+Licensed under the Apache License 2.0
+Copyright 2016 The Linux Foundation.
+
+github.com/pkg/errors
+Licensed under the BSD 2-Clause "Simplified" License
+Copyright (c) 2015, Dave Cheney <dave@cheney.net>
+
+github.com/sirupsen/logrus
+Licensed under the MIT License
+Copyright (c) 2014 Simon Eskildsen
+
 github.com/twitchyliquid64/golang-asm
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2009 The Go Authors. All rights reserved.
+
+github.com/vbatts/tar-split
+Licensed under the BSD 3-Clause "New" or "Revised" License
+Copyright (c) 2015 Vincent Batts, Raleigh, NC, USA
 
 golang.org/x/arch
 Licensed under the BSD 3-Clause "New" or "Revised" License
