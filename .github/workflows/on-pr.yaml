@@ -382,21 +382,19 @@ jobs:
               exit 0
             fi
             PREV_MINOR="${MAJOR}.$((MINOR - 1))"
-            CANDIDATES=$(gh release list --limit 200 --json tagName -q '.[].tagName' \
-              | grep -E "^v${PREV_MINOR}\.[0-9]+$" | sort -rV)
-            if [ -z "$CANDIDATES" ]; then
-              echo "No release found for v${PREV_MINOR}.x. Skipping the upgrade tests."
-              echo "skip=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            PATTERN="^v${PREV_MINOR}\.[0-9]+$"
+            NO_MATCH_MESSAGE="No release found for v${PREV_MINOR}.x."
           else
-            CANDIDATES=$(gh release list --limit 200 --json tagName -q '.[].tagName' \
-              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -rV)
-            if [ -z "$CANDIDATES" ]; then
-              echo "No releases found. Skipping the upgrade tests."
-              echo "skip=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+            NO_MATCH_MESSAGE="No releases found."
+          fi
+
+          TAGS=$(gh release list --limit 200 --json tagName -q '.[].tagName')
+          CANDIDATES=$(printf '%s\n' "$TAGS" | grep -E "$PATTERN" | sort -rV || true)
+          if [ -z "$CANDIDATES" ]; then
+            echo "$NO_MATCH_MESSAGE Skipping the upgrade tests."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
           # A release exists before its chart does: the tag push starts

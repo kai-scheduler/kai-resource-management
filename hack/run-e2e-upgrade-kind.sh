@@ -61,10 +61,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Echoes the newest release whose chart is published, or nothing; charts lag their
-# release, so candidates are probed. Every path returns 0 or set -e kills the skip.
+# Echoes the newest release whose chart is published, or nothing when there is no
+# release to upgrade from; charts lag their release, so candidates are probed.
+# Returns non-zero only when the lookup itself failed, which is not a skip. The
+# failures are reported explicitly because set -e does not reach into the command
+# substitution the caller invokes this from.
 resolve_upgrade_from_version() {
-  local branch major minor pattern candidates candidate
+  local branch major minor pattern response tags candidates candidate
 
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 
@@ -79,7 +82,17 @@ resolve_upgrade_from_version() {
     pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
   fi
 
-  candidates=$(curl -sf "$RELEASES_API" | jq -r '.[].tag_name' | grep -E "$pattern" | sort -rV)
+  # One pipeline would make a failed request or a jq error indistinguishable from
+  # "no matching release", so each stage that can fail is checked on its own.
+  if ! response=$(curl -sf "$RELEASES_API"); then
+    echo "Failed to list releases from $RELEASES_API." >&2
+    return 1
+  fi
+  if ! tags=$(printf '%s\n' "$response" | jq -r '.[].tag_name'); then
+    echo "Failed to read release tags from $RELEASES_API." >&2
+    return 1
+  fi
+  candidates=$(printf '%s\n' "$tags" | grep -E "$pattern" | sort -rV || true)
   if [ -z "$candidates" ]; then
     return 0
   fi
@@ -96,7 +109,7 @@ resolve_upgrade_from_version() {
 
 if [ -z "$UPGRADE_FROM_VERSION" ]; then
   echo "Resolving the version to upgrade from..."
-  UPGRADE_FROM_VERSION=$(resolve_upgrade_from_version)
+  UPGRADE_FROM_VERSION=$(resolve_upgrade_from_version) || exit 1
 fi
 
 if [ -z "$UPGRADE_FROM_VERSION" ]; then
