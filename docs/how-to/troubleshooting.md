@@ -73,9 +73,9 @@ KAI Scheduler Config "kai-config" does not exist
 ```
 
 The scheduler's CRDs are installed but nothing applied its `Config` CR — usually
-because KAI was installed with `kaiConfigDeployer.enabled=false` and
-`kaiConfig.render=false`, so neither mechanism creates it, or because the CR was
-deleted out from under the deployer.
+because KAI was installed with `kaiConfigDeployer.enabled=false` and nothing
+applied the CR in the hook's place, or because the CR was deleted out from under
+the deployer.
 
 ```bash
 kubectl get config kai-config
@@ -95,7 +95,7 @@ transiently during a KAI upgrade; it clears itself.
 A third names the version:
 
 ```text
-KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0
+KAI Scheduler v0.14.2 is older than the minimum supported v0.16.9
 ```
 
 ```bash
