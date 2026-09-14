@@ -13,7 +13,7 @@ are untracked: no drift detection, no selfHeal.
 {{- end -}}
 {{- /*
 Unguarded, global.fipsMode=on would render KRM on FIPS images and the bundled scheduler
-on ordinary ones, since KAI v0.17.0 reads global.fips and Helm shares global.* verbatim.
+on ordinary ones, since KAI v0.16.9 reads global.fips and Helm shares global.* verbatim.
 Half a FIPS install is worse than none. Lives here because this template always renders;
 delete once the pinned KAI release understands fipsMode.
 */ -}}

@@ -67,7 +67,7 @@ kai-scheduler:
   global:
     # Pin KAI to its own published images regardless of the parent global.registry.
     registry: ghcr.io/kai-scheduler/kai-scheduler
-    # Duplicates global.fipsMode: KAI v0.17.0 only understands this boolean, and
+    # Duplicates global.fipsMode: KAI v0.16.9 only understands this boolean, and
     # Helm shares global.* verbatim rather than deriving one key from another.
     # Drop once the pinned KAI release understands fipsMode.
     fips: false
@@ -79,11 +79,10 @@ kai-scheduler:
     # project-controller and pod-group-assigner. Empty ⇒ built-in default.
     queueLabelKey: ""
   # KAI owns its Config CR via the built-in deployer hook (no operator in this chart).
-  # For GitOps/ArgoCD instead set kaiConfigDeployer.enabled=false and kaiConfig.render=true.
+  # The pinned KAI release has no in-release render path, so a GitOps install that turns
+  # the hook off has to apply the kai-config CR itself.
   kaiConfigDeployer:
     enabled: true
-  kaiConfig:
-    render: false
   # Our controllers own these: nodepool-controller creates SchedulingShards, project-controller Queues.
   defaultShard:
     enabled: false
