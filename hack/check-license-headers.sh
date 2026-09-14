@@ -19,7 +19,7 @@ set -euo pipefail
 
 COPYRIGHT='Copyright [0-9]{4} NVIDIA CORPORATION & AFFILIATES\. All rights reserved\.'
 SPDX='SPDX-License-Identifier: Apache-2\.0'
-# Lines addlicense emits from hack/license-header.txt, in Go and shell comment styles.
+# Lines addlicense emits from hack/header-template.txt, in Go and shell comment styles.
 COPYRIGHT_LINE="^(//|#) ${COPYRIGHT}\$"
 SPDX_LINE="^(//|#) ${SPDX}\$"
 
