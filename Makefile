@@ -27,7 +27,7 @@ IMAGE_LOCK_OUT_DIR ?= $(CURDIR)/bin/imagelocks
 
 # addlicense knows no .tpl comment style and skips those files silently, so
 # header-format-check covers them and enforces the exact wording this emits.
-LICENSE_HEADER := hack/license-header.txt
+LICENSE_HEADER := hack/header-template.txt
 
 # addlicense does not honor .gitignore. Keep source-like ignored paths here so
 # validation remains safe in developer worktrees.
