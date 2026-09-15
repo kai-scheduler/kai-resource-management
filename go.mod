@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2
-	github.com/kai-scheduler/KAI-scheduler v0.16.8
+	github.com/kai-scheduler/KAI-scheduler v0.16.9
 	github.com/kai-scheduler/api v0.1.1
 	github.com/kai-scheduler/kai-resource-management-api v0.1.2
 	github.com/onsi/ginkgo/v2 v2.32.0
