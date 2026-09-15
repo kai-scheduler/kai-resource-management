@@ -1,5 +1,8 @@
 # Building from source
 
+Audience: contributors changing KAI Resource Management itself. If you only want to
+install and use it, follow the [quickstart](quickstart.md) instead.
+
 The commands below are the stable entry points for building and validating the
 repository's Go code and Helm chart.
 

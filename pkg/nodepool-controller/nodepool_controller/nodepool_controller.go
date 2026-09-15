@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package nodepool_controller
@@ -61,7 +61,7 @@ func NewNodePoolController(client client.Client, scheme *runtime.Scheme,
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kai.resources,resources=nodepools/finalizers,verbs=update
-//+kubebuilder:rbac:groups=run.ai,resources=projects,verbs=get;list;watch
+//+kubebuilder:rbac:groups=kai.resources,resources=projects,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;update;watch;patch;delete;list
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;watch;patch;list
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;list
@@ -140,9 +140,9 @@ func (npc *NodePoolController) indexFields(ctx context.Context, mgr ctrl.Manager
 
 	err = mgr.GetFieldIndexer().IndexField(
 		ctx, &corev1.Pod{},
-		common.PodRunningWithRunaiSchedulerNodeNameField, PodRunningWithRunaiSchedulerNodeNameIndexer)
+		common.PodRunningWithKaiSchedulerNodeNameField, PodRunningWithKaiSchedulerNodeNameIndexer)
 	if err != nil {
-		log.Error().Msgf("Failed indexing pod field: %v, err: %v", common.PodRunningWithRunaiSchedulerNodeNameField, err.Error())
+		log.Error().Msgf("Failed indexing pod field: %v, err: %v", common.PodRunningWithKaiSchedulerNodeNameField, err.Error())
 		return err
 	}
 
@@ -175,15 +175,15 @@ func NodePoolIsDeletingPhaseIndexer(object client.Object) (indexedKeys []string)
 	return []string{strconv.FormatBool(isDeleting)}
 }
 
-func PodRunningWithRunaiSchedulerNodeNameIndexer(object client.Object) (indexedKeys []string) {
+func PodRunningWithKaiSchedulerNodeNameIndexer(object client.Object) (indexedKeys []string) {
 	pod, ok := object.(*corev1.Pod)
 	if !ok {
-		log.Error().Msgf("PodRunningWithRunaiSchedulerNodeNameIndexer: Cannot convert object to *corev1.Pod: %v", object)
+		log.Error().Msgf("PodRunningWithKaiSchedulerNodeNameIndexer: Cannot convert object to *corev1.Pod: %v", object)
 		return indexedKeys
 	}
 
 	// this will filter out pods that are not running
-	// and don't have runai-scheduler as scheduler name
+	// and don't have the configured scheduler name
 	indexedKey := ""
 	if pod.Spec.SchedulerName == config.Get().SchedulerName && isPodBoundToNode(pod) {
 		indexedKey = pod.Spec.NodeName

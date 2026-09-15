@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package resources
@@ -32,10 +32,6 @@ const (
 	defaultTimeBasedFairShareDecayHalfLife         = 0 * time.Second
 	defaultTimeBasedFairShareWindowDuration        = 7 * 24 * time.Hour
 	defaultTimeBasedFairShareWindowType            = usagedbapi.SlidingWindow
-
-	cpuWorkerNodeLabelKey = "node-role.kubernetes.io/runai-cpu-worker"
-	gpuWorkerNodeLabelKey = "node-role.kubernetes.io/runai-gpu-worker"
-	migWorkerNodeLabelKey = "node-role.kubernetes.io/runai-mig-enabled"
 )
 
 func SchedulerBaseOperandName() string { return config.Get().SchedulerName }
@@ -75,9 +71,9 @@ func buildShardArgs(cfg *v1alpha1.SchedulingShardConfig, params *common.NodePool
 		maps.Copy(args, cfg.Args)
 	}
 	maps.Copy(args, params.SchedulingShardArgs)
-	args[schedulingshardargs.CPUWorkerNodeLabelKey] = cpuWorkerNodeLabelKey
-	args[schedulingshardargs.GPUWorkerNodeLabelKey] = gpuWorkerNodeLabelKey
-	args[schedulingshardargs.MIGWorkerNodeLabelKey] = migWorkerNodeLabelKey
+	args[schedulingshardargs.CPUWorkerNodeLabelKey] = config.Get().CPUWorkerNodeLabelKey
+	args[schedulingshardargs.GPUWorkerNodeLabelKey] = config.Get().GPUWorkerNodeLabelKey
+	args[schedulingshardargs.MIGWorkerNodeLabelKey] = config.Get().MIGWorkerNodeLabelKey
 	return args
 }
 

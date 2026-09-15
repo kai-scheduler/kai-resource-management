@@ -1,10 +1,11 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package statusreconciler
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -56,6 +57,16 @@ func (d *fakeDeployable) HasMissingDependencies(
 	return d.missing, nil
 }
 
+// fakeChecker stands in for an installation-wide dependency.
+type fakeChecker struct {
+	message string
+	err     error
+}
+
+func (c *fakeChecker) Check(_ context.Context, _, _ client.Reader) (string, error) {
+	return c.message, c.err
+}
+
 var _ = Describe("StatusReconciler", func() {
 	var (
 		ctx           context.Context
@@ -84,7 +95,8 @@ var _ = Describe("StatusReconciler", func() {
 			WithStatusSubresource(krmConfig).
 			Build()
 		deployable = &fakeDeployable{deployed: true, available: true}
-		reconciler = New(runtimeClient, deployable)
+		// The fakes ignore the reader, so one client stands in for both.
+		reconciler = New(runtimeClient, runtimeClient, deployable)
 	})
 
 	conditionOf := func(conditionType krmv1alpha1.KRMConfigConditionType) *metav1.Condition {
@@ -203,6 +215,40 @@ var _ = Describe("StatusReconciler", func() {
 			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
 			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
 			Expect(fulfilled.Message).To(Equal("FakeOperand is missing the prometheus operator"))
+		})
+
+		// Two separate sources, both belonging on the one condition.
+		It("reports an installation-wide checker alongside the operands", func() {
+			deployable.missing = "FakeOperand is missing the prometheus operator"
+			reconciler = New(runtimeClient, runtimeClient, deployable,
+				&fakeChecker{message: "KAI Scheduler is not installed"})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
+			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
+			Expect(fulfilled.Message).To(Equal(
+				"FakeOperand is missing the prometheus operator; KAI Scheduler is not installed"))
+		})
+
+		It("stays fulfilled when a checker reports nothing", func() {
+			reconciler = New(runtimeClient, runtimeClient, deployable, &fakeChecker{})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			Expect(conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled).Status).
+				To(Equal(metav1.ConditionTrue))
+		})
+
+		It("reports a failed checker as the condition message", func() {
+			reconciler = New(runtimeClient, runtimeClient, deployable,
+				&fakeChecker{err: errors.New("apiserver unavailable")})
+
+			Expect(reconciler.ReconcileStatus(ctx, krmConfig)).To(Succeed())
+
+			fulfilled := conditionOf(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled)
+			Expect(fulfilled.Status).To(Equal(metav1.ConditionFalse))
+			Expect(fulfilled.Message).To(ContainSubstring("apiserver unavailable"))
 		})
 
 		// An unchanged condition must not be patched, or the write wakes the

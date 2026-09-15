@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package projectcontroller
@@ -209,10 +209,6 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	args = appendSwitch(args, "--openshift", global.Openshift)
 	args = appendSwitch(args, "--namespaces", config.Features.CreateNamespaces)
 	args = appendSwitch(args, "--role-bindings", config.Features.CreateRoleBindings)
-	args = appendSwitch(args, "--cluster-wide-secrets", config.Features.ClusterWideSecret)
-	args = appendSwitch(args, "--cluster-wide-pvcs", config.Features.ClusterWidePvc)
-	args = append(args, "--cluster-wide-config-maps="+
-		strconv.FormatBool(ptr.Deref(config.Features.ClusterWideConfigMap, true)))
 	args = appendSwitch(args, "--limit-range", config.Features.LimitRange)
 	args = appendSwitch(args, "--enable-profiling", config.Profiling.Enabled)
 	args = appendSwitch(args, "--debug", config.Args.Debug)

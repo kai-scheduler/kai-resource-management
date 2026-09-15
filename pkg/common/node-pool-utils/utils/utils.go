@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package utils
@@ -17,7 +17,7 @@ import (
 // or empty, the caller-supplied defaultNodepoolName is returned. The label
 // key and default name are supplied by the caller (rather than hardcoded)
 // so this utility can be shared across binaries with different label
-// vocabularies (runai vs OSS).
+// vocabularies.
 func GetNodePoolNameFromLabels(labels map[string]string,
 	nodePoolAssignmentLabelKey, defaultNodepoolName string) string {
 	nodePoolName, found := labels[nodePoolAssignmentLabelKey]

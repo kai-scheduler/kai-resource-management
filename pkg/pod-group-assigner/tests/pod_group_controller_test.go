@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package tests
@@ -51,11 +51,15 @@ var (
 	nodePoolC       = TestNodePool{"node-pool-c", key3, val3, v1alpha1.NodePoolReady}
 	testNodePools   = []TestNodePool{nodePoolA, nodePoolB, nodePoolC, defaultNodePool}
 
-	emptyNodePool      = TestNodePool{"node-pool-empty", "emptykey", "emptyval", v1alpha1.NodePoolEmpty}
-	unschedNodePool    = TestNodePool{"node-pool-unsched", "unschedkey", "unschedval", v1alpha1.NodePoolUnschedulable}
-	unschedNodePool2   = TestNodePool{"node-pool-unsched2", "unschedkey2", "unschedval2", v1alpha1.NodePoolUnschedulable}
-	deletingNodePool   = TestNodePool{"node-pool-deleting", "deletingkey", "deletingval", v1alpha1.NodePoolDeleting}
-	extraTestNodePools = []TestNodePool{emptyNodePool, unschedNodePool, deletingNodePool, unschedNodePool2}
+	emptyNodePool         = TestNodePool{"node-pool-empty", "emptykey", "emptyval", v1alpha1.NodePoolEmpty}
+	unschedNodePool       = TestNodePool{"node-pool-unsched", "unschedkey", "unschedval", v1alpha1.NodePoolUnschedulable}
+	unschedNodePool2      = TestNodePool{"node-pool-unsched2", "unschedkey2", "unschedval2", v1alpha1.NodePoolUnschedulable}
+	deletingNodePool      = TestNodePool{"node-pool-deleting", "deletingkey", "deletingval", v1alpha1.NodePoolDeleting}
+	missingPrereqNodePool = TestNodePool{"node-pool-missing-prereq", "missingprereqkey", "missingprereqval",
+		v1alpha1.NodePoolMissingPrerequisites}
+	noPhaseNodePool    = TestNodePool{"node-pool-no-phase", "nophasekey", "nophaseval", ""}
+	extraTestNodePools = []TestNodePool{emptyNodePool, unschedNodePool, deletingNodePool, unschedNodePool2,
+		missingPrereqNodePool, noPhaseNodePool}
 
 	createdPodGroups []types.NamespacedName
 	numberOfPods     int
@@ -394,7 +398,7 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 
-			// will ignore all the non-(ready-or-empty) NodePools as they are not available for scheduling - will assign to next NP
+			// will ignore all the Deleting/Unschedulable NodePools as they are not available for scheduling - will assign to next NP
 
 			// round-robin - will assign to the first one again -
 			// also validate MarkUnschedulable as it should be true now
@@ -435,7 +439,7 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			SchedulerMock.UnschedulableOnNodePoolNoValidate(pg, assignmentParams, k8sClient)
 			expectNoUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 
-			// will ignore all the non-(ready-or-empty) NodePools as they are not available for scheduling - will assign to next NP
+			// will ignore all the Deleting/Unschedulable NodePools as they are not available for scheduling - will assign to next NP
 
 			// round-robin - will assign to the first one again -
 			// also validate MarkUnschedulable as it should be true now,
@@ -460,7 +464,7 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			createdPodGroups = append(createdPodGroups, pg)
 			createPodGroupAndPodsFromSpec("1 non-ready, 1 ready node pool", pg, nodePoolOptions, 1, k8sClient)
 
-			// will ignore all the non-(ready-or-empty) NodePools as they are not available for scheduling - will assign to next NP
+			// will ignore all the Deleting/Unschedulable NodePools as they are not available for scheduling - will assign to next NP
 
 			assignmentParams.NodePoolName = nodePoolOptions[1]
 			assignmentParams.MarkUnschedulable = true
@@ -492,7 +496,7 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			SchedulerMock.UnschedulableOnNodePoolNoValidate(pg, assignmentParams, k8sClient)
 			expectNoUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 
-			// will ignore all the non-(ready-or-empty) NodePools as they are not available for scheduling - will assign to next NP
+			// will ignore all the Deleting/Unschedulable NodePools as they are not available for scheduling - will assign to next NP
 
 			// round-robin - will assign to the first one again -
 			// also validate MarkUnschedulable as it should be true now,
@@ -562,6 +566,55 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 
 			updateRandomLabelToTriggerController(pg, k8sClient)
 			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
+
+		It("Only a missing-prerequisites node pool in NodePool options", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{missingPrereqNodePool.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("Only a missing-prerequisites node pool in NodePool options", pg, nodePoolOptions, 1, k8sClient)
+
+			// MissingPrerequisites is degraded but schedulable, so the pod group is assigned to it
+			assignmentParams.NodePoolName = nodePoolOptions[0]
+			assignmentParams.MarkUnschedulable = true
+			assignmentParams.SchedulingBackoff = common.NoSchedulingBackoff
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+
+			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
+
+		It("1 missing-prerequisites, 1 ready node pool - the missing-prerequisites one is not skipped", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{missingPrereqNodePool.Name, nodePoolA.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("1 missing-prerequisites, 1 ready node pool - the missing-prerequisites one is not skipped", pg, nodePoolOptions, 1, k8sClient)
+
+			assignmentParams.NodePoolName = nodePoolOptions[0]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+
+			// round-robin moves on to the ready node pool only after the first one was actually tried
+			assignmentParams.NodePoolName = nodePoolOptions[1]
+			assignmentParams.MarkUnschedulable = true
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
+
+		It("1 node pool with no phase yet, 1 ready node pool - the phaseless one is skipped", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{noPhaseNodePool.Name, nodePoolA.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("1 node pool with no phase yet, 1 ready node pool - the phaseless one is skipped", pg, nodePoolOptions, 1, k8sClient)
+
+			// a node pool whose status was not populated yet is unknown, not available
+			assignmentParams.NodePoolName = nodePoolOptions[1]
+			assignmentParams.MarkUnschedulable = true
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
 		})
 
 		It("During scheduling cycle, suddenly the NP becomes Unschedulable/Deleting", func() {

@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 suite: rbac creation and binding namespace
@@ -59,9 +59,6 @@ tests:
       image.registry: reg.example.com/kai
       projectController.features.createNamespaces: false
       projectController.features.createRoleBindings: false
-      projectController.features.clusterWideSecret: false
-      projectController.features.clusterWideConfigMap: false
-      projectController.features.clusterWidePvc: false
     template: templates/project-controller/clusterrole.yaml
     documentSelector:
       path: kind
@@ -91,9 +88,6 @@ tests:
       image.registry: reg.example.com/kai
       projectController.features.createNamespaces: false
       projectController.features.createRoleBindings: false
-      projectController.features.clusterWideSecret: false
-      projectController.features.clusterWideConfigMap: false
-      projectController.features.clusterWidePvc: false
       projectController.features.limitRange: false
     asserts:
       - hasDocuments:

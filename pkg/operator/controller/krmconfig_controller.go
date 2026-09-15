@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package controller
@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/config"
 	statusreconciler "github.com/kai-scheduler/kai-resource-management/pkg/operator/controller/status-reconciler"
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 	knowntypes "github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/known-types"
@@ -35,12 +37,30 @@ type KRMConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
+	// dependencyCheckInterval re-runs a reconcile even when nothing about the
+	// KRMConfig changed. Nothing watches what the installation depends on —
+	// KAI Scheduler is installed and upgraded on its own schedule — so this is
+	// what notices a dependency disappearing and, once it is back, what clears
+	// the condition again. Zero turns the periodic re-check off.
+	dependencyCheckInterval time.Duration
+
+	// minimumSchedulerVersion is the oldest KAI Scheduler this release supports.
+	minimumSchedulerVersion string
+
 	deployable *deployable.DeployableOperands
 	*statusreconciler.StatusReconciler
 }
 
-func NewKRMConfigReconciler(runtimeClient client.Client, scheme *runtime.Scheme) *KRMConfigReconciler {
-	return &KRMConfigReconciler{Client: runtimeClient, Scheme: scheme}
+func NewKRMConfigReconciler(
+	runtimeClient client.Client, scheme *runtime.Scheme,
+	dependencyCheckInterval time.Duration, minimumSchedulerVersion string,
+) *KRMConfigReconciler {
+	return &KRMConfigReconciler{
+		Client:                  runtimeClient,
+		Scheme:                  scheme,
+		dependencyCheckInterval: dependencyCheckInterval,
+		minimumSchedulerVersion: minimumSchedulerVersion,
+	}
 }
 
 func (r *KRMConfigReconciler) SetOperands(operandsToDeploy []operands.Operand) {
@@ -87,14 +107,15 @@ func (r *KRMConfigReconciler) Reconcile(
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.dependencyCheckInterval}, nil
 }
 
 func (r *KRMConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	if r.deployable == nil {
 		r.SetOperands(KRMConfigReconcilerOperands)
 	}
-	r.StatusReconciler = statusreconciler.New(r.Client, r.deployable)
+	r.StatusReconciler = statusreconciler.New(
+		r.Client, mgr.GetAPIReader(), r.deployable, &dependencies.KAIScheduler{MinimumVersion: r.minimumSchedulerVersion})
 
 	for _, collectable := range knowntypes.KRMConfigOwned {
 		if slices.Contains(knowntypes.Initiated, collectable) {

@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # project-controller is installed by the operator, so its chart values reach it
@@ -17,14 +17,14 @@ tests:
   - it: carries the feature flags, including the ones that are off
     asserts:
       - equal: {path: spec.projectController.features.createNamespaces, value: true}
-      - equal: {path: spec.projectController.features.clusterWideSecret, value: true}
+      - equal: {path: spec.projectController.features.createRoleBindings, value: true}
       - equal: {path: spec.projectController.features.limitRange, value: false}
 
   - it: follows a feature that is turned off
     set:
-      projectController.features.clusterWideSecret: false
+      projectController.features.createRoleBindings: false
     asserts:
-      - equal: {path: spec.projectController.features.clusterWideSecret, value: false}
+      - equal: {path: spec.projectController.features.createRoleBindings, value: false}
 
   # The chart renders the webhook configurations and mints their certificates, so
   # these must agree with it or the controller serves a webhook nothing calls.
@@ -114,11 +114,11 @@ tests:
 
   - it: carries the rolebindings ConfigMap name
     set:
-      projectController.roleBindingsConfigMapName: runai-rolebindings-plugin
+      projectController.roleBindingsConfigMapName: custom-rolebindings-plugin
     asserts:
       - equal:
           path: spec.projectController.roleBindingsConfigMapName
-          value: runai-rolebindings-plugin
+          value: custom-rolebindings-plugin
 
   - it: omits the lists that are empty
     asserts:

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package common
@@ -15,7 +15,7 @@ const (
 	NodesAssignedToDifferentNodePoolWaitingForDrainMessage = "The following node(s) within the node pool aren't ready because they are assigned to a different node pool but haven't been drained yet: %s"
 	NodesNotReadyMessage                                   = "The following node(s) within the node pool aren't ready: %s"
 
-	IsDeletingPhaseField                      = "status.phase.isDeleting"
-	PodRunningWithRunaiSchedulerNodeNameField = "spec.runningNodeName"
-	NameField                                 = "metadata.name"
+	IsDeletingPhaseField                    = "status.phase.isDeleting"
+	PodRunningWithKaiSchedulerNodeNameField = "spec.runningNodeName"
+	NameField                               = "metadata.name"
 )

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package flows covers the main flow through the system and its variations.
@@ -42,14 +42,10 @@ var _ = Describe("The main flow", Ordered, Label("flows"), func() {
 		// The project's queues are parented to the department's, so it goes first.
 		DeferCleanup(func() {
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, project))).To(Succeed())
-			Eventually(func() error {
-				return testClient.Get(ctx, types.NamespacedName{Name: project.Name}, &kaires.Project{})
-			}).Should(MatchError(ContainSubstring("not found")))
+			wait.ForDeleted(ctx, testClient, project)
 
 			Expect(client.IgnoreNotFound(testClient.Delete(ctx, department))).To(Succeed())
-			Eventually(func() error {
-				return testClient.Get(ctx, types.NamespacedName{Name: department.Name}, &kaires.Department{})
-			}).Should(MatchError(ContainSubstring("not found")))
+			wait.ForDeleted(ctx, testClient, department)
 		})
 	})
 
@@ -110,10 +106,7 @@ var _ = Describe("The main flow", Ordered, Label("flows"), func() {
 			// Before the node can leave the node pool at AfterSuite.
 			DeferCleanup(func() {
 				Expect(client.IgnoreNotFound(testClient.Delete(ctx, pod))).To(Succeed())
-				Eventually(func() error {
-					return testClient.Get(ctx,
-						types.NamespacedName{Namespace: namespace, Name: pod.Name}, &corev1.Pod{})
-				}).Should(MatchError(ContainSubstring("not found")))
+				wait.ForDeleted(ctx, testClient, pod)
 			})
 		})
 

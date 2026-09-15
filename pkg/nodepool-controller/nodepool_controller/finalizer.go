@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package nodepool_controller
@@ -12,10 +12,10 @@ import (
 	"github.com/rs/zerolog/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
@@ -44,7 +44,7 @@ func (npc *NodePoolController) finalize(ctx context.Context, nodePool *v1alpha1.
 		return
 	}
 
-	isNodePoolDeleted := npc.handleNodePoolDeletionInCaseOfRunaiUninstall(ctx, nodePool)
+	isNodePoolDeleted := npc.handleNodePoolDeletionOnOwnerUninstall(ctx, nodePool)
 	if isNodePoolDeleted {
 		return
 	}
@@ -77,22 +77,35 @@ func (npc *NodePoolController) finalize(ctx context.Context, nodePool *v1alpha1.
 	return err
 }
 
-// handleNodePoolDeletionInCaseOfRunaiUninstall - in case the runai operator is being uninstalled,
-// we want to delete the nodepool
-// and ignore the pods that are running on the nodes of the nodepool.
-// returns true if the nodepool was deleted, false otherwise.
-func (npc *NodePoolController) handleNodePoolDeletionInCaseOfRunaiUninstall(ctx context.Context, nodePool *v1alpha1.NodePool) bool {
-	clusterResource, err := npc.getClusterResource(ctx)
+// handleNodePoolDeletionOnOwnerUninstall force-deletes the nodepool, ignoring pods
+// still running on its nodes, when the CR named by --uninstall-detection-ref is
+// being deleted. Returns true if the nodepool was deleted.
+func (npc *NodePoolController) handleNodePoolDeletionOnOwnerUninstall(ctx context.Context, nodePool *v1alpha1.NodePool) bool {
+	if npc.params.UninstallDetection == nil {
+		return false
+	}
+	ref := npc.params.UninstallDetection
+
+	ownerResource, err := npc.getOwnerResource(ctx, ref)
+	// A missing CR counts as uninstalled and falls through to the force-delete
+	// below. Being denied the read does not: without the grant we cannot tell,
+	// so leave the nodepool to the normal deletion path.
 	if err != nil && !apierrors.IsNotFound(err) {
-		log.Error().Msgf("Failed getting cluster resource, err: %s", err.Error())
+		if apierrors.IsForbidden(err) {
+			log.Debug().Msgf("Not permitted to read %v <%v>; skipping uninstall detection",
+				ref.GVK.Kind, ref.Key)
+		} else {
+			log.Error().Msgf("Failed getting %v <%v>, err: %s", ref.GVK.Kind, ref.Key, err.Error())
+		}
 		return false
 	}
 
-	if clusterResource != nil && clusterResource.GetDeletionTimestamp().IsZero() {
+	if ownerResource != nil && ownerResource.GetDeletionTimestamp().IsZero() {
 		return false
 	}
 
-	log.Info().Msgf("Deleting NodePool <%v>; runai cluster is being deleted, ignoring running pods on nodepool's nodes", nodePool.Name)
+	log.Info().Msgf("Deleting NodePool <%v>; %v <%v> is being deleted, ignoring running pods on nodepool's nodes",
+		nodePool.Name, ref.GVK.Kind, ref.Key)
 	_ = npc.deleteFinalizer(ctx, nodePool)
 	_ = npc.cleanupDeletedNodePool(ctx, nodePool)
 	return true
@@ -127,23 +140,17 @@ func (npc *NodePoolController) updateNodePoolFinalizers(ctx context.Context, nod
 	return nil
 }
 
-// The run.ai Cluster CR belongs to the proprietary packaging, so it is read by
-// GVK rather than by Go type to keep this module free of run.ai API imports.
-var (
-	clusterGVK  = schema.GroupVersionKind{Group: "run.ai", Version: "v1", Kind: "Cluster"}
-	clusterName = "cluster"
-)
-
-func (npc *NodePoolController) getClusterResource(ctx context.Context) (cluster *unstructured.Unstructured, err error) {
-	cluster = &unstructured.Unstructured{}
-	cluster.SetGroupVersionKind(clusterGVK)
-	objectKey := types.NamespacedName{Name: clusterName}
-	err = npc.Client.Get(ctx, objectKey, cluster)
-	if err != nil {
-		log.Error().Msgf("Failed getting cluster resource <%v>, error: %v", clusterName, err.Error())
+// The CR belongs to the installing distribution, so it is read as unstructured
+// to keep this module free of that distribution's API types.
+func (npc *NodePoolController) getOwnerResource(
+	ctx context.Context, ref *common.UninstallDetectionRef,
+) (*unstructured.Unstructured, error) {
+	owner := &unstructured.Unstructured{}
+	owner.SetGroupVersionKind(ref.GVK)
+	if err := npc.Client.Get(ctx, ref.Key, owner); err != nil {
 		return nil, err
 	}
-	return cluster, nil
+	return owner, nil
 }
 
 func updateNodePoolFinalizersPatchBytes(finalizers []string) ([]byte, error) {

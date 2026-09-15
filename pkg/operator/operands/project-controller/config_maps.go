@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package projectcontroller
@@ -40,24 +40,6 @@ type builtinRoleBinding struct {
 }
 
 var builtinRoleBindings = []builtinRoleBinding{
-	{
-		name: "kai-project-controller-cluster-secret-per-project",
-		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
-			return features.ClusterWideSecret
-		},
-	},
-	{
-		name: "kai-project-controller-cluster-configmap-per-project",
-		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
-			return features.ClusterWideConfigMap
-		},
-	},
-	{
-		name: "kai-project-controller-cluster-pvc-per-project",
-		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {
-			return features.ClusterWidePvc
-		},
-	},
 	{
 		name: "kai-project-controller-limit-range-per-project",
 		enabledBy: func(features *krmv1alpha1.ProjectControllerFeatures) *bool {

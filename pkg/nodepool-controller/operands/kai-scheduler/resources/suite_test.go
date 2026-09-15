@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package resources
@@ -13,7 +13,15 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
-var suite = "runai scheduler"
+// The suite baseline pins the runai worker-node labels, so specs that don't
+// override the config assert the vendor vocabulary still flows into the shard.
+const (
+	runaiCPUWorkerNodeLabelKey = "node-role.kubernetes.io/runai-cpu-worker"
+	runaiGPUWorkerNodeLabelKey = "node-role.kubernetes.io/runai-gpu-worker"
+	runaiMIGWorkerNodeLabelKey = "node-role.kubernetes.io/runai-mig-enabled"
+)
+
+var suite = "KAI Scheduler Operand Resources"
 
 func TestResources(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -34,5 +42,9 @@ var _ = BeforeSuite(func() {
 		SchedulerNamespace:  "runai",
 		MetricsNamespace:    "runai",
 		FinalizerDomain:     "run.ai",
+
+		CPUWorkerNodeLabelKey: runaiCPUWorkerNodeLabelKey,
+		GPUWorkerNodeLabelKey: runaiGPUWorkerNodeLabelKey,
+		MIGWorkerNodeLabelKey: runaiMIGWorkerNodeLabelKey,
 	})
 })

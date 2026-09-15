@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package projectcontroller
@@ -29,7 +29,6 @@ var _ = Describe("buildArgsList", func() {
 			"--webhook-port", "8443",
 			"--namespaces",
 			"--role-bindings",
-			"--cluster-wide-config-maps=true",
 			"--qps", "50",
 			"--burst", "300",
 		}))
@@ -100,22 +99,13 @@ var _ = Describe("buildArgsList", func() {
 
 	It("drops the feature flags that are turned off", func() {
 		krmConfig := newKRMConfig()
-		krmConfig.Spec.ProjectController.Features.ClusterWideSecret = ptr.To(false)
+		krmConfig.Spec.ProjectController.Features.CreateNamespaces = ptr.To(false)
 		krmConfig.Spec.ProjectController.Features.LimitRange = ptr.To(true)
 
 		args := buildArgsList(krmConfig)
 
-		Expect(args).ToNot(ContainElement("--cluster-wide-secrets"))
+		Expect(args).ToNot(ContainElement("--namespaces"))
 		Expect(args).To(ContainElement("--limit-range"))
-	})
-
-	// The binary defaults this one to true, so omitting it on false would leave the
-	// binary's own default in force and make the setting unexpressible.
-	It("spells --cluster-wide-config-maps out either way", func() {
-		krmConfig := newKRMConfig()
-		krmConfig.Spec.ProjectController.Features.ClusterWideConfigMap = ptr.To(false)
-
-		Expect(buildArgsList(krmConfig)).To(ContainElement("--cluster-wide-config-maps=false"))
 	})
 
 	// Off is expressed as =false rather than by omission, because the flag also
@@ -242,14 +232,12 @@ var _ = Describe("the operand contract", func() {
 		Expect((&ProjectController{}).Name()).To(Equal("ProjectController"))
 	})
 
-	It("has no dependencies and nothing to monitor", func() {
+	// Dependencies are covered in dependencies_test.go, which needs a reader that
+	// knows about CustomResourceDefinitions.
+	It("has nothing to monitor", func() {
 		operand := &ProjectController{}
-		krmConfig := newKRMConfig()
 
-		missing, err := operand.HasMissingDependencies(context.Background(), newClient(), krmConfig)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(missing).To(BeEmpty())
-		Expect(operand.Monitor(context.Background(), newClient(), krmConfig)).To(Succeed())
+		Expect(operand.Monitor(context.Background(), newClient(), newKRMConfig())).To(Succeed())
 	})
 
 	It("reports nothing deployed before DesiredState has run", func() {

@@ -1,12 +1,15 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package deletion_test
 
 import (
+	"context"
+
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
 	. "github.com/onsi/ginkgo/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -70,4 +73,18 @@ func blockerForDisplayName(cli client.Client, displayName string) ConfigurableBl
 	}
 	Fail("no test blocker group with displayName " + displayName)
 	return ConfigurableBlocker{}
+}
+
+// listErrorClient fails List for the configured list GVKs, so the tests can drive the
+// error paths a real API server would return for a blocker whose CRD is absent.
+type listErrorClient struct {
+	client.Client
+	errors map[schema.GroupVersionKind]error
+}
+
+func (k8sClient listErrorClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if err, ok := k8sClient.errors[list.GetObjectKind().GroupVersionKind()]; ok {
+		return err
+	}
+	return k8sClient.Client.List(ctx, list, opts...)
 }

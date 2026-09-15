@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package profiling
@@ -13,7 +13,7 @@ import (
 
 // To use in cluster:
 // brew install graphviz
-// kubectl port-forward -n runai deploy/pod-group-assigner 8182
+// kubectl port-forward -n <release-namespace> deploy/pod-group-assigner 8182
 // go tool pprof -http localhost:8888 http://localhost:8182/debug/pprof/profile
 // -> and then wait a little bit and it will open a window in the browser
 

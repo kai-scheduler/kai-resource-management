@@ -1,6 +1,10 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// Package test holds project-controller test fixtures. Their label and name
+// vocabulary is deliberately vendor-flavored, not KAI-flavored: it is what
+// proves the vocabulary is genuinely configurable rather than hardcoded.
+// Neutralising these values would delete that coverage, so leave them.
 package test
 
 import (
@@ -52,9 +56,9 @@ func externalWorkloadFixture(name string) unstructured.UnstructuredList {
 	return list
 }
 
-// Test data uses the runai-flavored vocabulary. We keep these as named
-// consts (rather than inline string literals) so package-init time has
-// stable values for the test-object factories below.
+// Named consts rather than inline literals so the test-object factories below
+// have stable values at package-init time. See the package comment for why the
+// vocabulary is deliberately not KAI's.
 const (
 	testRunaiNamespace             = "runai"
 	testRunaiProjectIdLabel        = "run.ai/project-id"

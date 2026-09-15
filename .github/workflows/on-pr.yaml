@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 name: KAI Resource Management - Pull Request
@@ -80,6 +80,118 @@ jobs:
 
       - name: Run tests
         run: make test
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-coverage
+          path: coverage/coverage.out
+
+      - name: Calculate total coverage
+        run: |
+          if [ ! -s coverage/coverage.out ]; then
+            exit 0
+          fi
+
+          COVERAGE=$(go tool cover -func=coverage/coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+')
+          echo "$COVERAGE" > coverage/total-coverage.txt
+
+      - name: Archive total coverage
+        if: hashFiles('coverage/total-coverage.txt') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: total-coverage
+          path: coverage/total-coverage.txt
+
+  # Reports coverage, never fails on it: a pull request may legitimately move the
+  # number down. The comment itself is posted by post-coverage-comment.yaml, which
+  # has the write token this job deliberately does not.
+  code-coverage-report:
+    name: Code Coverage Report
+    runs-on: ubuntu-latest
+    needs: [ validate-and-test, check-build-and-test-required ]
+    if: github.event_name != 'merge_group' && needs.check-build-and-test-required.outputs.code == 'true' && github.base_ref == 'main'
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      # The per-package table is a diff against main's profile, published by
+      # update-coverage-badge.yaml.
+      - uses: fgrosse/go-coverage-report@e432de98ee94a276e8f666d25bfd76347665f75b
+        id: coverage_reporter
+        continue-on-error: true
+        with:
+          coverage-artifact-name: "code-coverage"
+          coverage-file-name: "coverage.out"
+          root-package: "github.com/kai-scheduler/kai-resource-management"
+          github-baseline-workflow-ref: update-coverage-badge.yaml
+          skip-comment: true
+
+      - name: Download total coverage artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: total-coverage
+          path: coverage-summary
+
+      # The badge holds main's total, which is what the delta is measured from.
+      - name: Download coverage badge branch
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          ref: coverage-badge
+          path: coverage-badge
+
+      - name: Calculate coverage totals
+        id: coverage_totals
+        run: |
+          PR_COVERAGE=$(cat coverage-summary/total-coverage.txt)
+          echo "pr=$PR_COVERAGE" >> $GITHUB_OUTPUT
+
+          BASELINE_COVERAGE=$(grep -hoE '[0-9]+\.[0-9]+%' coverage-badge/badges/coverage.svg 2>/dev/null | head -1 | tr -d '%')
+          echo "baseline=$BASELINE_COVERAGE" >> $GITHUB_OUTPUT
+
+          if [ -n "$BASELINE_COVERAGE" ]; then
+            DELTA=$(awk -v pr="$PR_COVERAGE" -v baseline="$BASELINE_COVERAGE" 'BEGIN { printf "%.2f", pr - baseline }')
+            echo "delta=$DELTA" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save coverage report to file
+        env:
+          REPORT_BODY: ${{ steps.coverage_reporter.outputs.coverage_report }}
+          BASELINE_COVERAGE: ${{ steps.coverage_totals.outputs.baseline }}
+          PR_COVERAGE: ${{ steps.coverage_totals.outputs.pr }}
+          COVERAGE_DELTA: ${{ steps.coverage_totals.outputs.delta }}
+        run: |
+          {
+            if [ -n "$BASELINE_COVERAGE" ]; then
+              echo "**Total coverage:** ${BASELINE_COVERAGE}% -> ${PR_COVERAGE}% (delta ${COVERAGE_DELTA}%)"
+            else
+              echo "**Total coverage:** ${PR_COVERAGE}%"
+            fi
+
+            if [ -n "$REPORT_BODY" ]; then
+              echo ""
+              echo "$REPORT_BODY"
+            fi
+          } > coverage-report.txt
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report-for-comment
+          path: coverage-report.txt
+
+      # post-coverage-comment.yaml runs on workflow_run, where the pull request is
+      # not in the event payload.
+      - name: Save PR number
+        run: echo "${{ github.event.number }}" > pr_number.txt
+
+      - name: Upload PR number
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-number-for-comment
+          path: pr_number.txt
 
   build:
     needs: [ check-build-and-test-required ]
@@ -178,7 +290,7 @@ jobs:
 
   e2e-tests:
     name: Run E2E Tests
-    needs: [ build, check-build-and-test-required ]
+    needs: [ build, validate-and-test, check-build-and-test-required ]
     if: needs.check-build-and-test-required.outputs.code == 'true'
     runs-on: ubuntu-latest
     env:

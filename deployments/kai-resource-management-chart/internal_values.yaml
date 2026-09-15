@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # NOTE:
@@ -47,8 +47,12 @@ krmOperator:
     limits: { cpu: 500m, memory: 512Mi }
     requests: { cpu: 100m, memory: 128Mi }
   args:
-    qps: ""                  # --qps (default 50)
-    burst: ""                # --burst (default 300)
+    qps: ""                     # --qps (default 50)
+    burst: ""                   # --burst (default 300)
+    dependencyCheckInterval: "" # --dependency-check-interval. Operator dependency check interval (default 1m)
+    # --min-kai-scheduler-version. Oldest KAI Scheduler supported; unset uses the
+    # operator's default (tracks Chart.yaml). 0.0.0 accepts any version.
+    minKaiSchedulerVersion: ""
 
 # Installed by the krm-operator. Anything set here is copied into the KRMConfig; the
 # operator applies its own default for whatever is left unset, and those defaults are

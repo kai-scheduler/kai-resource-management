@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package tests
@@ -20,11 +20,11 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
-	runai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler"
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
+	kai_scheduler "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 )
 
-var _ = Describe("Runai Scheduler Operand", Ordered, func() {
+var _ = Describe("KAI Scheduler Operand", Ordered, func() {
 	var (
 		ctx     context.Context
 		cancel  context.CancelFunc
@@ -93,14 +93,14 @@ var _ = Describe("Runai Scheduler Operand", Ordered, func() {
 		It("should have resources", func() {
 			reconcileAllNodePools(ctx, testCase.NodePools, npc, nil)
 
-			resources, err := runai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
+			resources, err := kai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
 				fakeClient, nodePool, nodePoolControllerParams)
 			ExpectNoErr(err)
 			Expect(resources).NotTo(BeEmpty())
 		})
 
 		It("should create desired resources", func() {
-			resources, err := runai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
+			resources, err := kai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
 				fakeClient, nodePool, nodePoolControllerParams)
 			ExpectNoErr(err)
 
@@ -122,7 +122,7 @@ var _ = Describe("Runai Scheduler Operand", Ordered, func() {
 			var resources []operands.ResourceOld
 			var err error
 			Eventually(func() error {
-				resources, err = runai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
+				resources, err = kai_scheduler.Operand(nodePool.Name, true).ResourcesForNodePool(ctx,
 					fakeClient, nodePool, nodePoolControllerParams)
 				return err
 			}, validateTestTimeout, validateTestInterval).Should(Succeed())

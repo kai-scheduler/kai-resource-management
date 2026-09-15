@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package scheme builds the runtime scheme for nodepool-controller.
@@ -33,8 +33,9 @@ import (
 //   - grove/v1alpha1            PodCliqueSet
 //   - topology/v1alpha2         NodeResourceTopology
 //
-// The run.ai Cluster CR is deliberately absent: it is read as unstructured so
-// this module does not depend on the proprietary run.ai API types.
+// The CR named by --uninstall-detection-ref is deliberately absent: it is read
+// as unstructured so this module does not depend on the installing
+// distribution's API types.
 func AddToScheme(s *runtime.Scheme) error {
 	for _, add := range []func(*runtime.Scheme) error{
 		clientgoscheme.AddToScheme,

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package resources
@@ -472,7 +472,7 @@ var _ = Describe("SchedulingShardForNodePool SchedulingShardConfig pass-through"
 			Expect(spec.Actions).To(Equal(cfg.Actions))
 			Expect(spec.QueueDepthPerAction).To(Equal(cfg.QueueDepthPerAction))
 			// The controller-owned base worker-label args are always present
-			Expect(spec.Args).To(HaveKeyWithValue("cpu-worker-node-label-key", cpuWorkerNodeLabelKey))
+			Expect(spec.Args).To(HaveKeyWithValue("cpu-worker-node-label-key", runaiCPUWorkerNodeLabelKey))
 		})
 
 		It("passes plugins through while TimeBasedFairShare is compiled into KValue/UsageDBConfig", func() {
