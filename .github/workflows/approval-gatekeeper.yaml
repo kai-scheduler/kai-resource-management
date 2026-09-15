@@ -37,11 +37,19 @@ jobs:
             const trustedRoles = ['OWNER', 'MEMBER', 'COLLABORATOR'];
             const authorRole = pr.data.author_association;
 
-            console.log(`PR Author Association: ${authorRole}`);
+            // Dependabot reports NONE because it is not an org member, but its pull
+            // requests are generated from this repository's own dependabot.yml and pushed
+            // to a branch here. The head-repo check keeps this unreachable from a fork.
+            const trustedBots = ['dependabot[bot]'];
+            const authorLogin = pr.data.user.login;
+            const isTrustedBot = trustedBots.includes(authorLogin) &&
+              pr.data.head.repo?.full_name === `${owner}/${repo}`;
+
+            console.log(`PR Author: ${authorLogin} (${authorRole})`);
 
             // 2. If trusted, pass immediately (relying on the native 1-approval rule)
-            if (trustedRoles.includes(authorRole)) {
-              console.log("Author has a trusted role. Standard approval rules apply.");
+            if (trustedRoles.includes(authorRole) || isTrustedBot) {
+              console.log("Author is trusted. Standard approval rules apply.");
               return;
             }
 

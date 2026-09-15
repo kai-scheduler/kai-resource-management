@@ -50,7 +50,9 @@ func IsNodePoolAvailableForScheduling(ctx context.Context, client client.Client,
 		return false, "", err
 	}
 
-	isAvailable := phase == string(v1alpha1.NodePoolReady) || phase == string(v1alpha1.NodePoolEmpty)
+	isAvailable := phase != "" &&
+		phase != string(v1alpha1.NodePoolDeleting) &&
+		phase != string(v1alpha1.NodePoolUnschedulable)
 
 	return isAvailable, phase, nil
 }
