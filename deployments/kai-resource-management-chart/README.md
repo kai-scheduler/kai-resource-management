@@ -214,6 +214,11 @@ kai-resource-management:
 Forgetting the second is the easy mistake: the parent's operator and the bundled
 scheduler's hook then both manage `kai-config`.
 
+`openshift` is not inherited. It is a top-level value rather than a `global.*`
+one, so a parent's own platform flag never reaches it. The cluster lookup covers
+an ordinary live install, but set it explicitly whenever the parent overrides
+platform detection — offline rendering, ArgoCD, or a forced mode.
+
 Three settings under `spec.global` — `schedulerName`, `queueLabelKey` and
 `nodePoolLabelKey` — must match the scheduler or workloads bind to the wrong
 queue or node pool. Set them at install and leave them alone: nothing

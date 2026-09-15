@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package dependencies
@@ -25,7 +25,7 @@ import (
 const (
 	configName   = kaiconstants.DefaultKAIConfigSingeltonInstanceName
 	kaiNamespace = "kai-scheduler"
-	minimum      = "v0.17.0"
+	minimum      = "v0.16.9"
 )
 
 // kaiOperator carries the image tag the version is read from.
@@ -191,7 +191,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	}
 
 	It("accepts the minimum itself", func() {
-		Expect(checkWith("repo/operator:v0.17.0", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.16.9", "")).To(BeEmpty())
 	})
 
 	It("accepts a newer patch and minor", func() {
@@ -201,7 +201,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	It("reports one older than the minimum", func() {
 		Expect(checkWith("repo/operator:v0.14.2", "")).To(Equal(
-			"KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0"))
+			"KAI Scheduler v0.14.2 is older than the minimum supported v0.16.9"))
 	})
 
 	It("accepts a newer major", func() {
@@ -210,7 +210,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	// Semver orders a prerelease below its release, so the suffix must come off.
 	It("accepts the FIPS build of the minimum", func() {
-		Expect(checkWith("repo/operator:v0.17.0-fips", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.16.9-fips", "")).To(BeEmpty())
 	})
 
 	It("reads the tag through a registry port", func() {
@@ -280,7 +280,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	It("reports unreadiness when the version is supported", func() {
 		message, err := check(checker, ctx,
-			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.17.0", ""))
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.16.9", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("is not ready"))

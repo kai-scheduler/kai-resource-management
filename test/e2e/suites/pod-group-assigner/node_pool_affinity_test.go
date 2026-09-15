@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package pod_group_assigner covers the pod-group-assigner: which node pool a workload

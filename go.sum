@@ -131,8 +131,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2 h1:uAwqOtyrFYggq3pVf3hs1XKkBxrQ8dkgjWz3LCLJsiY=
 github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2/go.mod h1:LBzS4n6GX1C69tzSd5EibZ9cGOXFuHP7GxEMDYVe1sM=
-github.com/kai-scheduler/KAI-scheduler v0.16.8 h1:VNm1DXdPIV5axnnH4IVOaFbesMpjyB/hrPIvqj1KdUM=
-github.com/kai-scheduler/KAI-scheduler v0.16.8/go.mod h1:IB5lSj6VIhnPT+GwaUJTevOXY+nmCRUTKSdzqf8Oox0=
+github.com/kai-scheduler/KAI-scheduler v0.16.9 h1:3dZQKb2VhmjYlBoQuyAEX1OHk74xOEt4b8zws292RgQ=
+github.com/kai-scheduler/KAI-scheduler v0.16.9/go.mod h1:WEjSN/1YUK7yk+yeEuqSLo10g4ZTPl8OCbaB478FEZM=
 github.com/kai-scheduler/api v0.1.1 h1:Yo3z3Vi6oNBidD0gDq1hEWa9FkM8Jv6EBmsLY7KciXc=
 github.com/kai-scheduler/api v0.1.1/go.mod h1:I3AqrOQVknNc3ZfLQkUpfWlQLIDqgg3dVGzsmVJhdTw=
 github.com/kai-scheduler/kai-resource-management-api v0.1.2 h1:GO9vtD649lAVCd1JODuEb+JYGYlq03CJlTHPvpX+0kE=

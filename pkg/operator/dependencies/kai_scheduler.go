@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package dependencies
@@ -22,7 +22,7 @@ import (
 const (
 	// Oldest KAI Scheduler this release is built against. Keep in step with the
 	// kai-scheduler dependency pinned in the chart's Chart.yaml.
-	DefaultMinimumSchedulerVersion = "v0.17.0"
+	DefaultMinimumSchedulerVersion = "v0.16.9"
 
 	// The container whose image tag is the only record of the running version.
 	kaiOperatorDeploymentName = "kai-operator"
@@ -32,7 +32,7 @@ const (
 	msTagEnvVar = "MS_TAG"
 
 	// Stripped before parsing: semver orders a prerelease below its release, so
-	// v0.17.0-fips would otherwise read as older than v0.17.0.
+	// v0.16.9-fips would otherwise read as older than v0.16.9.
 	fipsTagSuffix = "-fips"
 )
 

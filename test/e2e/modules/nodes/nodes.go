@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package nodes moves cluster nodes in and out of the node pools a suite owns.
