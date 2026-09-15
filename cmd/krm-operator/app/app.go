@@ -1,11 +1,13 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package app
 
 import (
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
@@ -37,6 +39,8 @@ func init() {
 	utilruntime.Must(krmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(monitoringv1.AddToScheme(scheme))
 	utilruntime.Must(vpav1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	utilruntime.Must(kaiv1.AddToScheme(scheme))
 }
 
 type App struct {
@@ -77,8 +81,10 @@ func New() (*App, error) {
 	}
 
 	return &App{
-		manager:             mgr,
-		krmConfigReconciler: controller.NewKRMConfigReconciler(mgr.GetClient(), mgr.GetScheme()),
+		manager: mgr,
+		krmConfigReconciler: controller.NewKRMConfigReconciler(
+			mgr.GetClient(), mgr.GetScheme(),
+			opts.DependencyCheckInterval, opts.MinimumSchedulerVersion),
 	}, nil
 }
 

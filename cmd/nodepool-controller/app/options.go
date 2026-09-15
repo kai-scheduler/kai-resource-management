@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package app
@@ -6,7 +6,14 @@ package app
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
+	"slices"
+	"strings"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
@@ -34,7 +41,7 @@ func BindFlags() (*Options, *config.NodePoolControllerConfig) {
 	options := &Options{}
 	flag.BoolVar(&options.DebugLogLevel, "debug", false, "Should use debug log level")
 	flag.StringVar(&options.DcgmExporterNamespace, "dcgm-exporter-namespace", defaultDcgmExporterNamespace, "Namespace of dcgm-exporter")
-	flag.BoolVar(&options.RestrictNodeScheduling, "restrict-node-scheduling", false, "deprecated- runai-scheduler will allocate jobs only to restricted nodes")
+	flag.BoolVar(&options.RestrictNodeScheduling, "restrict-node-scheduling", false, "deprecated- the scheduler will allocate jobs only to restricted nodes")
 	flag.StringVar(&options.MetricsPort, "metrics-port", "9400", "The port to serve metrics from")
 	flag.IntVar(&options.K8sClientConfigQPS, "qps", 50, "Queries per second to the K8s API server")
 	flag.IntVar(&options.K8sClientConfigBurst, "burst", 300, "Burst to the K8s API server")
@@ -65,4 +72,37 @@ func ParseSchedulingShardArgs(schedulingShardArgsStr string) (map[string]string,
 	}
 	err := json.Unmarshal([]byte(schedulingShardArgsStr), &args)
 	return args, err
+}
+
+// ParseUninstallDetectionRef decodes the --uninstall-detection-ref flag,
+// "group/version/Kind/namespace/name". An empty flag returns nil, disabling the
+// check; an empty namespace segment means a cluster-scoped resource.
+func ParseUninstallDetectionRef(refStr string) (*common.UninstallDetectionRef, error) {
+	if refStr == "" {
+		return nil, nil
+	}
+
+	group, version, kind, namespace, name, ok := splitRef(refStr)
+	if !ok {
+		return nil, fmt.Errorf("expected group/version/Kind/namespace/name, got %q", refStr)
+	}
+
+	return &common.UninstallDetectionRef{
+		GVK: schema.GroupVersionKind{Group: group, Version: version, Kind: kind},
+		Key: types.NamespacedName{Name: name, Namespace: namespace},
+	}, nil
+}
+
+// splitRef reports ok only when all five segments are present and every one but
+// the namespace is non-empty.
+func splitRef(refStr string) (group, version, kind, namespace, name string, ok bool) {
+	parts := strings.Split(refStr, "/")
+	if len(parts) != 5 {
+		return "", "", "", "", "", false
+	}
+	group, version, kind, namespace, name = parts[0], parts[1], parts[2], parts[3], parts[4]
+	if slices.Contains([]string{group, version, kind, name}, "") {
+		return "", "", "", "", "", false
+	}
+	return group, version, kind, namespace, name, true
 }

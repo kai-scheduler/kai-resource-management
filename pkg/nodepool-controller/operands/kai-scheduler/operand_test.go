@@ -1,7 +1,7 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package runai_scheduler
+package kai_scheduler
 
 import (
 	"reflect"
@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/runai-scheduler/resources"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 )
 
 func TestRunaiSchedulerOperand(t *testing.T) {

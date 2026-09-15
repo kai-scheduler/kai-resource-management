@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # pod-group-assigner is installed by the operator, so its chart values reach it
@@ -36,9 +36,9 @@ tests:
 
   - it: carries the cert secret name
     set:
-      podGroupAssigner.webhook.certSecretName: runai-pga-tls
+      podGroupAssigner.webhook.certSecretName: custom-pga-tls
     asserts:
-      - equal: {path: spec.podGroupAssigner.webhooks.certSecretName, value: runai-pga-tls}
+      - equal: {path: spec.podGroupAssigner.webhooks.certSecretName, value: custom-pga-tls}
 
   - it: carries the service's own flags
     set:

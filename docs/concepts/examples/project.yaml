@@ -1,0 +1,73 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# A project: a team, its quota, and the namespace it submits work into.
+#
+# Creating this gives you a namespace named `kai-research`, one queue per
+# entry below — each parented to the department's queue for the SAME node
+# pool — and, because enforceKaiScheduler is true, every pod created in that
+# namespace is put on the KAI scheduler whether it asked for it or not.
+#
+# Prerequisites:
+#   - The `h100` node pool from docs/concepts/examples/nodepool.yaml.
+#   - The `engineering` department from docs/concepts/examples/department.yaml.
+#     The validating webhook rejects a project whose parent does not exist.
+#
+# Apply:
+#   kubectl apply -f docs/concepts/examples/project.yaml
+#
+# Then watch it become ready and find its namespace:
+#   kubectl get project research
+#   kubectl get project research -o jsonpath='{.status.namespace}'
+#
+# Every node pool named in defaultNodePools must also have a queue in this
+# spec; the webhook rejects the project otherwise.
+#
+# Next: docs/concepts/examples/workload-pod.yaml
+---
+apiVersion: kai.resources/v1alpha1
+kind: Project
+metadata:
+  name: research
+spec:
+  parent: engineering
+  enforceKaiScheduler: true
+  defaultNodePools:
+    - h100
+  queues:
+    # A queue for the default node pool, parented to the department's own
+    # default-pool queue. Not required, but advised: the default node pool
+    # always exists, and anything that falls back to it needs somewhere to be
+    # charged. Convention is to name it after the project itself.
+    - name: research
+      nodepool: default
+      priority: 100
+      resources:
+        gpu:
+          deserved: 0
+          limit: 0
+          overQuotaWeight: 0
+        cpu:
+          deserved: 4000
+          limit: -1          # -1 is the "no ceiling" sentinel
+          overQuotaWeight: 1
+        memory:
+          deserved: 16000
+          limit: -1
+          overQuotaWeight: 1
+    - name: research-h100
+      nodepool: h100
+      priority: 100
+      resources:
+        gpu:
+          deserved: 4
+          limit: 8
+          overQuotaWeight: 2
+        cpu:
+          deserved: 16000
+          limit: 32000
+          overQuotaWeight: 1
+        memory:
+          deserved: 64000
+          limit: 128000
+          overQuotaWeight: 1

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package deletion
@@ -10,6 +10,8 @@ import (
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,11 +36,11 @@ type ConfigurableBlocker struct {
 	group BlockerGroup
 }
 
-func NewConfigurableBlocker(client client.Client, group BlockerGroup) ConfigurableBlocker {
+func NewConfigurableBlocker(k8sClient client.Client, group BlockerGroup) ConfigurableBlocker {
 	return ConfigurableBlocker{
 		CommonResourceDeletionHandler: CommonResourceDeletionHandler{
 			WithLoggerAndCli: common.WithLoggerAndCli{
-				Client: client,
+				Client: k8sClient,
 				Log:    ctrl.Log.WithName("deletion_handlers").WithName(group.DisplayName),
 			},
 		},
@@ -106,6 +108,10 @@ func (handler ConfigurableBlocker) listBlockers(namespace string, blocker Blocke
 	ctx, cancel := context.WithTimeout(context.Background(), blockerListTimeout)
 	defer cancel()
 	if err := handler.Client.List(ctx, objectList, listOptions...); err != nil {
+		// A configured blocker whose CRD is not installed cannot have remaining objects.
+		if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
+			return nil, nil
+		}
 		handler.Log.Error(err, "Failed to list resources for deletion blocker",
 			common.LogGvkTag, blocker.Kind, common.LogNamespaceTag, namespace)
 		return nil, err

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package handlers
@@ -40,8 +40,6 @@ const (
 	LimitRangeHandlerFailed   ProjectConditionReason = "LimitRangeHandlerFailed"
 	QueuesHandlerFailed       ProjectConditionReason = "QueuesHandlerFailed"
 	RoleBindingsHandlerFailed ProjectConditionReason = "RoleBindingsHandlerFailed"
-	SecretsHandlerFailed      ProjectConditionReason = "SecretsHandlerFailed"
-	PvcsHandlerFailed         ProjectConditionReason = "PvcsHandlerFailed"
 
 	PhaseDeleting = "Deleting"
 )

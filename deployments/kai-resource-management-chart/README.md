@@ -5,6 +5,11 @@ dependency. It deploys the node-pool controller, project controller, and PodGrou
 assigner, together with their service accounts, RBAC, services, monitoring
 resources, webhook configuration, and KAI Resource Management CRDs.
 
+This page is the chart reference: prerequisites, values, install, upgrade and uninstall.
+For what KAI Resource Management *is* and what to do with it once installed, see the
+[overview](../../docs/overview.md), the [quickstart](../../docs/getting-started/quickstart.md)
+and the [concepts](../../docs/concepts/README.md).
+
 ## Prerequisites
 
 - A Kubernetes cluster and Helm 3.
@@ -132,7 +137,7 @@ The chart creates it in one of two ways, and can also leave it alone entirely.
 | --- | --- | --- |
 | Deployer (default) | `krmConfigDeployer.enabled=true` | applied by a post-install/post-upgrade hook Job, **outside** the Helm release |
 | GitOps | `krmConfigDeployer.enabled=false`, `krmConfig.render=true` | an ordinary release resource, tracked and drift-detected by ArgoCD |
-| External | both `false` | not created — for Run:ai, which creates the `KRMConfig` itself |
+| External | both `false` | not created — for an external installer that creates the `KRMConfig` itself |
 
 Setting both fails the render: two managers of one singleton would fight, one
 recreating what the other prunes.
@@ -208,6 +213,11 @@ kai-resource-management:
 
 Forgetting the second is the easy mistake: the parent's operator and the bundled
 scheduler's hook then both manage `kai-config`.
+
+`openshift` is not inherited. It is a top-level value rather than a `global.*`
+one, so a parent's own platform flag never reaches it. The cluster lookup covers
+an ordinary live install, but set it explicitly whenever the parent overrides
+platform detection — offline rendering, ArgoCD, or a forced mode.
 
 Three settings under `spec.global` — `schedulerName`, `queueLabelKey` and
 `nodePoolLabelKey` — must match the scheduler or workloads bind to the wrong

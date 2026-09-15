@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 {{- /*
@@ -67,8 +67,8 @@ webhooks:
       service:
         name: project-controller
         namespace: {{ .Release.Namespace }}
-        # The binary serves departments on its own path, unlike runai's single
-        # /validate-project route, so the two are gateable independently.
+        # The binary serves departments on their own path rather than sharing
+        # /validate-project, so the two are gateable independently.
         path: /validate-department
         port: {{ $webhookPort }}
     rules:

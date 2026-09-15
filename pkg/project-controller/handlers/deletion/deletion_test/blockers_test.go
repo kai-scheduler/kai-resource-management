@@ -1,13 +1,24 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package deletion_test
 
 import (
+	"context"
+	"errors"
+
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers/deletion"
+	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 )
 
@@ -65,5 +76,75 @@ var _ = Describe("BlockerGroupsFromConfigMapData", func() {
 		data := map[string]string{"blockers.yaml": "- displayName: Secrets\n  version: v1\n"}
 		_, err := BlockerGroupsFromConfigMapData(data)
 		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("ConfigurableBlocker", func() {
+	var project kaiv1alpha1.Project
+
+	// blockerListGVK is the list GVK the blocker built below asks the client for.
+	blockerListGVK := schema.GroupVersionKind{Group: "run.ai", Version: "v2alpha1", Kind: "TrainingWorkloadList"}
+
+	// blockerWithListError builds a single-blocker group whose List always fails with listErr.
+	blockerWithListError := func(listErr error) ConfigurableBlocker {
+		cachedClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+		Expect(cachedClient.Create(context.Background(), TestNamespace.DeepCopy())).To(Succeed())
+		return NewConfigurableBlocker(
+			listErrorClient{Client: cachedClient, errors: map[schema.GroupVersionKind]error{blockerListGVK: listErr}},
+			BlockerGroup{
+				DisplayName: "Workloads",
+				Blockers:    []Blocker{{Group: "run.ai", Version: "v2alpha1", Kind: "TrainingWorkload"}},
+			})
+	}
+
+	BeforeEach(func() {
+		project = *TestProject.DeepCopy()
+	})
+
+	It("does not block a fresh installation when a configured legacy API has no matching kind", func() {
+		handler := blockerWithListError(&meta.NoKindMatchError{
+			GroupKind:        blockerListGVK.GroupKind(),
+			SearchedVersions: []string{blockerListGVK.Version},
+		})
+
+		conditions, err := handler.OnDelete(&project)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(conditions).To(HaveLen(1))
+		Expect(conditions[0].Status).To(Equal(corev1.ConditionTrue))
+	})
+
+	It("does not block when the configured resource API is not found", func() {
+		handler := blockerWithListError(apierrors.NewNotFound(
+			schema.GroupResource{Group: blockerListGVK.Group, Resource: "trainingworkloads"}, ""))
+
+		conditions, err := handler.OnDelete(&project)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(conditions).To(HaveLen(1))
+		Expect(conditions[0].Status).To(Equal(corev1.ConditionTrue))
+	})
+
+	It("returns a forbidden error from the configured resource API", func() {
+		forbiddenErr := apierrors.NewForbidden(
+			schema.GroupResource{Group: blockerListGVK.Group, Resource: "trainingworkloads"}, "", errors.New("denied"))
+		handler := blockerWithListError(forbiddenErr)
+
+		conditions, err := handler.OnDelete(&project)
+
+		Expect(err).To(MatchError(forbiddenErr))
+		Expect(conditions).To(HaveLen(1))
+		Expect(conditions[0].Status).To(Equal(corev1.ConditionFalse))
+	})
+
+	It("returns an unexpected error from the configured resource API", func() {
+		unexpectedErr := errors.New("reader failed")
+		handler := blockerWithListError(unexpectedErr)
+
+		conditions, err := handler.OnDelete(&project)
+
+		Expect(err).To(MatchError(unexpectedErr))
+		Expect(conditions).To(HaveLen(1))
+		Expect(conditions[0].Status).To(Equal(corev1.ConditionFalse))
 	})
 })

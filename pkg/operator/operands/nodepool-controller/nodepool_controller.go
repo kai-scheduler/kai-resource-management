@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package nodepoolcontroller installs the nodepool-controller service.
@@ -14,6 +14,7 @@ import (
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/common"
 )
@@ -92,8 +93,21 @@ func (n *NodePoolController) Monitor(
 	return nil
 }
 
+// HasMissingDependencies reports the KAI Scheduler CRDs nodepool-controller reads
+// and the cluster does not have. Keep the list in step with the kinds
+// pkg/nodepool-controller/scheme registers: a kind whose CRD is absent is exactly
+// what the service fails on at runtime.
 func (n *NodePoolController) HasMissingDependencies(
-	_ context.Context, _ client.Reader, _ *krmv1alpha1.KRMConfig,
+	ctx context.Context, reader client.Reader, krmConfig *krmv1alpha1.KRMConfig,
 ) (string, error) {
-	return "", nil
+	// A service the configuration does not install needs nothing.
+	if !*krmConfig.Spec.NodePoolController.Service.Enabled {
+		return "", nil
+	}
+
+	return dependencies.MissingCRDs(ctx, reader,
+		dependencies.CRDRequirement{Name: "schedulingshards.kai.scheduler", Version: "v1"},
+		dependencies.CRDRequirement{Name: "topologies.kai.scheduler", Version: "v1alpha1"},
+		dependencies.CRDRequirement{Name: "podgroups.scheduling.run.ai", Version: "v2alpha2"},
+	)
 }

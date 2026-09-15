@@ -1,27 +1,39 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package statusreconciler
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/operands/deployable"
 )
 
 type StatusReconciler struct {
 	client.Client
-	deployable deployable.Deployable
+	uncachedReader client.Reader
+	deployable     deployable.Deployable
+	checkers       []dependencies.Checker
 }
 
-func New(runtimeClient client.Client, deployableOperands deployable.Deployable) *StatusReconciler {
+func New(
+	runtimeClient client.Client,
+	uncachedReader client.Reader,
+	deployableOperands deployable.Deployable,
+	checkers ...dependencies.Checker,
+) *StatusReconciler {
 	return &StatusReconciler{
-		Client:     runtimeClient,
-		deployable: deployableOperands,
+		Client:         runtimeClient,
+		uncachedReader: uncachedReader,
+		deployable:     deployableOperands,
+		checkers:       checkers,
 	}
 }
 
@@ -159,17 +171,59 @@ func (r *StatusReconciler) getDependenciesFulfilledCondition(
 ) metav1.Condition {
 	generation := krmConfig.GetGeneration()
 
-	missingDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
-	if err != nil {
+	unmet := r.unmetDependencies(ctx, krmConfig)
+	if len(unmet) > 0 {
 		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
-			krmv1alpha1.KRMConfigReasonDependenciesMissing, err.Error(), generation)
-	}
-	if len(missingDependencies) > 0 {
-		return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, false,
-			krmv1alpha1.KRMConfigReasonDependenciesMissing, missingDependencies, generation)
+			krmv1alpha1.KRMConfigReasonDependenciesMissing, unmet, generation)
 	}
 	return newCondition(krmv1alpha1.KRMConfigConditionTypeDependenciesFulfilled, true,
 		krmv1alpha1.KRMConfigReasonDependenciesFulfilled, "Dependencies are fulfilled", generation)
+}
+
+// unmetDependencies joins both sources into the one message the condition carries.
+func (r *StatusReconciler) unmetDependencies(
+	ctx context.Context, krmConfig *krmv1alpha1.KRMConfig,
+) string {
+	var errs []error
+	// Per-service needs; a disabled operand reports nothing.
+	operandDependencies, err := r.deployable.HasMissingDependencies(ctx, r.Client, krmConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	installationDependencies, err := r.unmetInstallationDependencies(ctx)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	var messages []string
+	if len(errs) > 0 {
+		messages = append(messages, errors.Join(errs...).Error())
+	}
+	for _, message := range []string{operandDependencies, installationDependencies} {
+		if message != "" {
+			messages = append(messages, message)
+		}
+	}
+	return strings.Join(messages, "; ")
+}
+
+// unmetInstallationDependencies covers what belongs to no single operand.
+func (r *StatusReconciler) unmetInstallationDependencies(ctx context.Context) (string, error) {
+	var messages []string
+
+	var errs []error
+	for _, checker := range r.checkers {
+		message, err := checker.Check(ctx, r.Client, r.uncachedReader)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if message != "" {
+			messages = append(messages, message)
+		}
+	}
+
+	return strings.Join(messages, "; "), errors.Join(errs...)
 }
 
 // readyCondition summarises the others, so a consumer watching only Ready — Helm

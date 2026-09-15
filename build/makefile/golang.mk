@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 GO ?= go
@@ -19,6 +19,12 @@ GOLANGCI_LINTER_CONFIG_PATH ?= .golangci.yaml
 
 GOCACHE ?= $(CURDIR)/.gocache
 GOTMPDIR ?= $(CURDIR)/.gotmp
+
+COVERAGE_DIR ?= $(CURDIR)/coverage
+COVERAGE_PROFILE ?= $(COVERAGE_DIR)/coverage.out
+# Sibling _test packages mean only -coverpkg reports real numbers; cmd is process wiring.
+COVERPKG ?= ./pkg/...
+
 GOCACHE_DOCKER_DIR ?= /tmp/.cache
 GOCACHE_HOST_DIR ?= $(HOME)/.cache/go-build-docker-gocache
 GOPATH_HOST_DIR ?= $(HOME)/.cache/go-build-docker-gopath
@@ -59,7 +65,7 @@ endif
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-$(GOCACHE) $(GOTMPDIR):
+$(GOCACHE) $(GOTMPDIR) $(COVERAGE_DIR):
 	mkdir -p $@
 
 .PHONY: gocache
@@ -92,12 +98,16 @@ vet-go: | $(GOCACHE) $(GOTMPDIR)
 	fi
 
 .PHONY: test-go
-test-go: | $(GOCACHE) $(GOTMPDIR) ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
+test-go: | $(GOCACHE) $(GOTMPDIR) $(COVERAGE_DIR) ## Run Go tests directly; optionally set TEST_TARGETS=./pkg/<name>/....
 	@if [ -n "$(strip $(TEST_TARGETS))" ]; then \
-		$(GO) test $(TEST_TARGETS); \
+		$(GO) test -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=$(COVERAGE_PROFILE) $(TEST_TARGETS); \
 	else \
 		echo "No Go packages to test."; \
 	fi
+
+.PHONY: coverage
+coverage: test-go ## Print total statement coverage.
+	@$(GO) tool cover -func=$(COVERAGE_PROFILE) | tail -1
 
 # Kept out of `make test`: these mutate whatever KUBECONFIG points at.
 .PHONY: test-e2e

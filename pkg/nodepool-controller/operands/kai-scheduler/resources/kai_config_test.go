@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package resources
@@ -37,6 +37,10 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 		kaiMetricsNamespace    = "kai"
 		kaiFinalizerDomain     = "kai.scheduler"
 		kaiExpectedFinalizer   = "nodepool.kai.scheduler/finalize"
+
+		kaiCPUWorkerNodeLabelKey = "node-role.kubernetes.io/cpu-worker"
+		kaiGPUWorkerNodeLabelKey = "node-role.kubernetes.io/gpu-worker"
+		kaiMIGWorkerNodeLabelKey = "node-role.kubernetes.io/mig-enabled"
 	)
 
 	BeforeEach(func() {
@@ -47,6 +51,10 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			SchedulerNamespace:  kaiSchedulerNamespace,
 			MetricsNamespace:    kaiMetricsNamespace,
 			FinalizerDomain:     kaiFinalizerDomain,
+
+			CPUWorkerNodeLabelKey: kaiCPUWorkerNodeLabelKey,
+			GPUWorkerNodeLabelKey: kaiGPUWorkerNodeLabelKey,
+			MIGWorkerNodeLabelKey: kaiMIGWorkerNodeLabelKey,
 		}))
 	})
 
@@ -152,9 +160,9 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			Expect(args).To(HaveKeyWithValue("full-hierarchy-fairness", "false"))
 			// ...but the controller-owned base args are authoritative and
 			// cannot be overridden by a cluster-wide arg.
-			Expect(args).To(HaveKeyWithValue("cpu-worker-node-label-key", cpuWorkerNodeLabelKey))
-			Expect(args).To(HaveKeyWithValue("gpu-worker-node-label-key", gpuWorkerNodeLabelKey))
-			Expect(args).To(HaveKeyWithValue("mig-worker-node-label-key", migWorkerNodeLabelKey))
+			Expect(args).To(HaveKeyWithValue("cpu-worker-node-label-key", kaiCPUWorkerNodeLabelKey))
+			Expect(args).To(HaveKeyWithValue("gpu-worker-node-label-key", kaiGPUWorkerNodeLabelKey))
+			Expect(args).To(HaveKeyWithValue("mig-worker-node-label-key", kaiMIGWorkerNodeLabelKey))
 		})
 
 		It("sets only the base worker-label args when no scheduler args are provided", func() {

@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package tests
@@ -212,7 +212,7 @@ func preTestSetup(ctx context.Context, stopper <-chan struct{},
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(
 		&v1alpha1.NodePool{}, &corev1.Node{}, &kaiv1.SchedulingShard{}).
 		WithIndex(&v1alpha1.NodePool{}, common.IsDeletingPhaseField, nodepool_controller.NodePoolIsDeletingPhaseIndexer).
-		WithIndex(&corev1.Pod{}, common.PodRunningWithRunaiSchedulerNodeNameField, nodepool_controller.PodRunningWithRunaiSchedulerNodeNameIndexer).
+		WithIndex(&corev1.Pod{}, common.PodRunningWithKaiSchedulerNodeNameField, nodepool_controller.PodRunningWithKaiSchedulerNodeNameIndexer).
 		Build()
 
 	fakeCachedClient := NewFakeCachedClient(fakeClient)

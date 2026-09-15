@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package utils
@@ -50,7 +50,9 @@ func IsNodePoolAvailableForScheduling(ctx context.Context, client client.Client,
 		return false, "", err
 	}
 
-	isAvailable := phase == string(v1alpha1.NodePoolReady) || phase == string(v1alpha1.NodePoolEmpty)
+	isAvailable := phase != "" &&
+		phase != string(v1alpha1.NodePoolDeleting) &&
+		phase != string(v1alpha1.NodePoolUnschedulable)
 
 	return isAvailable, phase, nil
 }

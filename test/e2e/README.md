@@ -65,5 +65,10 @@ against a real cluster. `modules/context` enforces this:
   on, and `kai.resources/e2e-run=<id>` identifying the process that made it, so
   a run only ever deletes its own.
 
+The project-controller suite also grants the controller cluster-scoped read on
+Secrets, which the delete blocker in `hack/e2e-values.yaml` needs. Blockers are
+runtime config, so whoever configures one grants its RBAC. It is named per run
+and removed afterwards.
+
 `preflight_test.go` covers the guard. It sits outside `make test` with the rest
 of `test/e2e`, matching KAI-scheduler.

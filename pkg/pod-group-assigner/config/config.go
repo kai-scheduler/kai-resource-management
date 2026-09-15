@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package config
@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	defaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
+	DefaultUnexistingNodepoolSentinel = "kai-unexisting-node-pool"
 
-	defaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"
+	DefaultAnnotationNodepoolsKey = "kai.scheduler/node-pools"
 
 	// defaultEnforceSchedulerAnnotationKey mirrors project-controller's own default for the
 	// annotation it writes on a project's namespace (see project-controller's
@@ -46,13 +46,6 @@ type PodGroupAssignerConfig struct {
 	// to determine the project name a namespace belongs to. The assigner uses
 	// this when a PodGroup has no project label of its own and we need to
 	// derive the project from its namespace.
-	//
-	// Historically this was the *same* constant as QueueLabelKey (runai/queue),
-	// because the same label was overloaded for two unrelated purposes:
-	// (a) the workload's queue name and (b) the namespace's project name.
-	// Splitting this into its own flag is the central change —
-	// in runai deployments both flags still point at runai/queue (preserving
-	// behavior), but in the OSS package they default to different keys.
 	NamespaceProjectLabelKey string
 
 	// ProjectLabelKey is the label key READ from a PodGroup to determine the
@@ -125,13 +118,13 @@ func AddLabelFlags(fs *flag.FlagSet) {
 			kaipgconstants.ProjectLabelKey,
 			"Label key for the project name on a workload/podgroup")
 		fs.StringVar(&cfg.UnexistingNodepoolSentinel, "unexisting-nodepool-sentinel",
-			defaultUnexistingNodepoolSentinel,
+			DefaultUnexistingNodepoolSentinel,
 			"Label value used to mark a podgroup as not yet assigned to any node pool")
 		fs.StringVar(&cfg.DefaultNodepoolName, "default-nodepool-name",
 			kaiconstants.DefaultNodePoolName,
 			"Name used to identify the default node pool")
 		fs.StringVar(&cfg.AnnotationNodepoolsKey, "annotation-nodepools-key",
-			defaultAnnotationNodepoolsKey,
+			DefaultAnnotationNodepoolsKey,
 			"Annotation key on Pods whose value is a space-separated list of explicitly requested node pool names")
 		fs.StringVar(&cfg.EnforceSchedulerAnnotationKey, "enforce-scheduler-annotation-key",
 			defaultEnforceSchedulerAnnotationKey,

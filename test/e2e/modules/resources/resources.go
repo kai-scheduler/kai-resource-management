@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 // Package resources builds the objects the e2e suites create. Every builder
@@ -10,10 +10,14 @@ import (
 	"fmt"
 	"strings"
 
+	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
+	projectcommon "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
 )
@@ -29,24 +33,82 @@ func objectMeta(name string) metav1.ObjectMeta {
 	}
 }
 
+// NodePoolOption customises a NodePool before it is created.
+type NodePoolOption func(*kaires.NodePool)
+
+// WithPreferredNetworkTopology names the Topology the pod-group-assigner stamps onto the
+// pod groups it assigns to this node pool.
+func WithPreferredNetworkTopology(topology string) NodePoolOption {
+	return func(nodePool *kaires.NodePool) { nodePool.Spec.PreferredNetworkTopologyName = topology }
+}
+
+// WithSchedulingShardConfig sets scheduler settings that nodepool-controller merges into
+// the SchedulingShard it derives from the pool.
+func WithSchedulingShardConfig(config *kaires.SchedulingShardConfig) NodePoolOption {
+	return func(nodePool *kaires.NodePool) { nodePool.Spec.SchedulingShardConfig = config }
+}
+
 // NodePool builds a nodePool selecting nodes by labelKey=labelValue. The webhook
 // requires a non-empty pair on every node pool but the default one.
-func NodePool(name, labelKey, labelValue string) *kaires.NodePool {
-	return &kaires.NodePool{
+func NodePool(name, labelKey, labelValue string, options ...NodePoolOption) *kaires.NodePool {
+	nodePool := &kaires.NodePool{
 		ObjectMeta: objectMeta(name),
 		Spec: kaires.NodePoolSpec{
 			LabelKey:   labelKey,
 			LabelValue: labelValue,
 		},
 	}
+	for _, apply := range options {
+		apply(nodePool)
+	}
+
+	return nodePool
 }
 
 // GeneratedNodePool builds a nodePool whose name and node-label value are unique to
 // this call, so parallel specs never collide on the webhook's duplicate-pair rule.
-func GeneratedNodePool(prefix, labelKey string) *kaires.NodePool {
+func GeneratedNodePool(prefix, labelKey string, options ...NodePoolOption) *kaires.NodePool {
 	name := utils.GenerateName(prefix)
 
-	return NodePool(name, labelKey, name)
+	return NodePool(name, labelKey, name, options...)
+}
+
+// Topology builds a kai.scheduler Topology from its node labels, ordered highest level
+// first. The pod-group-assigner stamps the last one, the lowest, onto a pod group; a node
+// missing any of them is reported as a topology mismatch by nodepool-controller.
+func Topology(name string, nodeLabels ...string) *kaitopologyv1alpha1.Topology {
+	levels := make([]kaitopologyv1alpha1.TopologyLevel, 0, len(nodeLabels))
+	for _, nodeLabel := range nodeLabels {
+		levels = append(levels, kaitopologyv1alpha1.TopologyLevel{NodeLabel: nodeLabel})
+	}
+
+	return &kaitopologyv1alpha1.Topology{
+		ObjectMeta: objectMeta(name),
+		Spec:       kaitopologyv1alpha1.TopologySpec{Levels: levels},
+	}
+}
+
+// ManagedNodesConfig builds the singleton config naming which nodes are managed; a node
+// not matching the criteria is moved to the excluded node pool. The name is fixed by
+// nodepool-controller's --managed-nodes-config-name flag.
+func ManagedNodesConfig(name string, terms ...corev1.NodeSelectorTerm) *kaires.ManagedNodesConfig {
+	return &kaires.ManagedNodesConfig{
+		ObjectMeta: objectMeta(name),
+		Spec: kaires.ManagedNodesConfigSpec{
+			InclusionCriteria: corev1.NodeSelector{NodeSelectorTerms: terms},
+		},
+	}
+}
+
+// WithoutNodeLabel includes every node not carrying the label key, which is how a node
+// gets excluded.
+func WithoutNodeLabel(labelKey string) corev1.NodeSelectorTerm {
+	return corev1.NodeSelectorTerm{
+		MatchExpressions: []corev1.NodeSelectorRequirement{{
+			Key:      labelKey,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		}},
+	}
 }
 
 // ProjectOption customises a Project before it is created.
@@ -63,10 +125,54 @@ func WithEnforceScheduler(enforce bool) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.EnforceKaiScheduler = enforce }
 }
 
+// WithBlockingDeletion makes the project refuse to finish deleting while its namespace
+// still holds anything the projectController.deleteBlockers chart value names.
+func WithBlockingDeletion() ProjectOption {
+	return func(project *kaires.Project) {
+		project.Spec.DeletionType = ptr.To(kaires.Blocking)
+	}
+}
+
+// WithForceDelete lets the project finish deleting even when a blocker reports its
+// namespace is not empty. Meaningful only with WithBlockingDeletion configured.
+func WithForceDelete() ProjectOption {
+	return func(project *kaires.Project) {
+		if project.Annotations == nil {
+			project.Annotations = map[string]string{}
+		}
+		project.Annotations[projectcommon.ForceDeleteAnnotation] = "true"
+	}
+}
+
+// WithDefaultNodePools narrows the project's defaults to a subset of the pools it has
+// queues for. The webhook only requires the reverse - a queue for every default pool -
+// so a spec that needs to drop one queue can keep that pool out of the defaults and
+// leave the rest of the project alone.
+func WithDefaultNodePools(nodePools ...string) ProjectOption {
+	return func(project *kaires.Project) { project.Spec.DefaultNodePools = nodePools }
+}
+
+func WithQueueResources(queueResources *kaires.QueueResourcesConfig, priority *int32) ProjectOption {
+	return func(project *kaires.Project) {
+		for i := range project.Spec.Queues {
+			project.Spec.Queues[i].Resources = queueResources
+			project.Spec.Queues[i].Priority = priority
+		}
+	}
+}
+
+func WithNamespace(namespace string) ProjectOption {
+	return func(project *kaires.Project) { project.Spec.Namespace = namespace }
+}
+
+func Namespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{ObjectMeta: objectMeta(name)}
+}
+
 // Project builds a project with one queue per node pool, and those same pools as
 // its defaults. The validating webhook requires every default node pool to have a
 // queue in the same spec, so the two lists are derived together rather than
-// passed separately.
+// passed separately; WithDefaultNodePools narrows the defaults afterwards.
 func Project(name string, nodePools []string, options ...ProjectOption) *kaires.Project {
 	project := &kaires.Project{
 		ObjectMeta: objectMeta(name),
@@ -132,6 +238,11 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 	}
 }
 
+// WithNodePoolLabel names a node pool for the mutating webhook to turn into affinity.
+func WithNodePoolLabel(key, nodePool string) PodOption {
+	return func(pod *corev1.Pod) { pod.Labels[key] = nodePool }
+}
+
 // NodeSelectorPair is one node pool expressed the way a node carries it: the
 // label key the node pool selects on, and the value it selects.
 type NodeSelectorPair struct {
@@ -172,6 +283,42 @@ func WithNodeAffinity(pairs ...NodeSelectorPair) PodOption {
 				},
 			},
 		}
+	}
+}
+
+// Secret builds an empty secret; the ownership labels are what the configured blocker
+// selects it by.
+func Secret(name, namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    constant.OwnerLabels(),
+		},
+	}
+}
+
+func ClusterRole(name string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: objectMeta(name),
+		Rules:      rules,
+	}
+}
+
+func ClusterRoleBinding(name, clusterRoleName, serviceAccountName, serviceAccountNamespace string,
+) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: objectMeta(name),
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      serviceAccountName,
+			Namespace: serviceAccountNamespace,
+		}},
 	}
 }
 

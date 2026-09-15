@@ -1,4 +1,4 @@
-// Copyright 2026 NVIDIA CORPORATION
+// Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package common
@@ -36,6 +36,12 @@ const (
 	AppLabel                  = "app"
 	OcpClusterMonitoringLabel = "openshift.io/cluster-monitoring"
 
+	// ManagedByLabel marks the per-project RoleBindings this controller created. Owner
+	// references are a garbage-collection contract, not a claim of authorship, so only
+	// bindings carrying this label may be pruned.
+	ManagedByLabel        = "app.kubernetes.io/managed-by"
+	ProjectControllerName = "project-controller"
+
 	DockerRegistryAssetKind = "docker-registry"
 	PasswordAssetKind       = "password"
 	AccessKeyAssetKind      = "access-key"
@@ -61,24 +67,15 @@ const (
 	CpuMaxLimit          = "cpuMaxLimit"
 	MemoryMaxLimit       = "memoryMaxLimit"
 
-	LogProjectTag         = "Project"
-	LogDepartmentTag      = "Department"
-	LogNamespaceTag       = "Namespace"
-	LogQueueTag           = "Queue"
-	LogQueueNumTag        = "Queues"
-	LogProjectStatusTag   = "ProjectStatus"
-	LogSecretTag          = "Secret"
-	LogLimitRangeTag      = "LimitRange"
-	LogRoleBindingTag     = "RoleBinding"
-	LogImagePullSecretTag = "ImagePullSecret"
-	LogPvcTag             = "PersistentVolumeClaim"
-	LogConfigMapTag       = "ConfigMap"
-
-	LogClusterWideTag            = "ClusterWideReplicator"
-	LogClusterWideGVKSpecificTag = "ClusterWideReplicatorGVKSpecific"
-	LogScopeWideLabelKeyTag      = "ScopeWideLabelKey"
-	LogScopeWideLabelValTag      = "ScopeWideLabelVal"
-	LogGvkTag                    = "GroupVersionKind"
+	LogProjectTag       = "Project"
+	LogDepartmentTag    = "Department"
+	LogNamespaceTag     = "Namespace"
+	LogQueueTag         = "Queue"
+	LogQueueNumTag      = "Queues"
+	LogProjectStatusTag = "ProjectStatus"
+	LogLimitRangeTag    = "LimitRange"
+	LogRoleBindingTag   = "RoleBinding"
+	LogGvkTag           = "GroupVersionKind"
 
 	GvkDeleteBlockersConfigMapName = "project-delete-blockers"
 
@@ -180,8 +177,7 @@ func IsManuallyOverridden(meta metav1.Object) (isOverridden bool) {
 }
 
 // IsProjectOwner returns the index of the given Project in obj's OwnerReferences,
-// or -1 if the Project does not own obj. It is the KAI replacement for the run.ai
-// Project.IsOwner method.
+// or -1 if the Project does not own obj.
 func IsProjectOwner(project *kaiv1alpha1.Project, obj client.Object) int {
 	for index, ownerRef := range obj.GetOwnerReferences() {
 		if ownerRef.Kind == ProjectKind &&
@@ -194,8 +190,7 @@ func IsProjectOwner(project *kaiv1alpha1.Project, obj client.Object) int {
 }
 
 // IsForceDelete reports whether the object requests force deletion via the
-// kai/force-delete annotation. It is the KAI replacement for the former
-// run.ai deletionRequest.Force spec flag.
+// kai/force-delete annotation.
 func IsForceDelete(meta metav1.Object) bool {
 	return strings.ToLower(meta.GetAnnotations()[ForceDeleteAnnotation]) == "true"
 }

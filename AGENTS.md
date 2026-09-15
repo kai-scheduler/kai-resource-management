@@ -209,18 +209,22 @@ mutate a Kubernetes cluster.
 
 ### End-to-end tests
 
-End-to-end implementation is maintained under a separate ticket. Do not add
-cluster-mutating tests until the shared framework implements the safety
-contract in `test/e2e/README.md`.
+Suites live in `test/e2e/suites/`, one per service under test, on the shared
+framework in `test/e2e/modules/`. They mutate whatever cluster `KUBECONFIG`
+points at and are deliberately outside `make test`; `test/e2e/README.md` covers
+running them and states the safety contract they rely on.
 
-Every future e2e suite must:
+Every e2e suite must:
 
-- Run one centralized preflight before creating or mutating resources.
-- Require explicit evidence that the current cluster is disposable.
-- Fail closed on ambiguity or foreign resource-management objects.
-- Label and clean up only resources owned by its test run.
-- Avoid override flags that can silently authorize a development or production
-  cluster.
+- Take its client from `modules/context.GetConnectivity`, the only path that
+  runs the preflight guard.
+- Build the objects it creates with `modules/resources`, so each one carries the
+  ownership labels preflight and cleanup match on.
+- Clean up only what its own run created, and restore any node label or shared
+  object it changed. Suites share one cluster and run in a random order.
+- Wait on observable conditions through `modules/wait`, never on a fixed sleep.
+- Add no override that can authorize a development or production cluster. The
+  guard in `modules/context/preflight.go` deliberately has none.
 
 ## Documentation
 
@@ -255,7 +259,7 @@ Common types are `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, and
 Behavior changes require a changelog fragment. Refactors, tests, documentation,
 and CI-only changes do not.
 
-Every commit must include DCO sign-off as described in `CLA.md`.
+Every commit must include DCO sign-off as described in `CONTRIBUTING.md`.
 
 ## Completion checklist
 

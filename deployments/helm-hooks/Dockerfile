@@ -1,4 +1,4 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 FROM alpine:3.20
@@ -8,6 +8,7 @@ ARG KUBECTL_VERSION=v1.35.0
 RUN apk add --no-cache bash ca-certificates
 ADD --chmod=0755 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" /usr/bin/kubectl
 
+COPY NOTICE /NOTICE
 COPY deployments/kai-resource-management-chart/crds /internal-crds
 COPY deployments/helm-hooks/apply-crds.sh /apply-crds.sh
 RUN chmod 0755 /apply-crds.sh
