@@ -171,7 +171,7 @@ readiness are reported, so neither hides the other — a scheduler downgraded pa
 the minimum usually reports itself unready as well:
 
 ```text
-KAI Scheduler v0.14.2 is older than the minimum supported v0.17.0
+KAI Scheduler v0.14.2 is older than the minimum supported v0.16.9
 ```
 
 The version is read from the `kai-operator` Deployment's image tag, the only

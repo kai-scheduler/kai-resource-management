@@ -1,20 +1,16 @@
-# Copyright 2026 NVIDIA CORPORATION
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 name: Validate Changelog
 
-# Dormant until the repository setup is complete and changelog fragments are
-# required. Restore the pull_request and merge_group triggers below to enforce it.
 on:
-  workflow_dispatch:
-# on:
-#   pull_request:
-#     types: [opened, synchronize, reopened, labeled, unlabeled]
-#     branches:
-#       - main
-#       - 'v*.*'
-#   merge_group:
-#     types: [checks_requested]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+      - 'v*.*'
+  merge_group:
+    types: [checks_requested]
 
 jobs:
   validate-changelog:
