@@ -329,10 +329,6 @@ github.com/spf13/pflag
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2012 Alex Ogier. All rights reserved.
 
-github.com/stoewer/go-strcase
-Licensed under the MIT License
-Copyright (c) 2017, Adrian Stoewer <adrian.stoewer@rz.ifi.lmu.de>
-
 github.com/thoas/go-funk
 Licensed under the MIT License
 Copyright (c) 2016 Florent Messa
