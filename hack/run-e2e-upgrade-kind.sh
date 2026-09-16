@@ -67,7 +67,7 @@ done
 # failures are reported explicitly because set -e does not reach into the command
 # substitution the caller invokes this from.
 resolve_upgrade_from_version() {
-  local branch major minor pattern response tags candidates candidate
+  local branch major minor pattern response tags candidates candidate error
 
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 
@@ -98,9 +98,13 @@ resolve_upgrade_from_version() {
   fi
 
   while IFS= read -r candidate; do
-    if helm show chart "$CHART_OCI" --version "$candidate" >/dev/null 2>&1; then
+    if error=$(helm show chart "$CHART_OCI" --version "$candidate" 2>&1 >/dev/null); then
       echo "$candidate"
       return 0
+    fi
+    if [[ "$error" != *"not found"* ]]; then
+      echo "Querying the chart for $candidate failed: $error" >&2
+      return 1
     fi
   done <<< "$candidates"
 
