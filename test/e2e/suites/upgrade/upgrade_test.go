@@ -4,6 +4,7 @@
 package upgrade
 
 import (
+	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -149,8 +150,14 @@ var _ = Describe("An installation upgraded to a new chart", Ordered, Label("upgr
 		})
 
 		podGroup := wait.ForPodGroup(ctx, testClient, namespace, newPod.Name)
-		Expect(podGroup.Spec.Queue).To(Equal(resources.QueueName(project.Name, nodePool.Name)))
-		Expect(podGroup.Labels).To(HaveKeyWithValue(kaiconstants.DefaultNodePoolLabelKey, nodePool.Name))
+		Eventually(func(g Gomega) {
+			assigned := &kaiv2alpha2.PodGroup{}
+			g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), assigned)).To(Succeed())
+
+			g.Expect(assigned.Spec.Queue).To(Equal(resources.QueueName(project.Name, nodePool.Name)))
+			g.Expect(assigned.Labels).To(HaveKeyWithValue(
+				kaiconstants.DefaultNodePoolLabelKey, nodePool.Name))
+		}).Should(Succeed())
 
 		wait.ForPodRunning(ctx, testClient, namespace, newPod.Name)
 	})
