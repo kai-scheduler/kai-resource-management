@@ -354,6 +354,11 @@ jobs:
     needs: [ build, check-build-and-test-required ]
     if: needs.check-build-and-test-required.outputs.code == 'true'
     runs-on: ubuntu-latest
+    # A job-level block replaces the workflow-level one rather than adding to it,
+    # so contents is repeated. packages reads the chart, which is published private.
+    permissions:
+      contents: read
+      packages: read
     env:
       # Where push-artifacts.yaml publishes the chart, and so where a release to
       # upgrade from is looked for.
@@ -361,6 +366,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+
+      # TEMPORARY, remove once the GHCR packages are public (docs/releasing.md).
+      # The chart package is private, so every helm call below would be refused
+      # anonymously. This precedes the resolve step because that step probes the
+      # registry too.
+      - name: Log in to the chart registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
 
       # An upgrade test needs a release to upgrade from. Until one is published
       # this resolves to nothing and every step below is skipped, leaving the job
@@ -403,9 +419,16 @@ jobs:
           UPGRADE_FROM=""
           while IFS= read -r CANDIDATE; do
             echo "Checking whether the chart for $CANDIDATE is published..."
-            if helm show chart "$CHART_OCI" --version "$CANDIDATE" >/dev/null 2>&1; then
+            # Stderr is captured, stdout dropped. A missing tag is the one failure
+            # that means "keep looking"; anything else — denied, unauthorized, a
+            # registry outage — would otherwise skip the whole suite and look green.
+            if ERROR=$(helm show chart "$CHART_OCI" --version "$CANDIDATE" 2>&1 >/dev/null); then
               UPGRADE_FROM="$CANDIDATE"
               break
+            fi
+            if [[ "$ERROR" != *"not found"* ]]; then
+              echo "::error::Querying the chart for $CANDIDATE failed: $ERROR"
+              exit 1
             fi
             echo "The chart for $CANDIDATE is not published yet, trying the next candidate..."
           done <<< "$CANDIDATES"
@@ -425,6 +448,27 @@ jobs:
         uses: ./.github/actions/setup-e2e-cluster
         with:
           package_version: ${{ needs.build.outputs.package_version }}
+
+      # TEMPORARY, remove once the GHCR packages are public (docs/releasing.md).
+      # The images are private too, and the kind nodes have no credentials, so the
+      # install below would sit in ImagePullBackOff until it timed out. The runner
+      # does have credentials: pull there and load into the cluster, which the
+      # chart's IfNotPresent policy then prefers over the registry. krm-e2e is the
+      # cluster name setup-e2e-cluster defaults to.
+      - name: Preload the previous release's images
+        if: steps.resolve_version.outputs.skip != 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPGRADE_FROM_VERSION: ${{ steps.resolve_version.outputs.upgrade_from }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
+          for image in krm-operator nodepool-controller project-controller \
+            pod-group-assigner helm-hooks; do
+            ref="ghcr.io/kai-scheduler/kai-resource-management/$image:$UPGRADE_FROM_VERSION"
+            docker pull "$ref"
+            kind load docker-image --name krm-e2e "$ref"
+          done
 
       # No --set image.tag: a published chart carries its own registry and its
       # appVersion is the release, so overriding the tag asks for one that never
