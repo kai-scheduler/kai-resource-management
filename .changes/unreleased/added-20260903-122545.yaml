@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  Publish digest-pinned air-gap image locks with every release
