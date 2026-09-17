@@ -116,8 +116,20 @@ above. This path does not need `KAIBOT_TOKEN`.
 
 ## Branches other than tags
 
-Pushes to `main` are validated but publish nothing. Only version tags publish
-artifacts.
+Every merge to `main` publishes a development build of each image and of the
+chart, versioned `0.0.0-<short-sha>`. These are untested and unsupported, carry
+no upgrade guarantee, and exist to try an unreleased fix — not to run in
+production. `0.0.0` sorts below every real release, so an install that does not
+name a version never selects one.
+
+No FIPS variant is built from `main`, and no GitHub Release exists to attach the
+chart to. Both remain tag-only.
+
+Development versions are pruned weekly by **Clean up development packages**,
+which keeps the 30 most recent per package. It ignores every version that does
+not begin with `0.0.0-`, so a release can never be selected for deletion.
+Anything older than those 30 is removed: do not pin to a development version you
+need to keep.
 
 Pull requests build the controller images and package the chart to verify that
 both still build, and cannot publish them: the workflow requests no registry

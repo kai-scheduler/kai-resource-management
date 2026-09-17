@@ -1,0 +1,50 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Prunes the development versions push-artifacts.yaml publishes on every merge to
+# main. Without this they accumulate for the life of the repository against the
+# organisation's package storage.
+
+name: KAI Resource Management - Clean up development packages
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  prune:
+    name: Prune development versions
+    runs-on: ubuntu-latest
+    strategy:
+      # One package per job: a failure on one must not strand the others, and the
+      # action takes a single package name.
+      fail-fast: false
+      matrix:
+        package:
+          - nodepool-controller
+          - pod-group-assigner
+          - project-controller
+          - krm-operator
+          - helm-hooks
+          # The chart. `helm push` appends the chart name to the OCI reference, so
+          # it lands beside the images rather than at the repository root.
+          - kai-resource-management
+    steps:
+      - name: Delete superseded development versions
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: kai-scheduler
+          package-name: kai-resource-management/${{ matrix.package }}
+          package-type: container
+          # Released versions are tagged v<x>.<y>.<z>; development ones are
+          # 0.0.0-<sha>. Ignoring everything that does not start with 0.0.0- means a
+          # release can never be selected for deletion, whatever else is published.
+          ignore-versions: '^(?!0\.0\.0-)'
+          # Applied after the ignore filter, so this is 30 development versions,
+          # not 30 versions in total. Enough to bisect a regression across a few
+          # weeks of merges.
+          min-versions-to-keep: 30
