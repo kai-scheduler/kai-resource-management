@@ -174,3 +174,10 @@ changelog-release: changie ## Fold unreleased fragments into CHANGELOG.md; requi
 changelog-preview: changie ## Preview a release changelog; requires VERSION.
 	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
 	$(CHANGIE) batch $(VERSION) --dry-run
+
+.PHONY: images-manifest
+images-manifest: | $(LOCALBIN) ## Generate bin/images.yaml for a release; requires VERSION.
+	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
+	@# helm-hooks is appended rather than listed here: it is built by `make build`
+	@# alongside SERVICE_NAMES but is not one of them, so both lists stay single-sourced.
+	bash hack/generate-images-manifest.sh "$(VERSION)" "$(DOCKER_REPO_BASE)" "$(SERVICE_NAMES) helm-hooks" > $(LOCALBIN)/images.yaml

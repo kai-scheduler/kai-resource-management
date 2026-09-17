@@ -34,7 +34,25 @@ A version tag publishes to GitHub Container Registry under
 - The `kai-resource-management` Helm chart, pushed as an OCI artifact. One chart
   serves both image variants.
 
-The packaged chart is also attached to the GitHub Release as an asset.
+The packaged chart is attached to the GitHub Release as an asset, as is
+`images.yaml`: one entry per component, variant and platform, each pinned to the
+digest that was actually pushed.
+
+```yaml
+version: v0.1.0
+images:
+  - component: project-controller
+    os: linux
+    arch: amd64
+    uri: ghcr.io/kai-scheduler/kai-resource-management/project-controller:v0.1.0
+    digest: sha256:...
+```
+
+Pinning digests is what makes the file useful to an air-gapped site: mirroring a
+tag copies whatever that tag points at today, while mirroring a digest copies
+exactly what the release was built from. The file covers only the images this
+repository builds; KAI Scheduler publishes the same manifest for the images its
+subchart deploys.
 
 GHCR is the authoritative registry for this project. No other registry mirrors
 these artifacts.
@@ -98,8 +116,9 @@ already exist, then creates the tag and the GitHub Release.
 ### 4. Artifacts publish automatically
 
 Pushing the tag runs **Upload artifacts to GitHub Container Registry**, which
-builds and pushes the controller images and the chart, and attaches the chart to
-the GitHub Release.
+builds and pushes the controller images and the chart, and attaches the chart
+and `images.yaml` to the GitHub Release. The manifest job runs after both image
+jobs, so every digest in it is one that was published.
 
 ## Releasing without the automation
 
@@ -113,6 +132,18 @@ automation fails partway through:
 
 Publishing the release creates the tag, which publishes the artifacts exactly as
 above. This path does not need `KAIBOT_TOKEN`.
+
+`images.yaml` can also be regenerated on demand once the images are pushed. It
+reads the registry rather than the working tree, so any checkout produces the
+same file:
+
+```bash
+docker login ghcr.io
+make images-manifest VERSION=v0.1.0 \
+  DOCKER_REPO_BASE=ghcr.io/kai-scheduler/kai-resource-management
+```
+
+The result is written to `bin/images.yaml`.
 
 ## Branches other than tags
 
