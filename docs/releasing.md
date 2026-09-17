@@ -143,7 +143,7 @@ make images-manifest VERSION=v0.1.0 \
   DOCKER_REPO_BASE=ghcr.io/kai-scheduler/kai-resource-management
 ```
 
-The result is written to `bin/images.yaml`.
+The result is written to `images.yaml` in the repository root.
 
 ## Branches other than tags
 

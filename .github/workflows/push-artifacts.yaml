@@ -139,6 +139,7 @@ jobs:
   publish-images-manifest:
     name: Publish images.yaml
     needs: [build-and-push, build-and-push-fips]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -160,13 +161,10 @@ jobs:
       - name: Generate images.yaml
         run: make images-manifest VERSION=$PACKAGE_VERSION DOCKER_REPO_BASE=${DOCKER_REGISTRY}
 
-      - name: Attach images.yaml to the GitHub Release
+      - name: Upload images.yaml as Release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.PACKAGE_VERSION }}
+          files: images.yaml
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if gh release view "$PACKAGE_VERSION" >/dev/null 2>&1; then
-            gh release upload "$PACKAGE_VERSION" ./bin/images.yaml --clobber
-          else
-            echo "No GitHub Release for $PACKAGE_VERSION; skipping images.yaml asset upload."
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

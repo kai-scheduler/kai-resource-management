@@ -1,5 +1,6 @@
 # Build and tool output
 /bin/
+/images.yaml
 /.gocache/
 /.gotmp/
 /coverage/
