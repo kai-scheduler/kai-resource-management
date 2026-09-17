@@ -35,4 +35,7 @@ const (
 
 	// Interval is how often a wait re-reads the object.
 	Interval = time.Second
+
+	// UpgradeTimeout bounds a wait that spans every operand re-rendering and rolling.
+	UpgradeTimeout = 10 * time.Minute
 )
