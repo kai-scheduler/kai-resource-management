@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Attach images.yaml listing every release image with its per-platform digest to each GitHub Release
