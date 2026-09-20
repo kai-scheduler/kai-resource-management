@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Bind a project namespace's own service account from a project RoleBinding
