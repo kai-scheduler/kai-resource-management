@@ -96,11 +96,18 @@ tests:
       projectController.extraProjectRoleBindings:
         - name: acme-widget-project
           serviceAccountName: acme-widget
+        - name: acme-widget-scc
+          serviceAccountName: default
+          bindProjectServiceAccount: true
     asserts:
       - equal: {path: "spec.projectController.extraProjectRoleBindings[0].name", value: acme-widget-project}
       - equal:
           path: spec.projectController.extraProjectRoleBindings[0].serviceAccountName
           value: acme-widget
+      - notExists: {path: "spec.projectController.extraProjectRoleBindings[0].bindProjectServiceAccount"}
+      - equal:
+          path: spec.projectController.extraProjectRoleBindings[1].bindProjectServiceAccount
+          value: true
 
   - it: passes delete blockers through
     set:

@@ -343,6 +343,44 @@ var _ = Describe("Role Binding Resource Handler", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
+	// The operator writes a namespace-less subject for a binding that must reach the
+	// project's own service account rather than the installation's.
+	It("resolves a subject with no namespace to the project namespace", func() {
+		const bindingName = "project-default-sa-binding"
+
+		configMap := &corev1.ConfigMap{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: roleBindingsCmName, Namespace: roleBindingsCmNamespace,
+		}, configMap)).To(Succeed())
+		configMap.Data = map[string]string{bindingName + ".yaml": `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ` + bindingName + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ` + bindingName + `
+subjects:
+  - kind: ServiceAccount
+    name: default
+`}
+		Expect(k8sClient.Update(context.TODO(), configMap)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		roleBinding := &rbacv1.RoleBinding{}
+		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
+			Name: bindingName, Namespace: namespace,
+		}, roleBinding)).To(Succeed())
+
+		Expect(roleBinding.Subjects).To(HaveLen(1))
+		Expect(roleBinding.Subjects[0].Kind).To(Equal(ServiceAccountKind))
+		Expect(roleBinding.Subjects[0].Name).To(Equal("default"))
+		Expect(roleBinding.Subjects[0].Namespace).To(Equal(namespace))
+	})
+
 	It("rejects a ConfigMap entry that is an empty YAML document", func() {
 		configMap := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{
