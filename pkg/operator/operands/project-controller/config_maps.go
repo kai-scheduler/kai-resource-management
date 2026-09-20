@@ -115,6 +115,13 @@ func roleBindingFor(binding krmv1alpha1.ProjectRoleBinding, namespace string) *r
 		clusterRoleName = binding.Name
 	}
 
+	// An empty subject namespace means the RoleBinding's own namespace, which is the
+	// project's: the controller fills it in, and RBAC resolves it that way regardless.
+	subjectNamespace := namespace
+	if ptr.Deref(binding.BindProjectServiceAccount, false) {
+		subjectNamespace = ""
+	}
+
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RoleBinding",
@@ -128,7 +135,7 @@ func roleBindingFor(binding krmv1alpha1.ProjectRoleBinding, namespace string) *r
 			Name:     clusterRoleName,
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", Name: binding.ServiceAccountName, Namespace: namespace},
+			{Kind: "ServiceAccount", Name: binding.ServiceAccountName, Namespace: subjectNamespace},
 		},
 	}
 }

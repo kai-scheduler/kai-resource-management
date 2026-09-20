@@ -380,6 +380,45 @@ var _ = Describe("rolebindings plugin ConfigMap", func() {
 		Expect(roleBinding.Subjects[0].Namespace).To(Equal(testNamespace))
 	})
 
+	// The subject carries no namespace, which the controller reads as the project's own.
+	It("binds the project namespace's own service account when asked", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{
+			{
+				Name:                      "acme-widget-project",
+				ServiceAccountName:        "default",
+				BindProjectServiceAccount: ptr.To(true),
+			},
+		}
+
+		roleBinding := &rbacRoleBinding{}
+		Expect(yaml.Unmarshal(
+			[]byte(dataOf(krmConfig)["acme-widget-project.yaml"]), roleBinding)).To(Succeed())
+
+		Expect(roleBinding.Metadata.Name).To(Equal("acme-widget-project"))
+		Expect(roleBinding.RoleRef.Name).To(Equal("acme-widget-project"))
+		Expect(roleBinding.Subjects).To(HaveLen(1))
+		Expect(roleBinding.Subjects[0].Name).To(Equal("default"))
+		Expect(roleBinding.Subjects[0].Namespace).To(BeEmpty())
+	})
+
+	It("keeps binding the installation namespace when told not to", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{
+			{
+				Name:                      "acme-widget-project",
+				ServiceAccountName:        "acme-widget",
+				BindProjectServiceAccount: ptr.To(false),
+			},
+		}
+
+		roleBinding := &rbacRoleBinding{}
+		Expect(yaml.Unmarshal(
+			[]byte(dataOf(krmConfig)["acme-widget-project.yaml"]), roleBinding)).To(Succeed())
+
+		Expect(roleBinding.Subjects[0].Namespace).To(Equal(testNamespace))
+	})
+
 	It("binds a ClusterRole under a different name when asked", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.ExtraProjectRoleBindings = []krmv1alpha1.ProjectRoleBinding{

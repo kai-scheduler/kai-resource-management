@@ -12,7 +12,7 @@ require (
 	github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2
 	github.com/kai-scheduler/KAI-scheduler v0.16.9
 	github.com/kai-scheduler/api v0.1.1
-	github.com/kai-scheduler/kai-resource-management-api v0.1.2
+	github.com/kai-scheduler/kai-resource-management-api v0.1.3
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.40.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.0

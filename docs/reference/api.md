@@ -277,7 +277,7 @@ shape:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `features` | object | `createNamespaces`, `createRoleBindings`, `limitRange` — which per-project resources the controller manages. Each also gates the matching chart RBAC |
-| `extraProjectRoleBindings` | array | Extra RoleBindings to replicate into every project namespace. Each takes `name`, `serviceAccountName`, and optionally `clusterRoleName` (defaults to `name`). The ClusterRole must already exist |
+| `extraProjectRoleBindings` | array | Extra RoleBindings to replicate into every project namespace. Each takes `name`, `serviceAccountName`, and optionally `clusterRoleName` (defaults to `name`) and `bindProjectServiceAccount`. The ClusterRole must already exist. The subject is the service account of the installation namespace unless `bindProjectServiceAccount` is `true`, which takes it from the project's own namespace instead |
 | `roleBindingsConfigMapName` | string | The ConfigMap those bindings are built into |
 | `deleteBlockers` | array | Resource kinds whose presence blocks deleting a project. Each takes `displayName`, `version`, `kind`, optionally `group` and `labelSelector`. Empty means nothing blocks deletion. You must grant the controller `get`, `list` and `watch` on every kind you list |
 | `profiling` | object | `enabled` and `apiPort` for the profiler API |

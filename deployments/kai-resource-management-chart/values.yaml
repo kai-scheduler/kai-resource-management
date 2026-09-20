@@ -191,10 +191,15 @@ projectController:
     createRoleBindings: true
     limitRange: false
   # Extra per-project RoleBindings, for components owned by other charts. The ClusterRole
-  # must already exist; clusterRoleName defaults to name. For example:
+  # must already exist; clusterRoleName defaults to name. The service account is read from
+  # the release namespace unless bindProjectServiceAccount reads it from the project's own.
+  # For example:
   #   extraProjectRoleBindings:
   #     - name: acme-widget-project
   #       serviceAccountName: acme-widget
+  #     - name: acme-widget-scc
+  #       serviceAccountName: default
+  #       bindProjectServiceAccount: true
   extraProjectRoleBindings: []
   # Name of the ConfigMap the operator builds those RoleBindings into.
   # Empty uses project-controller-rolebindings-plugin.

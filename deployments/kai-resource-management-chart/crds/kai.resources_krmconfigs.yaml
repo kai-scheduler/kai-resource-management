@@ -4204,6 +4204,11 @@ spec:
                         ProjectRoleBinding is a RoleBinding the project-controller replicates into every
                         namespace it creates for a project.
                       properties:
+                        bindProjectServiceAccount:
+                          description: |-
+                            BindProjectServiceAccount binds the service account of the project's own
+                            namespace instead of the installation namespace.
+                          type: boolean
                         clusterRoleName:
                           description: |-
                             ClusterRoleName is the ClusterRole to bind, which must already exist.
@@ -4215,8 +4220,9 @@ spec:
                           minLength: 1
                           type: string
                         serviceAccountName:
-                          description: ServiceAccountName is the subject, taken from
-                            the installation namespace.
+                          description: |-
+                            ServiceAccountName is the subject. It is taken from the installation namespace
+                            unless BindProjectServiceAccount says otherwise.
                           minLength: 1
                           type: string
                       required:
