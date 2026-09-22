@@ -5,7 +5,8 @@ GO ?= go
 GO_VERSION ?= 1.26.3
 GO_IMAGE_VERSION ?= $(GO_VERSION)-bookworm
 GOLANGCI_LINT_VERSION ?= v2.11.3
-CGO_ENABLED ?= 1
+# The prod image is scratch, which cannot run a dynamically linked cgo build.
+CGO_ENABLED ?= 0
 GOFIPS140_VERSION ?= v1.0.0
 E2E_TESTS_DIR ?= test/e2e/
 TEST_TARGETS ?= $(shell $(GO) list ./... | grep -v "$(E2E_TESTS_DIR)")
