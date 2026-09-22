@@ -42,7 +42,8 @@ subjects:
     namespace: {{ .Release.Namespace }}
 ---
 # Only the cluster-scoped kinds need a ClusterRole. This is the one place in the
-# chart granting delete on a krmconfig.
+# chart granting delete on a krmconfig. The get is what lets the hook wait for the
+# deletion to complete rather than only requesting it.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -53,11 +54,7 @@ rules:
   - apiGroups: ["kai.resources"]
     resources: ["krmconfigs"]
     resourceNames: ["krm-config"]
-    verbs: ["delete"]
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    resourceNames: ["krmconfigs.kai.resources"]
-    verbs: ["get"]
+    verbs: ["delete", "get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

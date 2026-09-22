@@ -6,6 +6,9 @@
 # CI / dev-only assets
 Makefile
 tests/
+# crds/embed.go compiles the manifests into the helm-hooks binary; it is source,
+# not chart content, and Helm would carry it into every packaged release.
+*.go
 # internal_values.yaml is developer documentation only (see the file header) — it
 # is never merged into .Values and must not ship in the packaged chart.
 internal_values.yaml
