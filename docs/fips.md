@@ -75,11 +75,11 @@ Read this before treating an install as compliant.
   `GODEBUG`, because KAI Scheduler implements no run-time half. They therefore
   run at the build default of `on` and cannot be put into `only`. An install at
   `fipsMode=only` is strict for KRM and not for the scheduler.
-- **The `helm-hooks` image is tagged `-fips` but contains no FIPS-built binary.**
-  It is Alpine plus an upstream `kubectl`, used by the CRD upgrader and the
-  KRMConfig deployer/cleanup Jobs. It takes the suffix only to keep one tag
-  scheme across the release; treat the tag as a version marker there, not as a
-  claim about its contents. Those Jobs deliberately carry no `GODEBUG`.
+- **The `helm-hooks` image is FIPS-built, but its Jobs carry no `GODEBUG`.** The
+  CRD upgrader and the KRMConfig deployer/cleanup Jobs run a Go binary built from
+  the same source tree as the services, so the `-fips` tag is a claim about its
+  contents. Like the scheduler's components they run at the build default of
+  `on`, and `fipsMode=only` does not reach them.
 - **FIPS is about the cryptographic module, not about the workloads KRM
   schedules.** It says nothing about the containers users run.
 

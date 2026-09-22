@@ -50,15 +50,18 @@ tests:
 
   # Server-side apply keeps the CR's UID stable across upgrades; the operator hangs
   # ownerReferences off it, so a recreated CR would cascade-delete everything it owns.
-  - it: applies the CR server-side under its own field manager
+  # The apply itself, and its field manager, live in pkg/helmhooks.
+  - it: applies the CR from the mounted manifest
     template: templates/hooks/post/krm-config-deployer/job.yaml
     asserts:
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: kubectl apply --server-side --force-conflicts
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: --field-manager=krm-config-deployer
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["apply-config", "--file=/manifest/krm-config.yaml"]
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /manifest
+      - notExists:
+          path: spec.template.spec.containers[0].command
 
   # Only what server-side apply uses, and never delete: the deployer must not be able
   # to destroy the singleton it manages.

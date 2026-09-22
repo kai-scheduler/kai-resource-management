@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- if .Values.krmConfigDeployer.enabled }}
-# The Job applies the CR with `kubectl apply -f`, so the manifest has to reach the
-# pod as a file. This ConfigMap is what the Job mounts it from. Rendering it here
-# rather than inlining it into the Job's args keeps a large multi-line YAML out of
-# the pod spec, where it would have to survive shell quoting.
+# The Job's apply-config subcommand reads the CR from a file, so the manifest has to
+# reach the pod as one. This ConfigMap is what the Job mounts it from. Rendering it
+# here rather than inlining it into the Job's args keeps a large multi-line YAML out
+# of the pod spec.
 apiVersion: v1
 kind: ConfigMap
 metadata:

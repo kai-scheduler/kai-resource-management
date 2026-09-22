@@ -24,24 +24,14 @@ spec:
           resources:
             {{- toYaml (.Values.postCleanup.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 12 }}
           {{- include "kai-resource-management.securityContext" . | nindent 10 }}
-          command:
-            - /bin/bash
-            - -c
           args:
-            - |
-              set -euo pipefail
-              echo "Deleting operator-managed deployments..."
-              kubectl -n {{ .Release.Namespace }} delete deployment \
-                --selector=app.kubernetes.io/managed-by=krm-operator --ignore-not-found=true
-              {{- if .Values.krmConfigDeployer.enabled }}
-              # Only when this chart created it. In render mode the CR is a release
-              # resource Helm deletes before this hook runs; when both modes are off
-              # the CR belongs to somebody else.
-              if kubectl get crd krmconfigs.kai.resources >/dev/null 2>&1; then
-                echo "Deleting krm-config..."
-                kubectl delete krmconfig krm-config --ignore-not-found=true
-              fi
-              {{- end }}
-              echo "Cleanup complete."
+            - cleanup
+            - --namespace={{ .Release.Namespace }}
+            {{- if .Values.krmConfigDeployer.enabled }}
+            # Only when this chart created it. In render mode the CR is a release
+            # resource Helm deletes before this hook runs; when both modes are off
+            # the CR belongs to somebody else.
+            - --delete-config=krm-config
+            {{- end }}
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
 {{- end }}

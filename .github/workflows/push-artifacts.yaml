@@ -121,8 +121,8 @@ jobs:
       # The images are already pushed by this point, so this is a post-hoc audit
       # rather than a gate. It still matters: a silently dropped GOFIPS140 would
       # otherwise ship a `-fips` tag containing an ordinary binary, which nothing
-      # downstream can detect. Only the Go services leave binaries in bin/; the
-      # helm-hooks image carries upstream kubectl and is not FIPS-built.
+      # downstream can detect. Every image this release publishes is built from a
+      # binary in bin/, helm-hooks included, so the loop below covers all of them.
       # No `set -o pipefail` here, deliberately: `grep -q` exits on its first
       # match and closes the pipe, so `go version` can take a SIGPIPE and the
       # pipeline would report failure on exactly the binaries that passed.

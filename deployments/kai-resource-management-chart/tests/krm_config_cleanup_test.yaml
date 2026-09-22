@@ -43,51 +43,22 @@ tests:
           path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
           value: BeforeHookCreation,HookSucceeded
 
+  # Scoping to the release namespace is the chart's half of the contract; selecting
+  # only what the operator labelled is the binary's, covered in pkg/helmhooks.
   - it: removes the operand deployments and then the CR
     template: templates/hooks/post/krm-config-cleanup/job.yaml
     asserts:
-      # Scoped to the release namespace and to what the operator made. A regression
-      # dropping either turns this into a namespace-wide, or cluster-wide, wipe.
-      - matchRegex:
+      - equal:
           path: spec.template.spec.containers[0].args[0]
-          pattern: 'kubectl -n kai delete deployment'
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
-      - notMatchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: 'delete deployments? --all'
-      - notMatchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: '--all-namespaces|-A '
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: kubectl delete krmconfig krm-config --ignore-not-found=true
-
-  # Helm deletes release resources before post-delete hooks, so while the CRD is a
-  # chart template the resource type can already be gone. --ignore-not-found covers
-  # a missing object, not a missing type: kubectl errors, and under set -e the whole
-  # script aborts, leaving a retrying Job and orphaned RBAC behind.
-  - it: does not assume the resource type still exists
-    template: templates/hooks/post/krm-config-cleanup/job.yaml
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: 'if kubectl get crd krmconfigs\.kai\.resources'
-
-  - it: can read the CRD it checks for, or the check fails closed
-    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
-    documentSelector:
-      path: kind
-      value: ClusterRole
-    asserts:
+          value: cleanup
       - contains:
-          path: rules
-          content:
-            apiGroups: ["apiextensions.k8s.io"]
-            resources: ["customresourcedefinitions"]
-            resourceNames: ["krmconfigs.kai.resources"]
-            verbs: ["get"]
+          path: spec.template.spec.containers[0].args
+          content: --namespace=kai
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --delete-config=krm-config
+      - notExists:
+          path: spec.template.spec.containers[0].command
 
   # In render mode the CR is a tracked release resource Helm deletes itself; with
   # both modes off it belongs to somebody else. Either way the chart must not.
@@ -96,16 +67,16 @@ tests:
       krmConfigDeployer.enabled: false
     template: templates/hooks/post/krm-config-cleanup/job.yaml
     asserts:
-      - notMatchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: delete krmconfig
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --delete-config=krm-config
       # The operand deployments still have to go: the operator created them, not Helm.
-      - matchRegex:
-          path: spec.template.spec.containers[0].args[0]
-          pattern: --selector=app.kubernetes.io/managed-by=krm-operator
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --namespace=kai
 
   # The only place in this chart granting delete on a krmconfig, and only on the one
-  # the chart created.
+  # the chart created. The get is what lets the hook wait for the deletion to finish.
   - it: is the only holder of delete on krmconfigs
     template: templates/hooks/post/krm-config-cleanup/rbac.yaml
     documentSelector:
@@ -118,7 +89,7 @@ tests:
             apiGroups: ["kai.resources"]
             resources: ["krmconfigs"]
             resourceNames: ["krm-config"]
-            verbs: ["delete"]
+            verbs: ["delete", "get"]
 
   # Deployments are namespaced and only ever deleted in the release namespace, so the
   # grant is namespaced too. A ClusterRole here would let a compromised hook token

@@ -24,6 +24,16 @@ tests:
           path: spec.template.spec.restartPolicy
           value: OnFailure
 
+  - it: runs the apply-crds subcommand, with no shell to wrap it
+    templates:
+      - templates/hooks/pre/crd-upgrader.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["apply-crds"]
+      - notExists:
+          path: spec.template.spec.containers[0].command
+
   - it: is named and serviced distinctly from the kai-scheduler subchart's own upgrader
     templates:
       - templates/hooks/pre/crd-upgrader.yaml

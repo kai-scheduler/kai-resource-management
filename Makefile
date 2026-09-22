@@ -10,7 +10,7 @@ ADDLICENSE ?= $(LOCALBIN)/addlicense
 CHANGIE ?= $(LOCALBIN)/changie
 
 # Space-separated list of services to build by default
-SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller krm-operator
+SERVICE_NAMES := nodepool-controller pod-group-assigner project-controller krm-operator helm-hooks
 
 # CRDs are copied from the pinned API module; nothing here generates them.
 # See docs/updating-the-api-module.md.
@@ -78,7 +78,6 @@ test: test-chart test-go ## Run Helm and all non-e2e Go tests.
 
 .PHONY: build
 build: $(SERVICE_NAMES) ## Build all configured service images.
-	$(MAKE) docker-build-helm-hooks
 
 .PHONY: $(SERVICE_NAMES)
 $(SERVICE_NAMES):
@@ -123,11 +122,13 @@ sync-crds-check: ## Verify the chart CRDs match the pinned API module.
 	@# Compares against a temporary copy rather than syncing first, so a
 	@# failure never leaves modified files behind. diff -r also reports CRDs
 	@# added or removed by the API module, which a content-only check misses.
+	@# Only the YAML is generated: embed.go is hand-written and lives beside it
+	@# because go:embed cannot reach into another directory.
 	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
 	cp $(API_CRD_DIR)/*.yaml "$$tmp/"; \
 	chmod u+w "$$tmp"/*.yaml; \
 	hack/normalize-crd-header.sh "$$tmp"; \
-	if ! diff -ru "$$tmp" $(CHART_CRD_DIR); then \
+	if ! diff -ru -x '*.go' "$$tmp" $(CHART_CRD_DIR); then \
 		echo "::error::Chart CRDs are out of sync with $(API_MODULE). Run 'make sync-crds' and commit the result."; \
 		exit 1; \
 	fi
@@ -179,6 +180,4 @@ changelog-preview: changie ## Preview a release changelog; requires VERSION.
 .PHONY: images-manifest
 images-manifest: ## Generate images.yaml for a release; requires VERSION.
 	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
-	@# helm-hooks is appended rather than listed here: it is built by `make build`
-	@# alongside SERVICE_NAMES but is not one of them, so both lists stay single-sourced.
-	bash hack/generate-images-manifest.sh "$(VERSION)" "$(DOCKER_REPO_BASE)" "$(SERVICE_NAMES) helm-hooks" > images.yaml
+	bash hack/generate-images-manifest.sh "$(VERSION)" "$(DOCKER_REPO_BASE)" "$(SERVICE_NAMES)" > images.yaml
