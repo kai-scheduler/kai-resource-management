@@ -391,7 +391,15 @@ func FipsGodebugEnvVar(ctx context.Context, global *krmv1alpha1.GlobalConfig) co
 		mode = krmv1alpha1.FipsModeOff
 	}
 
-	return corev1.EnvVar{Name: "GODEBUG", Value: fmt.Sprintf("fips140=%s", mode)}
+	value := fmt.Sprintf("fips140=%s", mode)
+	// crypto/tls's default X25519MLKEM768 curve calls plain X25519, which errors
+	// under fips140=only and so breaks every client-go handshake. KAI Scheduler
+	// sets the same. See https://github.com/kubernetes/kubernetes/issues/133743.
+	if mode == krmv1alpha1.FipsModeOnly {
+		value += ",tlsmlkem=0"
+	}
+
+	return corev1.EnvVar{Name: "GODEBUG", Value: value}
 }
 
 func GetGlobalImagePullSecrets(global *krmv1alpha1.GlobalConfig) []corev1.LocalObjectReference {

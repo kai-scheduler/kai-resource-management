@@ -26,7 +26,7 @@ version.
 | --- | --- | --- |
 | `off` (default) | regular | Ordinary crypto paths. Not compliant. |
 | `on` | `-fips` | Approved algorithms are served by the validated module, which runs its mandated self-tests at startup. Non-approved algorithms still work, outside the validated boundary. |
-| `only` | `-fips` | As `on`, and any use of a non-approved algorithm returns an error or panics. |
+| `only` | `-fips` | As `on`, and any use of a non-approved algorithm returns an error or panics. Also sets `tlsmlkem=0`; see below. |
 
 Note that `on` is what a FIPS-built binary already does by default, so the
 practical reasons to set the mode explicitly are to reach `only`, or to run a
@@ -38,6 +38,14 @@ non-approved algorithm fails loudly instead of doing it silently. Accept the
 trade — that failure is a run-time one, so a code path exercised rarely can take
 a controller down long after install. `on` is the safer default for most
 deployments.
+
+`only` sets `GODEBUG=fips140=only,tlsmlkem=0` on every service. Go's default TLS
+key exchange, `X25519MLKEM768`, calls the plain X25519 primitive internally,
+which errors under `fips140=only`. Without `tlsmlkem=0`, every connection to the
+API server fails its handshake ([golang/go#78298](https://github.com/golang/go/issues/78298),
+[kubernetes/kubernetes#133743](https://github.com/kubernetes/kubernetes/issues/133743)).
+The bundled KAI Scheduler sets the same. An API server that accepts only
+`X25519MLKEM768` would therefore reject these connections.
 
 ## Installing
 

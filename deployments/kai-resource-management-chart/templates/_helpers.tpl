@@ -43,12 +43,15 @@ need the FIPS-built binary and differ only in run-time strictness. Usage:
 {{/*
 The GODEBUG env entry putting a Go binary into the requested FIPS mode. A FIPS image
 already defaults to fips140=on, so this is what reaches "only" and what turns FIPS off
-without changing the image. Our Go services only, never the kubectl hook Jobs.
+without changing the image. "only" also sets tlsmlkem=0, matching the operator's
+FipsGodebugEnvVar: the default TLS curve fails under fips140=only. Our Go services
+only, never the kubectl hook Jobs.
 Pass the root context (.); emit under a container's `env:`.
 */}}
 {{- define "kai-resource-management.godebug" -}}
+{{- $mode := include "kai-resource-management.fipsMode" . }}
 - name: GODEBUG
-  value: {{ printf "fips140=%s" (include "kai-resource-management.fipsMode" .) | quote }}
+  value: {{ printf "fips140=%s%s" $mode (ternary ",tlsmlkem=0" "" (eq $mode "only")) | quote }}
 {{- end -}}
 
 {{/*

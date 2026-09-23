@@ -107,7 +107,7 @@ var _ = Describe("DesiredState", func() {
 
 		deployment := findType[*appsv1.Deployment](objects)
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(
-			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only"}))
+			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only,tlsmlkem=0"}))
 	})
 
 	It("stamps the group, version and kind on every object", func() {

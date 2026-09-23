@@ -32,6 +32,9 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: :0\.0\.0-fips$
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GODEBUG, value: fips140=on}
 
   # The hook image is an upstream kubectl, not a binary this repo builds. It
   # still takes the -fips tag (the tag scheme is uniform and the FIPS build
@@ -62,7 +65,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: GODEBUG, value: fips140=only}
+          content: {name: GODEBUG, value: "fips140=only,tlsmlkem=0"}
 
   # The operator builds its operands from MS_TAG, so the suffix has to survive
   # the trip: this is what makes project-controller a FIPS image too.
