@@ -1,0 +1,3 @@
+kind: Changed
+body: |-
+  global.fipsMode covers the bundled scheduler, must be a string, and adds tlsmlkem=0 when "only"
