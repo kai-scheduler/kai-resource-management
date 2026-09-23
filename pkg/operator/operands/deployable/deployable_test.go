@@ -187,6 +187,73 @@ var _ = Describe("DeployableOperands", func() {
 
 			Expect(deploy()).To(MatchError(ContainSubstring("no GroupVersionKind set")))
 		})
+
+		It("takes ownership of an object that already exists outside its ownership", func() {
+			runtimeClient = newClient(scheme, &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "settings",
+					Namespace:   testNamespace,
+					Annotations: map[string]string{"run.ai/primary-resource": "runai/runai"},
+				},
+				Data: map[string]string{"key": "stale"},
+			})
+			operand.configMaps = map[string]map[string]string{"settings": {"key": "value"}}
+
+			Expect(deploy()).To(Succeed())
+
+			adopted := getConfigMap("settings")
+			Expect(adopted.Data).To(HaveKeyWithValue("key", "value"))
+			Expect(adopted.Annotations).To(HaveKeyWithValue("run.ai/primary-resource", "runai/runai"))
+			Expect(adopted.OwnerReferences).To(HaveLen(1))
+			Expect(adopted.OwnerReferences[0].Kind).To(Equal(krmv1alpha1.KRMConfigKind))
+			Expect(adopted.OwnerReferences[0].Name).To(Equal(krmv1alpha1.KRMConfigSingletonName))
+			Expect(adopted.OwnerReferences[0].Controller).To(Equal(ptr.To(true)))
+		})
+
+		It("replaces the controller reference of an object owned by another controller", func() {
+			runtimeClient = newClient(scheme, &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "settings",
+					Namespace: testNamespace,
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: appsv1.SchemeGroupVersion.String(),
+						Kind:       "Deployment",
+						Name:       "some-other-controller",
+						UID:        types.UID("99999999-8888-7777-6666-555555555555"),
+						Controller: ptr.To(true),
+					}},
+				},
+			})
+			operand.configMaps = map[string]map[string]string{"settings": {"key": "value"}}
+
+			Expect(deploy()).To(Succeed())
+
+			adopted := getConfigMap("settings")
+			Expect(adopted.OwnerReferences).To(HaveLen(1))
+			Expect(adopted.OwnerReferences[0].Kind).To(Equal(krmv1alpha1.KRMConfigKind))
+		})
+
+		It("keeps the resourceVersion on the takeover update, which a custom resource requires", func() {
+			var updatedWith string
+			runtimeClient = newClientBuilder(scheme).
+				WithObjects(&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Name: "settings", Namespace: testNamespace},
+				}).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Update: func(
+						ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption,
+					) error {
+						updatedWith = obj.GetResourceVersion()
+						return c.Update(ctx, obj, opts...)
+					},
+				}).
+				Build()
+			operand.configMaps = map[string]map[string]string{"settings": {"key": "value"}}
+
+			Expect(deploy()).To(Succeed())
+
+			Expect(updatedWith).ToNot(BeEmpty())
+		})
 	})
 
 	Context("failing to create", func() {
