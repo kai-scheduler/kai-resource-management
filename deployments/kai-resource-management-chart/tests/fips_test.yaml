@@ -36,10 +36,10 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: GODEBUG, value: fips140=on}
 
-  # The hook image is an upstream kubectl, not a binary this repo builds. It
-  # still takes the -fips tag (the tag scheme is uniform and the FIPS build
-  # publishes it), but must never claim a FIPS runtime mode.
-  - it: tags the hook Jobs -fips but gives them no GODEBUG
+  # The hook Jobs run a binary this repo builds, so both halves have to reach them
+  # too: an install at "only" that left them at the image default would be strict
+  # for the services and not for the Jobs.
+  - it: gives the hook Jobs the -fips image and the matching GODEBUG
     set:
       global.fipsMode: only
     templates:
@@ -50,12 +50,9 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: -fips$
-      # Keyed on the name alone: any GODEBUG value here would be a claim the
-      # upstream kubectl binary cannot honour, not just this mode's.
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: GODEBUG}
-          any: true
+          content: {name: GODEBUG, value: "fips140=only,tlsmlkem=0"}
 
   - it: carries the mode to each service as GODEBUG
     set:

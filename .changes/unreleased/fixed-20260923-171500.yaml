@@ -1,0 +1,3 @@
+kind: Fixed
+body: |-
+  The operator takes ownership of an object that already exists instead of failing the reconcile

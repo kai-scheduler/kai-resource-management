@@ -23,7 +23,7 @@ const (
 // rather than creating keeps the CR out of the Helm release, so its UID survives every
 // upgrade: the operator hangs ownerReferences off it, and a recreated CR would
 // cascade-delete everything it owns.
-func ApplyConfig(ctx context.Context, c client.Client, manifestPath string) error {
+func ApplyConfig(ctx context.Context, k8sClient client.Client, manifestPath string) error {
 	logger := logf.FromContext(ctx)
 
 	content, err := os.ReadFile(manifestPath)
@@ -43,7 +43,7 @@ func ApplyConfig(ctx context.Context, c client.Client, manifestPath string) erro
 
 	// One apply patch and nothing else: the deployer's ClusterRole grants create and
 	// patch deliberately, so a read-modify-write would be forbidden.
-	if err := c.Apply(ctx, client.ApplyConfigurationFromUnstructured(object),
+	if err := k8sClient.Apply(ctx, client.ApplyConfigurationFromUnstructured(object),
 		client.FieldOwner(configFieldManager), client.ForceOwnership); err != nil {
 		return fmt.Errorf("failed to apply %s %s: %w", object.GetKind(), object.GetName(), err)
 	}

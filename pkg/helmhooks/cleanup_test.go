@@ -5,6 +5,7 @@ package helmhooks
 
 import (
 	"context"
+	"time"
 
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -100,13 +101,52 @@ var _ = Describe("Cleanup", func() {
 		Expect(Cleanup(ctx, newClient(), cleanupNamespace, "krm-config")).To(Succeed())
 	})
 
+	// The KRMConfig is built from a name alone, so its UID has to be read before the
+	// delete: without it the poll cannot tell a recreation from the object it removed,
+	// and the hook would block until the Job's deadline.
+	It("stops waiting when the object is recreated under a new UID", func() {
+		scheme := runtime.NewScheme()
+		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+		utilruntime.Must(kaires.AddToScheme(scheme))
+
+		deleted := false
+		recreating := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(&kaires.KRMConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "krm-config", UID: "original"}}).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(ctx context.Context, wrapped client.WithWatch, object client.Object,
+					opts ...client.DeleteOption) error {
+					deleted = true
+					return wrapped.Delete(ctx, object, opts...)
+				},
+				Get: func(ctx context.Context, wrapped client.WithWatch, key client.ObjectKey,
+					object client.Object, opts ...client.GetOption) error {
+					if !deleted {
+						return wrapped.Get(ctx, key, object, opts...)
+					}
+					config, isConfig := object.(*kaires.KRMConfig)
+					if !isConfig {
+						return wrapped.Get(ctx, key, object, opts...)
+					}
+					*config = kaires.KRMConfig{
+						ObjectMeta: metav1.ObjectMeta{Name: key.Name, UID: "recreated"}}
+					return nil
+				},
+			}).Build()
+
+		bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		Expect(Cleanup(bounded, recreating, cleanupNamespace, "krm-config")).To(Succeed())
+	})
+
 	It("succeeds when the KRMConfig CRD itself is already gone", func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 		utilruntime.Must(kaires.AddToScheme(scheme))
 		unmapped := fake.NewClientBuilder().WithScheme(scheme).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Delete: func(context.Context, client.WithWatch, client.Object, ...client.DeleteOption) error {
+				Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
 					return &meta.NoKindMatchError{}
 				},
 			}).Build()

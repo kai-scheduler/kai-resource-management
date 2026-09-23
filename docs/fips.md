@@ -70,16 +70,12 @@ YAML bool, and the scheduler's templates fail on a bool.
 
 Read this before treating an install as compliant.
 
-- **`GODEBUG` reaches every service.** KRM sets it on `krm-operator`,
-  `nodepool-controller`, `pod-group-assigner`, and `project-controller` via the
-  operator. The bundled KAI Scheduler handles its own: at `only` it sets
+- **`GODEBUG` reaches every KRM binary** — `krm-operator`,
+  `nodepool-controller`, `pod-group-assigner` and `project-controller` via the
+  operator, and the `helm-hooks` Jobs that upgrade the CRDs and deploy or remove
+  the KRMConfig. The bundled KAI Scheduler handles its own: at `only` it sets
   `fipsOnly` in its `Config`, and its operator carries the mode to the services
   it deploys.
-- **The `helm-hooks` image is FIPS-built, but its Jobs carry no `GODEBUG`.** The
-  CRD upgrader and the KRMConfig deployer/cleanup Jobs run a Go binary built from
-  the same source tree as the services, so the `-fips` tag is a claim about its
-  contents. They run at the build default of `on`, and `fipsMode=only` does not
-  reach them.
 - **FIPS is about the cryptographic module, not about the workloads KRM
   schedules.** It says nothing about the containers users run.
 
