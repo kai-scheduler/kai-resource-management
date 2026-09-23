@@ -1,4 +1,0 @@
-kind: Fixed
-body: |-
-  The operator takes ownership of an object that already exists under a different
-  owner, instead of failing the reconcile and deploying none of its operands
