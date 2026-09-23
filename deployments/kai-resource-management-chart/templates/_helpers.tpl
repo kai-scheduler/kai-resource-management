@@ -21,7 +21,7 @@ that looks FIPS-enabled and is not. Pass the root context (.).
 {{- define "kai-resource-management.fipsMode" -}}
 {{- $mode := .Values.global.fipsMode | default "off" -}}
 {{- if not (has $mode (list "off" "on" "only")) -}}
-{{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" $mode) -}}
+{{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" (toString $mode)) -}}
 {{- end -}}
 {{- $mode -}}
 {{- end -}}
