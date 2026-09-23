@@ -13,15 +13,11 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/deployments/kai-resource-management-chart/crds"
 )
 
-// Matches the default field manager of `kubectl apply --server-side`, which earlier
-// chart versions used for this hook. Reusing the name takes over that managedFields
-// entry instead of adding a second owner, so a field dropped from a CRD is still
-// pruned on upgrade.
-const crdFieldManager = "kubectl"
+const crdFieldManager = "krm-crd-upgrader"
 
 // ApplyCRDs server-side applies the CRDs embedded in the binary, taking ownership of
 // fields another manager holds.
-func ApplyCRDs(ctx context.Context, c client.Client) error {
+func ApplyCRDs(ctx context.Context, k8sClient client.Client) error {
 	logger := logf.FromContext(ctx)
 
 	objects, err := crds.LoadEmbeddedCRDs()
@@ -30,7 +26,7 @@ func ApplyCRDs(ctx context.Context, c client.Client) error {
 	}
 
 	for _, object := range objects {
-		if err := c.Apply(ctx, client.ApplyConfigurationFromUnstructured(object),
+		if err := k8sClient.Apply(ctx, client.ApplyConfigurationFromUnstructured(object),
 			client.FieldOwner(crdFieldManager), client.ForceOwnership); err != nil {
 			return fmt.Errorf("failed to apply CRD %s: %w", object.GetName(), err)
 		}

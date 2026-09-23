@@ -22,6 +22,8 @@ spec:
         image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.crdUpgrader.image) }}
         imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.crdUpgrader.image) }}
         args: ["apply-crds"]
+        env:
+          {{- include "kai-resource-management.godebug" . | nindent 10 }}
         resources:
           {{- toYaml (.Values.crdUpgrader.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 10 }}
         {{- include "kai-resource-management.securityContext" . | nindent 8 }}
