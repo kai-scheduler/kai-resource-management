@@ -33,5 +33,7 @@ spec:
             # the CR belongs to somebody else.
             - --delete-config=krm-config
             {{- end }}
+          env:
+            {{- include "kai-resource-management.godebug" . | nindent 12 }}
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
 {{- end }}

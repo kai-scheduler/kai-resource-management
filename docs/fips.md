@@ -69,17 +69,13 @@ understands `fipsMode`.
 
 Read this before treating an install as compliant.
 
-- **`GODEBUG` reaches KRM's own services only** — `krm-operator`,
-  `nodepool-controller`, `pod-group-assigner`, and `project-controller` via the
-  operator. The bundled KAI Scheduler components get FIPS *images* but no
+- **`GODEBUG` reaches KRM's own binaries only** — `krm-operator`,
+  `nodepool-controller`, `pod-group-assigner` and `project-controller` via the
+  operator, and the `helm-hooks` Jobs that upgrade the CRDs and deploy or remove
+  the KRMConfig. The bundled KAI Scheduler components get FIPS *images* but no
   `GODEBUG`, because KAI Scheduler implements no run-time half. They therefore
   run at the build default of `on` and cannot be put into `only`. An install at
   `fipsMode=only` is strict for KRM and not for the scheduler.
-- **The `helm-hooks` image is FIPS-built, but its Jobs carry no `GODEBUG`.** The
-  CRD upgrader and the KRMConfig deployer/cleanup Jobs run a Go binary built from
-  the same source tree as the services, so the `-fips` tag is a claim about its
-  contents. Like the scheduler's components they run at the build default of
-  `on`, and `fipsMode=only` does not reach them.
 - **FIPS is about the cryptographic module, not about the workloads KRM
   schedules.** It says nothing about the containers users run.
 
