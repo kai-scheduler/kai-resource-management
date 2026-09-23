@@ -254,6 +254,28 @@ var _ = Describe("DeployableOperands", func() {
 
 			Expect(updatedWith).ToNot(BeEmpty())
 		})
+
+		It("adopts an object that already exists under a foreign owner", func() {
+			runtimeClient = newClient(scheme, &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "settings",
+					Namespace:   testNamespace,
+					Annotations: map[string]string{"run.ai/primary-resource": "runai/runai"},
+				},
+				Data: map[string]string{"key": "stale"},
+			})
+			operand.configMaps = map[string]map[string]string{"settings": {"key": "value"}}
+
+			Expect(deploy()).To(Succeed())
+
+			adopted := getConfigMap("settings")
+			Expect(adopted.Data).To(HaveKeyWithValue("key", "value"))
+			Expect(adopted.Annotations).To(HaveKeyWithValue("run.ai/primary-resource", "runai/runai"))
+			Expect(adopted.OwnerReferences).To(HaveLen(1))
+			Expect(adopted.OwnerReferences[0].Kind).To(Equal(krmv1alpha1.KRMConfigKind))
+			Expect(adopted.OwnerReferences[0].Name).To(Equal(krmv1alpha1.KRMConfigSingletonName))
+			Expect(adopted.OwnerReferences[0].Controller).To(Equal(ptr.To(true)))
+		})
 	})
 
 	Context("failing to create", func() {

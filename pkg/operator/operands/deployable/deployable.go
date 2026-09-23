@@ -264,6 +264,7 @@ func createObjectForKRMConfig(
 	ctx context.Context, runtimeClient client.Client, reconcilerAsOwnerReference metav1.OwnerReference,
 	obj client.Object) error {
 	obj.SetOwnerReferences([]metav1.OwnerReference{reconcilerAsOwnerReference})
+	obj.SetResourceVersion("")
 
 	objectToCreate := obj.DeepCopyObject().(client.Object)
 	objectToCreate.SetResourceVersion("")
