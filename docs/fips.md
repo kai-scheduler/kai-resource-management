@@ -44,42 +44,34 @@ deployments.
 ```sh
 helm upgrade --install krm oci://ghcr.io/kai-scheduler/kai-resource-management/kai-resource-management \
   -n kai-resource-management --create-namespace \
-  --set global.fipsMode=on \
-  --set kai-scheduler.global.fips=true
+  --set global.fipsMode=on
 ```
 
 The mode appends `-fips` to every resolved image tag — whether that tag comes
 from a per-component `<component>.image.tag`, from `image.tag`, or from the
 chart version — so FIPS selection is orthogonal to version pinning.
 
+The bundled KAI Scheduler reads the same `global.fipsMode`, which Helm shares
+into the subchart, so this one value switches the whole install.
+
 An unrecognised value fails the render rather than installing without FIPS.
-A bool is accepted for the common case: `--set global.fipsMode=true` means `on`.
-
-### Why the second flag
-
-`kai-scheduler.global.fips` is a temporary duplicate. The bundled KAI Scheduler
-release predates `fipsMode` and reads a boolean `global.fips`; Helm shares
-`global.*` into subcharts verbatim rather than deriving one key from another, so
-it cannot be inferred. Setting only one of the two would put KRM on FIPS images
-and the scheduler on ordinary ones, so the chart refuses to render until both
-agree. Both the duplicate and the check disappear when the pinned scheduler
-understands `fipsMode`.
+The value must be a string: quote it in a values file, because a bare `on` is a
+YAML bool, and the scheduler's templates fail on a bool.
 
 ## Coverage and limits
 
 Read this before treating an install as compliant.
 
-- **`GODEBUG` reaches KRM's own services only** — `krm-operator`,
+- **`GODEBUG` reaches every service.** KRM sets it on `krm-operator`,
   `nodepool-controller`, `pod-group-assigner`, and `project-controller` via the
-  operator. The bundled KAI Scheduler components get FIPS *images* but no
-  `GODEBUG`, because KAI Scheduler implements no run-time half. They therefore
-  run at the build default of `on` and cannot be put into `only`. An install at
-  `fipsMode=only` is strict for KRM and not for the scheduler.
+  operator. The bundled KAI Scheduler handles its own: at `only` it sets
+  `fipsOnly` in its `Config`, and its operator carries the mode to the services
+  it deploys.
 - **The `helm-hooks` image is FIPS-built, but its Jobs carry no `GODEBUG`.** The
   CRD upgrader and the KRMConfig deployer/cleanup Jobs run a Go binary built from
   the same source tree as the services, so the `-fips` tag is a claim about its
-  contents. Like the scheduler's components they run at the build default of
-  `on`, and `fipsMode=only` does not reach them.
+  contents. They run at the build default of `on`, and `fipsMode=only` does not
+  reach them.
 - **FIPS is about the cryptographic module, not about the workloads KRM
   schedules.** It says nothing about the containers users run.
 

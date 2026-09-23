@@ -26,7 +26,6 @@ tests:
   - it: suffixes every component image when enabled
     set:
       global.fipsMode: "on"
-      kai-scheduler.global.fips: true
     templates:
       - templates/krm-operator/deployment.yaml
     asserts:
@@ -40,7 +39,6 @@ tests:
   - it: tags the hook Jobs -fips but gives them no GODEBUG
     set:
       global.fipsMode: only
-      kai-scheduler.global.fips: true
     templates:
       - templates/hooks/pre/crd-upgrader.yaml
       - templates/hooks/post/krm-config-deployer/job.yaml
@@ -59,7 +57,6 @@ tests:
   - it: carries the mode to each service as GODEBUG
     set:
       global.fipsMode: only
-      kai-scheduler.global.fips: true
     templates:
       - templates/krm-operator/deployment.yaml
     asserts:
@@ -72,7 +69,6 @@ tests:
   - it: hands the operator a FIPS operand tag without losing its other env
     set:
       global.fipsMode: "on"
-      kai-scheduler.global.fips: true
     templates:
       - templates/krm-operator/deployment.yaml
     asserts:
@@ -86,7 +82,6 @@ tests:
   - it: suffixes an explicitly pinned tag rather than replacing it
     set:
       global.fipsMode: "on"
-      kai-scheduler.global.fips: true
       image.tag: "1.2.3"
       nodePoolController.image.tag: "4.5.6"
       krmConfigDeployer.enabled: false
@@ -101,7 +96,6 @@ tests:
   - it: reaches the KRMConfig the deployer applies
     set:
       global.fipsMode: only
-      kai-scheduler.global.fips: true
     templates:
       - templates/hooks/post/krm-config-deployer/configmap.yaml
     asserts:
@@ -119,24 +113,8 @@ tests:
           path: data["krm-config.yaml"]
           pattern: fipsMode
 
-  - it: accepts a bool for the common on/off case
-    set:
-      global.fipsMode: true
-      kai-scheduler.global.fips: true
-    templates:
-      - templates/krm-operator/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: GODEBUG, value: fips140=on}
-      - matchRegex:
-          path: spec.template.spec.containers[0].image
-          pattern: -fips$
-
   # A typo that renders successfully is the worst outcome available here: the
-  # install looks FIPS-enabled and every image is the ordinary one. Note "On"
-  # would be a poor case to assert on - YAML reads it as a bool, which the
-  # helper deliberately coerces to "on" (see the bool case above).
+  # install looks FIPS-enabled and every image is the ordinary one.
   # Helm aborts at the first template to force the helper and attributes the
   # error there, so this names the deployer Job rather than the template whose
   # behaviour is under test. If a new template sorts ahead of it this test fails
@@ -150,13 +128,14 @@ tests:
       - failedTemplate:
           errorPattern: "must be one of: off, on, only"
 
-  # Helm shares global.* into subcharts verbatim, so the pinned KAI Scheduler
-  # never sees fipsMode. Rendering half a FIPS stack is worse than refusing.
-  - it: refuses to enable FIPS without the bundled scheduler following
+  # Nothing but the shared global.fipsMode puts the bundled scheduler on FIPS
+  # images, so a KAI release that renames the key would silently split the install.
+  - it: puts the bundled scheduler on FIPS images from global.fipsMode alone
     set:
       global.fipsMode: "on"
     templates:
-      - templates/krm-config.yaml
+      - charts/kai-scheduler/templates/services/operator.yaml
     asserts:
-      - failedTemplate:
-          errorPattern: kai-scheduler.global.fips
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: -fips$

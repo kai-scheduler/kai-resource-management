@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2
-	github.com/kai-scheduler/KAI-scheduler v0.16.9
+	github.com/kai-scheduler/KAI-scheduler v0.18.0
 	github.com/kai-scheduler/api v0.1.1
 	github.com/kai-scheduler/kai-resource-management-api v0.1.3
 	github.com/onsi/ginkgo/v2 v2.32.0
@@ -21,10 +21,10 @@ require (
 	github.com/thoas/go-funk v0.7.0
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
-	k8s.io/api v0.35.4
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+	k8s.io/api v0.36.2
 	k8s.io/apiextensions-apiserver v0.35.4
-	k8s.io/apimachinery v0.35.4
+	k8s.io/apimachinery v0.36.2
 	k8s.io/autoscaler/vertical-pod-autoscaler v1.5.1
 	k8s.io/client-go v0.35.4
 	k8s.io/component-helpers v0.35.4
@@ -47,7 +47,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -159,3 +159,7 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
+
+replace k8s.io/api => k8s.io/api v0.35.4
+
+replace k8s.io/apimachinery => k8s.io/apimachinery v0.35.4

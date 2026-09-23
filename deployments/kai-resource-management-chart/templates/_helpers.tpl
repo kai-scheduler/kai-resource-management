@@ -14,14 +14,12 @@ true
 {{- end -}}
 
 {{/*
-Resolves and validates global.fipsMode, returning "off", "on" or "only". Bools are
-coerced so `--set global.fipsMode=true` behaves. An unrecognised value fails the
-render: silently ignoring a typo installs something that looks FIPS-enabled and is
-not. Pass the root context (.).
+Resolves and validates global.fipsMode, returning "off", "on" or "only". An
+unrecognised value fails the render: silently ignoring a typo installs something
+that looks FIPS-enabled and is not. Pass the root context (.).
 */}}
 {{- define "kai-resource-management.fipsMode" -}}
 {{- $mode := .Values.global.fipsMode | default "off" -}}
-{{- if kindIs "bool" $mode -}}{{- $mode = ternary "on" "off" $mode -}}{{- end -}}
 {{- if not (has $mode (list "off" "on" "only")) -}}
 {{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" $mode) -}}
 {{- end -}}

@@ -96,7 +96,7 @@ a developer reference for template defaults and is not included in packaged
 charts.
 
 FIPS 140-3 installs set `global.fipsMode`, which selects the `-fips` images and
-their run-time mode, and require `kai-scheduler.global.fips` to match. See
+their run-time mode for this chart and the bundled scheduler alike. See
 [FIPS 140-3](../../docs/fips.md).
 
 ## KRM operator
@@ -141,6 +141,10 @@ The chart creates it in one of two ways, and can also leave it alone entirely.
 
 Setting both fails the render: two managers of one singleton would fight, one
 recreating what the other prunes.
+
+The bundled scheduler's `kai-config` CR offers the same two paths, set
+separately. For GitOps, switch it too: `kai-scheduler.kaiConfigDeployer.enabled=false`
+and `kai-scheduler.kaiConfig.render=true`.
 
 The default keeps the CR out of the release deliberately. The operator hangs
 `ownerReferences` for every object it creates off this CR, so if the CR's UID

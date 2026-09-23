@@ -34,7 +34,6 @@ tests:
       image.registry: reg.example.com/kai
       image.tag: "2.26.0"
       global.fipsMode: "on"
-      kai-scheduler.global.fips: true
     asserts:
       - equal: {path: spec.nodePoolController.service.image.tag, value: 2.26.0-fips}
 
