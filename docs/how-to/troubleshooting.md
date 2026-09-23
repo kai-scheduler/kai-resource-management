@@ -95,7 +95,7 @@ transiently during a KAI upgrade; it clears itself.
 A third names the version:
 
 ```text
-KAI Scheduler v0.14.2 is older than the minimum supported v0.16.9
+KAI Scheduler v0.14.2 is older than the minimum supported v0.18.0
 ```
 
 ```bash
