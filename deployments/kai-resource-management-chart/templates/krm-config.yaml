@@ -11,17 +11,6 @@ are untracked: no drift detection, no selfHeal.
 {{- if and $krmConfig.render .Values.krmConfigDeployer.enabled -}}
 {{- fail "krmConfig.render and krmConfigDeployer.enabled are mutually exclusive: two managers of one singleton. For GitOps set krmConfigDeployer.enabled=false and krmConfig.render=true." -}}
 {{- end -}}
-{{- /*
-Unguarded, global.fipsMode=on would render KRM on FIPS images and the bundled scheduler
-on ordinary ones, since KAI v0.16.9 reads global.fips and Helm shares global.* verbatim.
-Half a FIPS install is worse than none. Lives here because this template always renders;
-delete once the pinned KAI release understands fipsMode.
-*/ -}}
-{{- if ne (include "kai-resource-management.fipsMode" .) "off" -}}
-{{- if not (index .Values "kai-scheduler" "global" "fips") -}}
-{{- fail "global.fipsMode is enabled but the bundled kai-scheduler still reads the boolean global.fips, which Helm does not derive from it. Also set kai-scheduler.global.fips=true, relative to this chart's own values - a parent chart must prefix it with this chart's alias - otherwise the scheduler's own pods run non-FIPS images." -}}
-{{- end -}}
-{{- end -}}
 {{- if $krmConfig.render }}
 {{ include "kai-resource-management.krm-config" . }}
 {{- end -}}

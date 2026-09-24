@@ -25,7 +25,7 @@ import (
 const (
 	configName   = kaiconstants.DefaultKAIConfigSingeltonInstanceName
 	kaiNamespace = "kai-scheduler"
-	minimum      = "v0.16.9"
+	minimum      = "v0.18.0"
 )
 
 // kaiOperator carries the image tag the version is read from.
@@ -191,17 +191,19 @@ var _ = Describe("KAIScheduler.Check version", func() {
 	}
 
 	It("accepts the minimum itself", func() {
-		Expect(checkWith("repo/operator:v0.16.9", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.18.0", "")).To(BeEmpty())
 	})
 
 	It("accepts a newer patch and minor", func() {
-		Expect(checkWith("repo/operator:v0.17.3", "")).To(BeEmpty())
-		Expect(checkWith("repo/operator:v0.18.0", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.18.1", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.19.0", "")).To(BeEmpty())
 	})
 
 	It("reports one older than the minimum", func() {
 		Expect(checkWith("repo/operator:v0.14.2", "")).To(Equal(
-			"KAI Scheduler v0.14.2 is older than the minimum supported v0.16.9"))
+			"KAI Scheduler v0.14.2 is older than the minimum supported v0.18.0"))
+		Expect(checkWith("repo/operator:v0.17.2", "")).To(Equal(
+			"KAI Scheduler v0.17.2 is older than the minimum supported v0.18.0"))
 	})
 
 	It("accepts a newer major", func() {
@@ -210,7 +212,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	// Semver orders a prerelease below its release, so the suffix must come off.
 	It("accepts the FIPS build of the minimum", func() {
-		Expect(checkWith("repo/operator:v0.16.9-fips", "")).To(BeEmpty())
+		Expect(checkWith("repo/operator:v0.18.0-fips", "")).To(BeEmpty())
 	})
 
 	It("reads the tag through a registry port", func() {
@@ -280,7 +282,7 @@ var _ = Describe("KAIScheduler.Check version", func() {
 
 	It("reports unreadiness when the version is supported", func() {
 		message, err := check(checker, ctx,
-			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.16.9", ""))
+			kaiConfig(metav1.ConditionFalse, "starting"), kaiOperator("repo/operator:v0.18.0", ""))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(message).To(ContainSubstring("is not ready"))

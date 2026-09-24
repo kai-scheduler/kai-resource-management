@@ -106,7 +106,7 @@ var _ = Describe("FipsGodebugEnvVar", func() {
 		},
 		Entry("off", ptr.To(krmv1alpha1.FipsModeOff), "fips140=off"),
 		Entry("on", ptr.To(krmv1alpha1.FipsModeOn), "fips140=on"),
-		Entry("only", ptr.To(krmv1alpha1.FipsModeOnly), "fips140=only"),
+		Entry("only", ptr.To(krmv1alpha1.FipsModeOnly), "fips140=only,tlsmlkem=0"),
 		// Unset and out-of-enum both disable rather than reach a pod spec: the
 		// latter is only possible for a CR stored before the enum existed.
 		Entry("unset", nil, "fips140=off"),
@@ -142,7 +142,7 @@ var _ = Describe("DeploymentForKRMConfig", func() {
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(
-			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only"}))
+			ContainElement(corev1.EnvVar{Name: "GODEBUG", Value: "fips140=only,tlsmlkem=0"}))
 	})
 
 	It("drops the security context on OpenShift, which assigns the uid range itself", func() {

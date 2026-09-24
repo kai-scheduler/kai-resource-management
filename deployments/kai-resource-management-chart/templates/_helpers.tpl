@@ -14,16 +14,14 @@ true
 {{- end -}}
 
 {{/*
-Resolves and validates global.fipsMode, returning "off", "on" or "only". Bools are
-coerced so `--set global.fipsMode=true` behaves. An unrecognised value fails the
-render: silently ignoring a typo installs something that looks FIPS-enabled and is
-not. Pass the root context (.).
+Resolves and validates global.fipsMode, returning "off", "on" or "only". An
+unrecognised value fails the render: silently ignoring a typo installs something
+that looks FIPS-enabled and is not. Pass the root context (.).
 */}}
 {{- define "kai-resource-management.fipsMode" -}}
 {{- $mode := .Values.global.fipsMode | default "off" -}}
-{{- if kindIs "bool" $mode -}}{{- $mode = ternary "on" "off" $mode -}}{{- end -}}
 {{- if not (has $mode (list "off" "on" "only")) -}}
-{{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" $mode) -}}
+{{- fail (printf "global.fipsMode must be one of: off, on, only (got %q)" (toString $mode)) -}}
 {{- end -}}
 {{- $mode -}}
 {{- end -}}
@@ -46,11 +44,14 @@ need the FIPS-built binary and differ only in run-time strictness. Usage:
 The GODEBUG env entry putting a Go binary into the requested FIPS mode. A FIPS image
 already defaults to fips140=on, so this is what reaches "only" and what turns FIPS off
 without changing the image. Every container running a binary this repo builds gets it,
-the hook Jobs included. Pass the root context (.); emit under a container's `env:`.
+the hook Jobs included. "only" also sets tlsmlkem=0, matching the operator's
+FipsGodebugEnvVar: the default TLS curve fails under fips140=only.
+Pass the root context (.); emit under a container's `env:`.
 */}}
 {{- define "kai-resource-management.godebug" -}}
+{{- $mode := include "kai-resource-management.fipsMode" . }}
 - name: GODEBUG
-  value: {{ printf "fips140=%s" (include "kai-resource-management.fipsMode" .) | quote }}
+  value: {{ printf "fips140=%s%s" $mode (ternary ",tlsmlkem=0" "" (eq $mode "only")) | quote }}
 {{- end -}}
 
 {{/*
