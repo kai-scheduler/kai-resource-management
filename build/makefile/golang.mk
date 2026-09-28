@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 GO ?= go
-GO_VERSION ?= 1.26.3
+GO_VERSION ?= 1.26.8
 GO_IMAGE_VERSION ?= $(GO_VERSION)-bookworm
 GOLANGCI_LINT_VERSION ?= v2.11.3
 # The prod image is scratch, which cannot run a dynamically linked cgo build.
