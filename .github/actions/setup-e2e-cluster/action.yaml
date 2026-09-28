@@ -19,7 +19,7 @@ inputs:
   go_version:
     description: Go toolchain to install
     required: false
-    default: '1.26.3'
+    default: '1.26.8'
 
 runs:
   using: composite

@@ -1,6 +1,6 @@
 module github.com/kai-scheduler/kai-resource-management
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/ai-dynamo/grove/operator/api v0.1.0-alpha.10-rc1
