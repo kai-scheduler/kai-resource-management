@@ -70,7 +70,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.3'
+          go-version: '1.26.8'
           # The cache step above holds the module cache. setup-go would also
           # store ~/.cache/go-build, which the Makefile's GOCACHE overrides.
           cache: false
@@ -218,7 +218,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.3'
+          go-version: '1.26.8'
           # No host Go build runs in this job, so setup-go's cache would only
           # save and restore directories nothing reads. The Docker-mounted
           # cache above is the one that matters.
