@@ -1,3 +1,0 @@
-kind: Changed
-body: |-
-  Service images are now built on scratch instead of distroless
