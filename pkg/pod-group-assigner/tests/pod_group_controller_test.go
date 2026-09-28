@@ -372,6 +372,27 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 
 			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
 		})
+
+		It("Scheduler clears its conditions after placing the pod group on the default NP - don't reset to the first NP", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{nodePoolA.Name, defaultNodePool.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("Scheduler clears its conditions after placing the pod group on the default NP - don't reset to the first NP", pg, nodePoolOptions, 2, k8sClient)
+
+			assignmentParams.NodePoolName = nodePoolOptions[0]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+
+			assignmentParams.MarkUnschedulable = true
+			assignmentParams.NodePoolName = nodePoolOptions[1]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+
+			SchedulerMock.ClearSchedulingConditions(pg, k8sClient)
+
+			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
 	})
 
 	Context("Non Ready NodePools", func() {

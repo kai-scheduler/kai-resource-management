@@ -155,13 +155,10 @@ func (pga *PodGroupAssigner) handleNodePoolAssignment(
 	return pga.assignToNodePool(ctx, podGroup, nodePoolAssignmentParams, podGroupPods)
 }
 
-// The node pool label alone cannot mark a pod group as assigned: the pod grouper may copy it from the
-// workload. SchedulingBackoff is written only by this assigner, and the pod grouper preserves it.
+// Only pod groups the mutator saw get this far - without its SchedulingBackoff they read as never backing off -
+// and it stamps the unassigned sentinel on each, so a missing label means this assigner placed it on the
+// default pool. A node pool label copied from the workload also reads as assigned.
 func getAssignedNodePool(podGroup *kaiv2alpha2.PodGroup) string {
-	if podGroup.Spec.SchedulingBackoff == nil {
-		return ""
-	}
-
 	return nodepoolutils.GetNodePoolNameFromLabels(podGroup.Labels, config.Config().NodePoolLabelKey, config.Config().DefaultNodepoolName)
 }
 
