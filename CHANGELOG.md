@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.0] - 2026-09-28
+
+### Added
+- Publish development images and chart on merges to main
+
+### Changed
+- Service images are now built on scratch instead of distroless
+- Helm hook Jobs run a Go binary on scratch instead of an Alpine image with kubectl
+- Helm hook Jobs honour global.fipsMode at run time, like the services
+- global.fipsMode covers the bundled scheduler, must be a string, and adds tlsmlkem=0 when "only"
+- Bundle KAI Scheduler v0.18.0, now also the minimum supported version
+
+### Fixed
+- The operator takes ownership of an object that already exists instead of failing the reconcile
+
 ## [v0.0.3] - 2026-09-20
 
 ### Added
