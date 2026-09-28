@@ -350,6 +350,28 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 		})
+
+		It("Scheduler clears its conditions after placing the pod group - don't reset to the first NP", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{nodePoolA.Name, nodePoolB.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("Scheduler clears its conditions after placing the pod group - don't reset to the first NP", pg, nodePoolOptions, 2, k8sClient)
+
+			assignmentParams.NodePoolName = nodePoolOptions[0]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+			SchedulerMock.UnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
+
+			assignmentParams.MarkUnschedulable = true
+			assignmentParams.NodePoolName = nodePoolOptions[1]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+
+			// the pods are left unbound: the assigner's pod view can lag the cleared conditions
+			SchedulerMock.ClearSchedulingConditions(pg, k8sClient)
+
+			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
 	})
 
 	Context("Non Ready NodePools", func() {
@@ -691,6 +713,23 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			updateNodePoolStatus(nodePoolOptions[0], v1alpha1.NodePoolUnschedulable)
 
 			// don't move to next NP - since the PG is Running!
+			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
+
+		It("During scheduling cycle, suddenly the NP becomes Unschedulable - but pods are bound, so don't re-assign", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{nodePoolA.Name, nodePoolB.Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("During scheduling cycle, suddenly the NP becomes Unschedulable - but pods are bound, so don't re-assign", pg, nodePoolOptions, 2, k8sClient)
+
+			assignmentParams.NodePoolName = nodePoolOptions[0]
+			eventuallyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+
+			SchedulerMock.Bind(pg, "node-a", k8sClient)
+
+			updateNodePoolStatus(nodePoolOptions[0], v1alpha1.NodePoolUnschedulable)
+
 			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
 		})
 	})
