@@ -212,6 +212,20 @@ func ForPodRunning(ctx goctx.Context, k8sClient client.Client, namespace, name s
 	return pod
 }
 
+// ForPodBound waits for a pod to be bound to a node, whether or not its containers
+// ever start.
+func ForPodBound(ctx goctx.Context, k8sClient client.Client, namespace, name string) *corev1.Pod {
+	pod := &corev1.Pod{}
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, pod)).To(gomega.Succeed())
+		g.Expect(pod.Spec.NodeName).ToNot(gomega.BeEmpty(),
+			"pod %s/%s is not bound to a node", namespace, name)
+	}).WithContext(ctx).WithTimeout(constant.PodTimeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return pod
+}
+
 // ForPodGroup returns the pod group the pod-grouper made for a pod.
 //
 // Resolved through the annotation the pod-grouper stamps on the pod rather than by listing

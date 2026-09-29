@@ -103,6 +103,39 @@ func (sm *TestSchedulerMock) Running(pg types.NamespacedName, k8sClient client.C
 	}, timeout, interval).Should(BeTrue())
 }
 
+// ClearSchedulingConditions mirrors KAI Scheduler (v0.17+) dropping a pod group's conditions once its pods are placed.
+func (sm *TestSchedulerMock) ClearSchedulingConditions(pg types.NamespacedName, k8sClient client.Client) {
+	pgFromClient := getPodGroupFromClient(pg, k8sClient)
+	pgFromClient.Status.SchedulingConditions = nil
+	expectUpdateResourceStatus(k8sClient, pgFromClient)
+
+	Eventually(func() []kaiv2alpha2.SchedulingCondition {
+		return getPodGroupFromClient(pg, k8sClient).Status.SchedulingConditions
+	}, timeout, interval).Should(BeEmpty())
+}
+
+// Bind leaves the pods Pending, as they are between binding and their containers starting.
+func (sm *TestSchedulerMock) Bind(pg types.NamespacedName, nodeName string, k8sClient client.Client) {
+	pods := getPodGroupPods(pg)
+	Expect(pods).ToNot(BeNil())
+
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		pod.Spec.NodeName = nodeName
+		Expect(k8sClient.Update(apiCtx, pod)).To(Succeed())
+	}
+
+	Eventually(func() bool {
+		for _, pod := range getPodGroupPods(pg).Items {
+			if pod.Spec.NodeName != nodeName || pod.Status.Phase == corev1.PodRunning {
+				return false
+			}
+		}
+
+		return true
+	}, timeout, interval).Should(BeTrue())
+}
+
 func markAsUnschedulable(pg types.NamespacedName, k8sClient client.Client) {
 	var pods *corev1.PodList
 
