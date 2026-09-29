@@ -139,7 +139,7 @@ Copyright 2023 The logr Authors.
 
 github.com/go-openapi/jsonpointer
 Licensed under the Apache License 2.0
-Copyright 2013 sigu-399 ( https://github.com/sigu-399 )
+Copyright 2015-2025 go-swagger maintainers
 
 github.com/go-openapi/jsonreference
 Licensed under the Apache License 2.0
@@ -147,7 +147,51 @@ Copyright 2013 sigu-399 ( https://github.com/sigu-399 )
 
 github.com/go-openapi/swag
 Licensed under the Apache License 2.0
-Copyright 2015 go-swagger maintainers
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/cmdutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/conv
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/fileutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/jsonutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/loading
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/mangling
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/netutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/pools
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/stringutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/typeutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
+
+github.com/go-openapi/swag/yamlutils
+Licensed under the Apache License 2.0
+Copyright 2015-2025 go-swagger maintainers
 
 github.com/go-playground/locales
 Licensed under the MIT License
@@ -205,10 +249,6 @@ github.com/hashicorp/go-multierror
 Licensed under the Mozilla Public License 2.0
 Copyright HashiCorp, Inc.
 
-github.com/josharian/intern
-Licensed under the MIT License
-Copyright (c) 2019 Josh Bleecher Snyder
-
 github.com/json-iterator/go
 Licensed under the MIT License
 Copyright (c) 2016 json-iterator
@@ -232,10 +272,6 @@ Copyright 2025 NVIDIA CORPORATION
 github.com/leodido/go-urn
 Licensed under the MIT License
 Copyright (c) 2018 Leonardo Di Donato
-
-github.com/mailru/easyjson
-Licensed under the MIT License
-Copyright (c) 2016 Mail.Ru Group
 
 github.com/mattn/go-colorable
 Licensed under the MIT License
@@ -468,10 +504,6 @@ Copyright (c) 2014, Evan Phoenix
 gopkg.in/inf.v0
 Licensed under the BSD 3-Clause "New" or "Revised" License
 Copyright (c) 2012 Péter Surányi. Portions Copyright (c) 2009 The Go
-
-gopkg.in/yaml.v3
-Licensed under the Apache License 2.0
-Copyright (c) 2006-2010 Kirill Simonov; Copyright (c) 2011-2019 Canonical Ltd.
 
 k8s.io/api
 Licensed under the Apache License 2.0
