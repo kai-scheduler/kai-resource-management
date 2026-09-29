@@ -143,7 +143,8 @@ func (pga *PodGroupAssigner) handleNodePoolAssignment(
 		return err
 	}
 
-	nodePoolAssignmentParams, err := assignment_params.GetNodePoolAssignmentParams(ctx, pga.Client, podGroup.Spec.MarkUnschedulable, lastSchedulingCondition, requestedNodePools)
+	nodePoolAssignmentParams, err := assignment_params.GetNodePoolAssignmentParams(ctx, pga.Client, podGroup.Spec.MarkUnschedulable, lastSchedulingCondition,
+		getAssignedNodePool(podGroup), requestedNodePools)
 	if err != nil {
 		log.Ctx(ctx).Error().Msgf("Failed assigning pod group <%s> to a node pool, error: %s",
 			getPodGroupNamespacedName(podGroup.ObjectMeta), err.Error())
@@ -152,6 +153,13 @@ func (pga *PodGroupAssigner) handleNodePoolAssignment(
 	}
 
 	return pga.assignToNodePool(ctx, podGroup, nodePoolAssignmentParams, podGroupPods)
+}
+
+// Only pod groups the mutator saw get this far - without its SchedulingBackoff they read as never backing off -
+// and it stamps the unassigned sentinel on each, so a missing label means this assigner placed it on the
+// default pool. A node pool label copied from the workload also reads as assigned.
+func getAssignedNodePool(podGroup *kaiv2alpha2.PodGroup) string {
+	return nodepoolutils.GetNodePoolNameFromLabels(podGroup.Labels, config.Config().NodePoolLabelKey, config.Config().DefaultNodepoolName)
 }
 
 func (pga *PodGroupAssigner) assignToNodePool(
@@ -396,19 +404,21 @@ func (pga *PodGroupAssigner) getProjectOfNamespace(ctx context.Context, namespac
 // but all pods in a pod group are running - we don't want to re-assign the pod group..
 func isEligibleForAssignmentByPods(ctx context.Context, podGroupMeta metav1.ObjectMeta, podGroupPods *corev1.PodList) bool {
 	for _, pod := range podGroupPods.Items {
-		if !isPodBoundToNode(pod.Status.Phase) {
+		if !isPodBoundToNode(&pod) {
 			return true
 		}
 	}
 
-	log.Ctx(ctx).Info().Msgf("Pod Group <%s> is not eligible for node pool assignment; all pods in pod group are Running",
+	log.Ctx(ctx).Info().Msgf("Pod Group <%s> is not eligible for node pool assignment; all pods in pod group are bound to nodes",
 		getPodGroupNamespacedName(podGroupMeta))
 
 	return false
 }
 
-func isPodBoundToNode(podPhase corev1.PodPhase) bool {
-	return podPhase == corev1.PodRunning || podPhase == corev1.PodSucceeded || podPhase == corev1.PodFailed
+// A pod still Pending with spec.nodeName set is already placed; re-assigning its pod group would only relabel it.
+func isPodBoundToNode(pod *corev1.Pod) bool {
+	return pod.Spec.NodeName != "" ||
+		pod.Status.Phase == corev1.PodRunning || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
 }
 
 func getPodGroupNamespacedName(podGroupMeta metav1.ObjectMeta) string {
