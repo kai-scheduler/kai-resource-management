@@ -28,8 +28,9 @@ func GetNodePoolAssignmentParams(
 	client client.Client,
 	currentMarkUnschedulableForPodGroup *bool,
 	lastSchedulingCondition *kaiv2alpha2.SchedulingCondition,
+	assignedNodePool string,
 	requestedNodePools []string) (*NodePoolAssignmentParams, error) {
-	nodePoolAssignmentParams, err := calculateNodePoolAssignmentParams(ctx, client, currentMarkUnschedulableForPodGroup, lastSchedulingCondition, requestedNodePools)
+	nodePoolAssignmentParams, err := calculateNodePoolAssignmentParams(ctx, client, currentMarkUnschedulableForPodGroup, lastSchedulingCondition, assignedNodePool, requestedNodePools)
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +50,9 @@ func calculateNodePoolAssignmentParams(
 	client client.Client,
 	currentMarkUnschedulableForPodGroup *bool,
 	lastSchedulingCondition *kaiv2alpha2.SchedulingCondition,
+	assignedNodePool string,
 	requestedNodePools []string) (*NodePoolAssignmentParams, error) {
-	nodePoolAssignmentParams := getInitialNodePoolAssignmentParams(currentMarkUnschedulableForPodGroup, lastSchedulingCondition, requestedNodePools)
+	nodePoolAssignmentParams := getInitialNodePoolAssignmentParams(currentMarkUnschedulableForPodGroup, lastSchedulingCondition, assignedNodePool, requestedNodePools)
 
 	isNodePoolAvailable, err := isNodePoolAvailableForAssignment(ctx, client, nodePoolAssignmentParams.NodePoolName)
 	if err != nil {
@@ -107,20 +109,27 @@ func findNextNodePoolAvailableForScheduling(
 func getInitialNodePoolAssignmentParams(
 	currentMarkUnschedulableForPodGroup *bool,
 	lastSchedulingCondition *kaiv2alpha2.SchedulingCondition,
+	assignedNodePool string,
 	requestedNodePools []string) *NodePoolAssignmentParams {
 	schedulingBackoff := getSchedulingBackoff(requestedNodePools)
 
 	if lastSchedulingCondition == nil {
 		// this is either:
 		// the first NodePool assignment for this PodGroup;
-		// or only one nodepool from the list is available and the podgroup is "staying" in one nodepool, but without SchedulingBackoff -1.
+		// or only one nodepool from the list is available and the podgroup is "staying" in one nodepool, but without SchedulingBackoff -1;
+		// or the scheduler cleared its conditions after placing the podgroup - so keep the assigned node pool rather than restart at the first.
+		nodePoolName := requestedNodePools[0]
+		if utils.IndexOfItemInList(requestedNodePools, assignedNodePool) >= 0 {
+			nodePoolName = assignedNodePool
+		}
+
 		markUnschedulable := len(requestedNodePools) == 1
 		if !markUnschedulable && currentMarkUnschedulableForPodGroup != nil && *currentMarkUnschedulableForPodGroup {
 			markUnschedulable = true
 		}
 
 		return &NodePoolAssignmentParams{
-			NodePoolName:      requestedNodePools[0],
+			NodePoolName:      nodePoolName,
 			MarkUnschedulable: markUnschedulable,
 			SchedulingBackoff: schedulingBackoff,
 		}
