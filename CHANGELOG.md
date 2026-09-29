@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.1] - 2026-09-29
+
+### Changed
+- Bundle KAI Scheduler v0.18.1, which fixes known CVEs in go-openapi/swag, golang.org/x/crypto and golang.org/x/mod
+
+### Fixed
+- Keep a placed PodGroup on its node pool after KAI Scheduler clears its scheduling conditions
+
 ## [v0.18.0] - 2026-09-28
 
 ### Added
