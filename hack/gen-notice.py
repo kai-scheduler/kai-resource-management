@@ -112,7 +112,7 @@ OVERRIDES = {
 # Apache-2.0 and MIT templates both carry a bracketed placeholder rather than a real
 # holder. Every bracket style is in the wild, including {yyyy}.
 PLACEHOLDER = re.compile(r"copyright\s*[\[\(<{]\s*(yyyy|year|name)", re.I)
-COPYRIGHT = re.compile(r"^\s*(?:#|//|\*|;)?\s*(Copyright\b.*)$")
+COPYRIGHT = re.compile(r"^\s*(?:#|//|\*|;)?\s*(?:SPDX-FileCopyrightText:\s*)?(Copyright\b.*)$")
 LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING)", re.I)
 # Licences covering a module's documentation rather than its code. Extensions are not
 # excluded in general: license.md and LICENSE.md are the only licence a module ships.
