@@ -156,8 +156,9 @@ for `main` and one for each `v<major>.<minor>` release branch that is behind:
 
 Each pull request is labeled `dependencies` and merges itself once its checks
 pass. Only the bot's own commit merges this way, and only when it changes
-nothing but the version pins and their changelog fragment; anything pushed on
-top of it waits for a maintainer.
+nothing but the version pins and their changelog fragment. Anything pushed on
+top of it waits for a maintainer, and the bot stops updating that pull request
+until it is merged or closed.
 
 Merging a bump does not release anything; it is included in the next release of
 that branch. A branch that is already current gets no pull request, and an open
