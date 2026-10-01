@@ -109,6 +109,11 @@ notice: ## Regenerate the third-party attribution in NOTICE from the linked modu
 notice-check: ## Verify NOTICE matches the modules linked into the binaries.
 	python3 hack/gen-notice.py --check
 
+.PHONY: bump-kai-scheduler
+bump-kai-scheduler: ## Pin the bundled KAI Scheduler; requires KAI_VERSION (a release, or 0.0.0-<sha> for a main build).
+	@test -n "$(KAI_VERSION)" || { echo "KAI_VERSION is required, for example KAI_VERSION=v0.18.2"; exit 1; }
+	GO=$(GO) bash hack/bump-kai-scheduler.sh set $(KAI_VERSION)
+
 .PHONY: sync-crds
 sync-crds: ## Copy CRD manifests from the pinned API module into the chart.
 	cp $(API_CRD_DIR)/*.yaml $(CHART_CRD_DIR)/

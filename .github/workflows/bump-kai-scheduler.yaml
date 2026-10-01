@@ -1,0 +1,235 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Keeps the bundled KAI Scheduler current: main follows KAI's main builds, and
+# each v*.* branch the newest KAI release of the same line. Each bump is a pull
+# request that merges itself once its checks pass. Nothing is pushed when a
+# branch is already up to date.
+
+name: Bump KAI Scheduler
+
+on:
+  schedule:
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Report the planned bumps without pushing or opening pull requests'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-kai-scheduler
+  cancel-in-progress: false
+
+jobs:
+  branches:
+    name: List target branches
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - name: List main and the release branches
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          targets="$(gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[].name' \
+            | { grep -E '^v[0-9]+\.[0-9]+$' || true; } \
+            | jq -Rnc '["main"] + [inputs]')"
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+  bump:
+    name: Bump ${{ matrix.target }}
+    needs: branches
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.branches.outputs.targets) }}
+    env:
+      TARGET: ${{ matrix.target }}
+      BRANCH: bot/bump-kai-scheduler-${{ matrix.target }}
+      DRY_RUN: ${{ inputs.dry-run || false }}
+      # The tooling comes from the revision this workflow runs from, so a
+      # release branch cut before it existed is bumped the same way as main.
+      BUMP: ${{ github.workspace }}/tooling/hack/bump-kai-scheduler.sh
+    defaults:
+      run:
+        working-directory: target
+    steps:
+      - name: Checkout tooling
+        uses: actions/checkout@v7
+        with:
+          path: tooling
+          persist-credentials: false
+
+      - name: Checkout ${{ matrix.target }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.target }}
+          path: target
+          token: ${{ secrets.KAIBOT_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.8'
+          cache-dependency-path: target/go.sum
+
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          line=""
+          if [ "$TARGET" != main ]; then
+            line="$TARGET"
+          fi
+          plan="$("$BUMP" plan ${line:+"$line"})"
+          echo "$plan"
+          chart="$(sed -n 's/^chart=//p' <<<"$plan")"
+          go="$(sed -n 's/^go=//p' <<<"$plan")"
+
+          if [ -z "$chart" ] && [ -z "$go" ]; then
+            echo "$TARGET is up to date."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$chart" ]; then
+            title="build(deps): bump the KAI Scheduler Go module to $go"
+          elif [ -z "$go" ] || [ "$go" = "$chart" ]; then
+            title="build(deps): bump KAI Scheduler to $chart"
+          else
+            title="build(deps): bump KAI Scheduler to $chart and its Go module to $go"
+          fi
+
+          open="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base "$TARGET" \
+            --state open --json number --jq '.[0].number // ""')"
+          if [ -n "$open" ]; then
+            pr="$(gh pr view "$open" --repo "$GITHUB_REPOSITORY" --json title,headRefOid,commits)"
+            if [ "$(jq -r .title <<<"$pr")" = "$title" ]; then
+              echo "An open pull request already carries this bump."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            # Updating the pull request replaces its branch, so it must hold
+            # nothing but the bot's own commit.
+            if ! jq -e '(.commits | length) == 1 and all(.commits[].authors[];
+                .name == "kai-release-bot" and .email == "action@github.com")' <<<"$pr" >/dev/null; then
+              echo "::warning::Pull request #$open has commits from someone other than the bot; leaving it for a maintainer."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            head="$(jq -r .headRefOid <<<"$pr")"
+          else
+            head="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          fi
+
+          {
+            echo "skip=false"
+            echo "chart=$chart"
+            echo "go=$go"
+            echo "title=$title"
+            echo "number=$open"
+            echo "head=$head"
+            "$BUMP" pinned | sed 's/^/old-/'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Apply
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          CHART: ${{ steps.plan.outputs.chart }}
+          GO_VERSION: ${{ steps.plan.outputs.go }}
+        run: |
+          set -euo pipefail
+          if [ -n "$CHART" ]; then
+            "$BUMP" set-chart "$CHART"
+          fi
+          if [ -n "$GO_VERSION" ]; then
+            "$BUMP" set-go "$GO_VERSION"
+          fi
+          if [ "$TARGET" != main ] && [ -n "$CHART" ]; then
+            make changelog KIND=Changed BODY="Bundle KAI Scheduler $CHART"
+          fi
+          git status --short
+
+      - name: Open pull request
+        if: steps.plan.outputs.skip == 'false' && env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
+          APPROVER_TOKEN: ${{ github.token }}
+          OLD_CHART: ${{ steps.plan.outputs.old-chart }}
+          OLD_GO: ${{ steps.plan.outputs.old-go }}
+          CHART: ${{ steps.plan.outputs.chart }}
+          GO_VERSION: ${{ steps.plan.outputs.go }}
+          TITLE: ${{ steps.plan.outputs.title }}
+          NUMBER: ${{ steps.plan.outputs.number }}
+          HEAD: ${{ steps.plan.outputs.head }}
+        run: |
+          set -euo pipefail
+          git config --local user.name "kai-release-bot"
+          git config --local user.email "action@github.com"
+          git switch -C "$BRANCH"
+          git add -A
+          git commit -s -m "$TITLE"
+          # Fails if anything reached the branch since the plan checked it.
+          git push --force-with-lease="refs/heads/$BRANCH:$HEAD" -u origin "$BRANCH"
+
+          BODY="${RUNNER_TEMP:-/tmp}/pr-body.md"
+          {
+            echo "Automated by the **Bump KAI Scheduler** workflow."
+            echo
+            if [ -n "$CHART" ]; then
+              echo "- Chart dependency: \`$OLD_CHART\` → \`$CHART\`"
+            fi
+            if [ -n "$GO_VERSION" ]; then
+              echo "- Go module \`github.com/kai-scheduler/KAI-scheduler\`: \`$OLD_GO\` → \`$GO_VERSION\`"
+            fi
+          } > "$BODY"
+
+          number="$NUMBER"
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "$TITLE" --body-file "$BODY"
+          else
+            gh pr create --base "$TARGET" --head "$BRANCH" --title "$TITLE" \
+              --label dependencies --body-file "$BODY"
+            number="$(gh pr view "$BRANCH" --json number --jq .number)"
+          fi
+
+          # Merges without a person, so only the commit pushed above, and only
+          # if it changes nothing but the pins and their changelog fragment:
+          # anything pushed on top of it needs a maintainer.
+          sha="$(git rev-parse HEAD)"
+          pr="$(gh pr view "$number" --json headRefOid,files)"
+          if [ "$(jq -r .headRefOid <<<"$pr")" != "$sha" ]; then
+            echo "::warning::The pull request head is no longer $sha; leaving it for a maintainer."
+            exit 0
+          fi
+          for file in $(jq -r '.files[].path' <<<"$pr"); do
+            case "$file" in
+              NOTICE | go.mod | go.sum | deployments/kai-resource-management-chart/Chart.yaml) ;;
+              .changes/unreleased/changed-*.yaml) ;;
+              *)
+                echo "::warning::$file is not a KAI Scheduler pin; leaving the pull request for a maintainer."
+                exit 0
+                ;;
+            esac
+          done
+
+          # Approved by github-actions and merged by KaiPilotBot: the author
+          # cannot approve their own pull request, and a merge made with
+          # GITHUB_TOKEN would not trigger push-artifacts.yaml.
+          GH_TOKEN="$APPROVER_TOKEN" gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/pulls/$number/reviews" \
+            -f event=APPROVE -f commit_id="$sha" >/dev/null
+          gh pr merge "$number" --auto --squash --match-head-commit "$sha"

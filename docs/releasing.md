@@ -15,6 +15,9 @@ Every release is tagged from a `v<major>.<minor>` release branch, never from
 - Patch releases reuse the same branch. Merge the fixes into it, then release
   `v0.1.1`, `v0.1.2` and so on from there.
 
+Each minor version matches the KAI Scheduler minor it bundles: `v0.18` bundles
+KAI Scheduler `v0.18.*`. Patch numbers are independent.
+
 One version is used for everything a release produces: the Helm chart version,
 the chart `appVersion`, and the tag of every controller image. The chart
 resolves component image tags from `appVersion`, so the chart and the images it
@@ -53,8 +56,12 @@ These are configured; they are listed so the requirements are not lost.
   deliberately not listed in [`MAINTAINERS.md`](../MAINTAINERS.md), which is a
   roster of people.
 - The `skip-changelog` and `dependencies` labels. The release pull request
-  applies `skip-changelog`, and creating the pull request fails if the label
-  does not exist.
+  applies `skip-changelog`, the KAI Scheduler bump pull requests apply
+  `dependencies`, and creating a pull request fails if its label does not
+  exist.
+- Auto-merge enabled on the repository, and GitHub Actions allowed to approve
+  pull requests. The KAI Scheduler bump on `main` is approved by
+  `github-actions` and merges itself once its checks pass.
 
 ## Releasing
 
@@ -134,6 +141,39 @@ need to keep.
 Pull requests build the controller images and package the chart to verify that
 both still build, and cannot publish them: the workflow requests no registry
 write permission and performs no registry login.
+
+## Keeping KAI Scheduler current
+
+**Bump KAI Scheduler** runs daily and, as `KaiPilotBot`, opens one pull request
+for `main` and one for each `v<major>.<minor>` release branch that is behind:
+
+- `main` follows KAI Scheduler's own development builds: the chart dependency
+  moves to the newest published `0.0.0-<short-sha>`, and the Go module to the
+  newest KAI Scheduler release.
+- Each `v<major>.<minor>` branch moves to the newest KAI Scheduler release of
+  the same minor, for example `v0.18.2` on `v0.18`, with a `Changed` changelog
+  fragment.
+
+Each pull request is labeled `dependencies` and merges itself once its checks
+pass. Only the bot's own commit merges this way, and only when it changes
+nothing but the version pins and their changelog fragment. Anything pushed on
+top of it waits for a maintainer, and the bot stops updating that pull request
+until it is merged or closed.
+
+Merging a bump does not release anything; it is included in the next release of
+that branch. A branch that is already current gets no pull request, and an open
+one is updated in place when a newer version appears.
+
+Run the workflow from the Actions tab to bump sooner, with **dry-run** to see
+what it would change. The same bump can be made by hand:
+
+```bash
+make bump-kai-scheduler KAI_VERSION=v0.18.2        # a release: chart and Go module
+make bump-kai-scheduler KAI_VERSION=0.0.0-1db3d56  # a main build: chart only
+```
+
+On a release branch, also add the changelog fragment:
+`make changelog KIND=Changed BODY="Bundle KAI Scheduler v0.18.2"`.
 
 ## Reading the Actions tab
 

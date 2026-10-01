@@ -130,17 +130,19 @@ func (k *KAIScheduler) runningVersion(
 
 	running := parseVersionTag(tag)
 	if running == nil {
-		logger.V(1).Info("KAI Scheduler version tag is not a version, skipping the version check",
+		logger.V(1).Info("KAI Scheduler version tag is not a release version, skipping the version check",
 			"tag", tag)
 	}
 	return running, tag
 }
 
-// parseVersionTag returns nil for a tag that is not a version — "latest", or a
-// mirror's own. Not knowing is an ordinary outcome here, not a failure.
+// parseVersionTag returns nil for a tag that is not a release version — "latest",
+// a mirror's own, or a 0.0.0-<commit> build of KAI's main branch, which is newer
+// than every release despite its number. Not knowing is an ordinary outcome
+// here, not a failure.
 func parseVersionTag(tag string) *version.Version {
 	parsed, err := version.ParseSemantic(strings.TrimSuffix(tag, fipsTagSuffix))
-	if err != nil {
+	if err != nil || (parsed.Major() == 0 && parsed.Minor() == 0 && parsed.Patch() == 0) {
 		return nil
 	}
 	return parsed

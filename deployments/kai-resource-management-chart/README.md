@@ -377,18 +377,18 @@ and follow the target release's migration guidance before downgrading.
 
 ### Bumping the bundled KAI Scheduler
 
-The chart bundles KAI Scheduler as a subchart. Upgrading it is one line in
-`Chart.yaml`:
+The chart bundles KAI Scheduler as a subchart, and the Go code builds against
+the same KAI Scheduler module. A daily workflow opens the bump pull requests;
+see [Keeping KAI Scheduler current](../../docs/releasing.md#keeping-kai-scheduler-current).
+To bump by hand, pin both at once:
 
-```yaml
-dependencies:
-  - name: kai-scheduler
-    repository: oci://ghcr.io/kai-scheduler/kai-scheduler
-    version: "<VERSION>"
+```bash
+make bump-kai-scheduler KAI_VERSION=<VERSION>
 ```
 
-`Chart.lock` and `charts/*.tgz` are generated and gitignored, so the version is
-the only tracked change. Run `make test-chart` and you are done.
+This sets the `kai-scheduler` dependency in `Chart.yaml`, updates `go.mod`,
+`go.sum` and `NOTICE`, and leaves `Chart.lock` and `charts/*.tgz`, which are
+generated and gitignored, alone. Run `make test-chart` afterwards.
 
 Two things are worth checking first, because neither fails loudly.
 
