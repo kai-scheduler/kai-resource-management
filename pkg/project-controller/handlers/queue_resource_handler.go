@@ -56,7 +56,7 @@ func (handler QueueResourceHandler) handleResourceInner(ctx context.Context, pro
 			continue
 		}
 
-		innerErr = handler.reconcileQueueObject(ctx, queueObject, project.Name, projectQueue.Nodepool)
+		innerErr = handler.reconcileQueueObject(ctx, queueObject, project.Name, project.UID, projectQueue.Nodepool)
 		if innerErr != nil {
 			handler.Log.Error(innerErr, "Failed reconciling queue object for project",
 				common.LogQueueTag, queueObject.Name, common.LogProjectTag, project.Name)
@@ -73,7 +73,7 @@ func (handler QueueResourceHandler) handleResourceInner(ctx context.Context, pro
 		return err
 	}
 
-	err = deleteUnnecessaryQueues(ctx, handler.Client, handler.Log, reconciledQueues,
+	err = deleteUnnecessaryQueues(ctx, handler.Client, handler.Log, reconciledQueues, project.UID,
 		common.LogProjectTag, project.Name,
 		config.Get().ProjectLabelKey, project.Name, common.ProjectKind)
 	if err != nil {
@@ -87,12 +87,12 @@ func (handler QueueResourceHandler) handleResourceInner(ctx context.Context, pro
 }
 
 func (handler QueueResourceHandler) reconcileQueueObject(ctx context.Context,
-	queueObject *schedv2.Queue, projectName, nodepoolName string) error {
+	queueObject *schedv2.Queue, projectName string, projectUID types.UID, nodepoolName string) error {
 	existingQueue, err := handler.getExistingQueueOfProject(ctx,
-		queueObject.Name, projectName, nodepoolName)
+		queueObject.Name, projectName, projectUID, nodepoolName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			queueObject.Name = handler.generateQueueNameOfProject(ctx, queueObject.Name, projectName)
+			queueObject.Name = handler.generateQueueNameOfProject(ctx, queueObject.Name, projectName, projectUID)
 			queueObject.Spec.DisplayName = queueObject.Name
 			return createQueue(ctx, handler.Client, handler.Log,
 				queueObject, common.LogProjectTag, projectName)
@@ -104,11 +104,11 @@ func (handler QueueResourceHandler) reconcileQueueObject(ctx context.Context,
 
 	queueObject.Name = existingQueue.Name
 	queueObject.Spec.DisplayName = existingQueue.Name
-	return handler.handleExisting(ctx, queueObject, existingQueue, projectName)
+	return handler.handleExisting(ctx, queueObject, existingQueue, projectName, projectUID)
 }
 
 func (handler QueueResourceHandler) handleExisting(ctx context.Context,
-	expectedQueueObject, existingQueue *schedv2.Queue, projectName string) error {
+	expectedQueueObject, existingQueue *schedv2.Queue, projectName string, projectUID types.UID) error {
 	if areQueuesEqual(expectedQueueObject, existingQueue) {
 		handler.Log.Info("Existing Queue identical to expected in project spec, skipping",
 			common.LogQueueTag, existingQueue.Name, common.LogProjectTag, projectName)
@@ -122,7 +122,7 @@ func (handler QueueResourceHandler) handleExisting(ctx context.Context,
 	}
 
 	return updateExistingQueue(ctx, handler.Client, handler.Log,
-		expectedQueueObject, existingQueue, common.LogProjectTag, projectName)
+		expectedQueueObject, existingQueue, projectUID, common.LogProjectTag, projectName)
 }
 
 func (handler QueueResourceHandler) buildQueueFromSpec(ctx context.Context, queueProjectSpec kaiv1alpha1.QueueConfig,
@@ -252,13 +252,13 @@ func isOwnedByKind(ownerRefs []metav1.OwnerReference, kind string) bool {
 }
 
 func (handler QueueResourceHandler) getExistingQueueOfProject(ctx context.Context,
-	queueNameFomSpec, projectName, nodepoolName string) (*schedv2.Queue, error) {
+	queueNameFomSpec, projectName string, projectUID types.UID, nodepoolName string) (*schedv2.Queue, error) {
 	return getExistingQueueOfResource(ctx, handler.Client, handler.Log, nodepoolName, projectName,
-		"", queueNameFomSpec)
+		"", queueNameFomSpec, projectUID)
 }
 
 func (handler QueueResourceHandler) generateQueueNameOfProject(ctx context.Context,
-	queueNameFomSpec, projectName string) string {
+	queueNameFomSpec, projectName string, projectUID types.UID) string {
 	return generateQueueNameForResource(ctx, handler.Client, projectName,
-		"", queueNameFomSpec)
+		"", queueNameFomSpec, projectUID)
 }

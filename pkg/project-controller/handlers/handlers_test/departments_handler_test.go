@@ -14,8 +14,10 @@ import (
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,6 +43,89 @@ var _ = Describe("Department Handler Tests", func() {
 
 		k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 		handler = handlers.NewDepartmentHandler(k8sClient)
+	})
+
+	Context("With external queues allowed, Queues carrying the department's label", func() {
+		var (
+			departmentLabels map[string]string
+			dep2Owner        []metav1.OwnerReference
+		)
+
+		BeforeEach(func() {
+			allowExternalQueues()
+			departmentLabels = map[string]string{config.Get().QueueDepartmentNameLabelKey: dep2.Name}
+			dep2Owner = []metav1.OwnerReference{{
+				APIVersion:         kaiv1alpha1.GroupVersion.Identifier(),
+				Kind:               common.DepartmentKind,
+				Name:               dep2.Name,
+				UID:                dep2.UID,
+				Controller:         &common.TrueRef,
+				BlockOwnerDeletion: &common.TrueRef,
+			}}
+		})
+
+		It("Updates only the stale Queue the department owns", func() {
+			withThirdPool := dep2.DeepCopy()
+			withThirdPool.Spec.Queues = append(withThirdPool.Spec.Queues, kaiv1alpha1.QueueConfig{
+				Name:     "dep2-third-pool",
+				Nodepool: "third-pool",
+				Resources: &kaiv1alpha1.QueueResourcesConfig{
+					GPU: kaiv1alpha1.SystemResource{Deserved: 3},
+				},
+			})
+			owned := labelledQueue(withThirdPool.Spec.Queues[0], departmentLabels, dep2Owner)
+			unowned := labelledQueue(withThirdPool.Spec.Queues[1], departmentLabels, nil)
+			ownedByAnother := labelledQueue(withThirdPool.Spec.Queues[2], departmentLabels, test.KaiDep1OwnerRef)
+			for _, existing := range []*kaiv2.Queue{owned, unowned, ownedByAnother} {
+				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
+			}
+
+			Expect(handler.Handle(context.Background(), withThirdPool)).To(Succeed())
+
+			updated, err := getQueue(k8sClient, owned.Name)
+			Expect(err).ToNot(HaveOccurred())
+			assertQueueResourcesIdenticalToProjectSpecResources(&updated, withThirdPool.Spec.Queues[0])
+
+			for _, untouched := range []struct {
+				queue *kaiv2.Queue
+				spec  kaiv1alpha1.QueueConfig
+			}{
+				{unowned, withThirdPool.Spec.Queues[1]},
+				{ownedByAnother, withThirdPool.Spec.Queues[2]},
+			} {
+				actual, err := getQueue(k8sClient, untouched.queue.Name)
+				Expect(err).ToNot(HaveOccurred())
+				expectQueueUntouched(actual, untouched.queue)
+
+				own, err := getQueueOwnedBy(k8sClient, dep2.UID, untouched.spec.Nodepool)
+				Expect(err).ToNot(HaveOccurred(), "the department gets a queue of its own instead")
+				Expect(own.Name).To(HavePrefix(untouched.queue.Name))
+				Expect(own.Name).ToNot(Equal(untouched.queue.Name))
+				assertQueueResourcesIdenticalToProjectSpecResources(&own, untouched.spec)
+			}
+		})
+
+		It("Deletes only the Queue the department owns when its node pool leaves the spec", func() {
+			retired := func(name string) kaiv1alpha1.QueueConfig {
+				return kaiv1alpha1.QueueConfig{Name: name, Nodepool: "retired-pool"}
+			}
+			owned := labelledQueue(retired("dep2-retired"), departmentLabels, dep2Owner)
+			unowned := labelledQueue(retired("platform-retired"), departmentLabels, nil)
+			ownedByAnother := labelledQueue(retired("dep1-retired"), departmentLabels, test.KaiDep1OwnerRef)
+			for _, existing := range []*kaiv2.Queue{owned, unowned, ownedByAnother} {
+				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
+			}
+
+			Expect(handler.Handle(context.Background(), &dep2)).To(Succeed())
+
+			_, err := getQueue(k8sClient, owned.Name)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the owned Queue is deleted")
+			for _, untouched := range []*kaiv2.Queue{unowned, ownedByAnother} {
+				actual, err := getQueue(k8sClient, untouched.Name)
+				Expect(err).ToNot(HaveOccurred())
+				expectQueueUntouched(actual, untouched)
+			}
+		})
 	})
 
 	Describe("Department Handler Tests - validate correct creation of queues", func() {

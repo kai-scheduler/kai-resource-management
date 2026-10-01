@@ -6,6 +6,7 @@ package handlers_test
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"k8s.io/utils/ptr"
 
@@ -18,7 +19,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -188,6 +192,116 @@ var _ = Describe("Queue Resource Handler", func() {
 		var actual kaiv2.Queue
 		Expect(k8sClient.Get(context.TODO(), client.ObjectKey{Name: overridden.Name}, &actual)).To(Succeed())
 		Expect(actual.Spec).To(Equal(overridden.Spec), "the overridden Queue's spec must survive HandleResource")
+	})
+
+	DescribeTable("A Queue nobody owns, named as the project's queue",
+		func(externalQueuesAllowed bool) {
+			if externalQueuesAllowed {
+				allowExternalQueues()
+			}
+			external := externalQueue(project.Spec.Queues[0].Name)
+			Expect(k8sClient.Create(context.TODO(), external.DeepCopy())).To(Succeed())
+
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			actual, err := getQueue(k8sClient, external.Name)
+			Expect(err).ToNot(HaveOccurred())
+			if !externalQueuesAllowed {
+				Expect(actual.OwnerReferences).To(HaveLen(1))
+				Expect(actual.OwnerReferences[0].UID).To(Equal(project.UID))
+				return
+			}
+
+			expectQueueUntouched(actual, external)
+			own, err := getQueueForProjectByLabel(k8sClient, project.Name, project.Spec.Queues[0].Nodepool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(own.Name).To(HavePrefix(external.Name))
+			Expect(own.Name).ToNot(Equal(external.Name))
+			Expect(own.OwnerReferences[0].UID).To(Equal(project.UID))
+		},
+		Entry("is adopted when external queues are not allowed", false),
+		Entry("is left untouched when external queues are allowed", true),
+	)
+
+	// Every Queue here carries the project's label, so the label cannot be what tells them
+	// apart: only the one whose OwnerReference names the project may be written.
+	Context("With external queues allowed, Queues carrying the project's label", func() {
+		var projectLabels map[string]string
+
+		BeforeEach(func() {
+			allowExternalQueues()
+			projectLabels = map[string]string{
+				config.Get().ProjectLabelKey:             project.Name,
+				config.Get().ProjectIdLabelKey:           string(project.UID),
+				config.Get().QueueDepartmentNameLabelKey: project.Spec.Parent,
+			}
+		})
+
+		It("Updates only the stale Queue the project owns", func() {
+			withThirdPool := project.DeepCopy()
+			withThirdPool.Spec.Queues = append(withThirdPool.Spec.Queues, kaiv1alpha1.QueueConfig{
+				Name:     "proj-1-third-pool",
+				Nodepool: "third-pool",
+				Resources: &kaiv1alpha1.QueueResourcesConfig{
+					GPU: kaiv1alpha1.SystemResource{Deserved: 3},
+				},
+			})
+			owned := labelledQueue(withThirdPool.Spec.Queues[0], projectLabels, ProjectOwnerRef)
+			unowned := labelledQueue(withThirdPool.Spec.Queues[1], projectLabels, nil)
+			ownedByAnother := labelledQueue(withThirdPool.Spec.Queues[2], projectLabels, UnrelatedProjectOwnerRef)
+			for _, existing := range []*kaiv2.Queue{owned, unowned, ownedByAnother} {
+				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
+			}
+
+			_, err := handler.HandleResource(*withThirdPool)
+			Expect(err).Should(Succeed())
+
+			updated, err := getQueue(k8sClient, owned.Name)
+			Expect(err).ToNot(HaveOccurred())
+			assertQueueResourcesIdenticalToProjectSpecResources(&updated, withThirdPool.Spec.Queues[0])
+
+			for _, untouched := range []struct {
+				queue *kaiv2.Queue
+				spec  kaiv1alpha1.QueueConfig
+			}{
+				{unowned, withThirdPool.Spec.Queues[1]},
+				{ownedByAnother, withThirdPool.Spec.Queues[2]},
+			} {
+				actual, err := getQueue(k8sClient, untouched.queue.Name)
+				Expect(err).ToNot(HaveOccurred())
+				expectQueueUntouched(actual, untouched.queue)
+
+				own, err := getQueueOwnedBy(k8sClient, project.UID, untouched.spec.Nodepool)
+				Expect(err).ToNot(HaveOccurred(), "the project gets a queue of its own instead")
+				Expect(own.Name).To(HavePrefix(untouched.queue.Name))
+				Expect(own.Name).ToNot(Equal(untouched.queue.Name))
+				assertQueueResourcesIdenticalToProjectSpecResources(&own, untouched.spec)
+			}
+		})
+
+		It("Deletes only the Queue the project owns when its node pool leaves the spec", func() {
+			retired := func(name string) kaiv1alpha1.QueueConfig {
+				return kaiv1alpha1.QueueConfig{Name: name, Nodepool: "retired-pool"}
+			}
+			owned := labelledQueue(retired("proj-1-retired"), projectLabels, ProjectOwnerRef)
+			unowned := labelledQueue(retired("platform-retired"), projectLabels, nil)
+			ownedByAnother := labelledQueue(retired("unrelated-proj-retired"), projectLabels, UnrelatedProjectOwnerRef)
+			for _, existing := range []*kaiv2.Queue{owned, unowned, ownedByAnother} {
+				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
+			}
+
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			_, err = getQueue(k8sClient, owned.Name)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the owned Queue is deleted")
+			for _, untouched := range []*kaiv2.Queue{unowned, ownedByAnother} {
+				actual, err := getQueue(k8sClient, untouched.Name)
+				Expect(err).ToNot(HaveOccurred())
+				expectQueueUntouched(actual, untouched)
+			}
+		})
 	})
 
 	It("Validate naming of queues", func() {
@@ -575,6 +689,81 @@ func getQueueForProjectByLabel(k8sclient client.Client, projectName, nodepoolNam
 
 	return kaiv2.Queue{}, fmt.Errorf("couldn't find queue for project %s and nodepool %s",
 		projectName, nodepoolName)
+}
+
+func allowExternalQueues() {
+	withExternalQueues := *config.Get()
+	withExternalQueues.AllowExternalQueues = true
+	DeferCleanup(config.SetForTest(&withExternalQueues))
+}
+
+// externalQueue is a Queue an administrator built outside KRM: no Project or Department owns it.
+func externalQueue(name string) *kaiv2.Queue {
+	return &kaiv2.Queue{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: map[string]string{"team": "platform"},
+		},
+		Spec: kaiv2.QueueSpec{
+			ParentQueue: "platform-root",
+			Resources: &kaiv2.QueueResources{
+				GPU: kaiv2.QueueResource{Quota: 7},
+			},
+		},
+	}
+}
+
+func expectQueueUntouched(actual kaiv2.Queue, original *kaiv2.Queue) {
+	Expect(actual.Labels).To(Equal(original.Labels))
+	Expect(actual.OwnerReferences).To(Equal(original.OwnerReferences))
+	Expect(actual.Spec).To(Equal(original.Spec))
+}
+
+// labelledQueue is a Queue for queueSpec carrying ownerLabels, as the owner's own Queue would,
+// but with the given owners and a spec that matches nothing KRM writes.
+func labelledQueue(queueSpec kaiv1alpha1.QueueConfig, ownerLabels map[string]string,
+	owners []metav1.OwnerReference) *kaiv2.Queue {
+	labels := maps.Clone(ownerLabels)
+	if queueSpec.Nodepool != config.Get().DefaultNodepoolName {
+		labels[config.Get().NodePoolLabelKey] = queueSpec.Nodepool
+	}
+	return &kaiv2.Queue{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            queueSpec.Name,
+			Labels:          labels,
+			OwnerReferences: owners,
+		},
+		Spec: kaiv2.QueueSpec{
+			ParentQueue: "platform-root",
+			Resources: &kaiv2.QueueResources{
+				GPU: kaiv2.QueueResource{Quota: 1},
+			},
+		},
+	}
+}
+
+// getQueueOwnedBy finds a queue by its owner rather than its labels, which a queue the owner
+// does not own may carry too.
+func getQueueOwnedBy(k8sClient client.Client, ownerUID types.UID, nodepoolName string) (kaiv2.Queue, error) {
+	queues := &kaiv2.QueueList{}
+	if err := k8sClient.List(context.Background(), queues); err != nil {
+		return kaiv2.Queue{}, err
+	}
+	for _, queue := range queues.Items {
+		nodepool, found := queue.Labels[config.Get().NodePoolLabelKey]
+		if !found {
+			nodepool = config.Get().DefaultNodepoolName
+		}
+		if nodepool != nodepoolName {
+			continue
+		}
+		for _, owner := range queue.OwnerReferences {
+			if owner.UID == ownerUID {
+				return queue, nil
+			}
+		}
+	}
+	return kaiv2.Queue{}, fmt.Errorf("couldn't find queue owned by %s for nodepool %s", ownerUID, nodepoolName)
 }
 
 // expectedDepartmentQueueName returns the base (pre-suffix) queue name the department handler

@@ -15,6 +15,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -56,7 +57,7 @@ func (h *DepartmentHandler) Handle(ctx context.Context, department *kaiv1alpha1.
 		return err
 	}
 
-	err = deleteUnnecessaryQueues(ctx, h.Client, h.Log, reconciledQueues,
+	err = deleteUnnecessaryQueues(ctx, h.Client, h.Log, reconciledQueues, department.UID,
 		common.LogDepartmentTag, department.Name,
 		config.Get().QueueDepartmentNameLabelKey, department.Name, common.DepartmentKind)
 	if err != nil {
@@ -72,10 +73,10 @@ func (h *DepartmentHandler) Handle(ctx context.Context, department *kaiv1alpha1.
 func (h *DepartmentHandler) reconcileQueueObject(ctx context.Context,
 	queueObject *schedv2.Queue, department *kaiv1alpha1.Department, nodepoolName string) error {
 	departmentName := department.Name
-	existingQueue, err := h.getExistingQueueOfDepartment(ctx, department, nodepoolName, queueObject.Name)
+	existingQueue, err := h.getExistingQueueOfDepartment(ctx, department, nodepoolName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			queueObject.Name = h.generateQueueNameOfDepartment(ctx, departmentName, queueObject.Name)
+			queueObject.Name = h.generateQueueNameOfDepartment(ctx, departmentName, department.UID, queueObject.Name)
 			return createQueue(ctx, h.Client, h.Log,
 				queueObject, common.LogDepartmentTag, departmentName)
 		}
@@ -85,11 +86,11 @@ func (h *DepartmentHandler) reconcileQueueObject(ctx context.Context,
 	}
 
 	queueObject.Name = existingQueue.Name
-	return h.handleExisting(ctx, queueObject, existingQueue, departmentName)
+	return h.handleExisting(ctx, queueObject, existingQueue, departmentName, department.UID)
 }
 
 func (h *DepartmentHandler) handleExisting(ctx context.Context,
-	expectedQueueObject, existingQueue *schedv2.Queue, departmentName string) error {
+	expectedQueueObject, existingQueue *schedv2.Queue, departmentName string, departmentUID types.UID) error {
 	if areQueuesEqual(expectedQueueObject, existingQueue) {
 		h.Log.Info("Existing Queue identical to expected in department spec, skipping",
 			common.LogQueueTag, existingQueue.Name, common.LogDepartmentTag, departmentName)
@@ -97,7 +98,7 @@ func (h *DepartmentHandler) handleExisting(ctx context.Context,
 	}
 
 	return updateExistingQueue(ctx, h.Client, h.Log,
-		expectedQueueObject, existingQueue, common.LogDepartmentTag, departmentName)
+		expectedQueueObject, existingQueue, departmentUID, common.LogDepartmentTag, departmentName)
 }
 
 // buildQueueFromSpec - the returned queue spec will have the suggested queue name.
@@ -131,7 +132,7 @@ func (h *DepartmentHandler) buildQueueFromSpec(queueDepartmentSpec kaiv1alpha1.Q
 // (Department UID). Using the owner - not the department-name label - makes this rename-safe
 // (the UID is stable) and immune to project queues that share the department-name label.
 func (h *DepartmentHandler) getExistingQueueOfDepartment(ctx context.Context,
-	department *kaiv1alpha1.Department, nodepoolName, suggestedQueueName string) (*schedv2.Queue, error) {
+	department *kaiv1alpha1.Department, nodepoolName string) (*schedv2.Queue, error) {
 	queues, err := listQueuesForNodepool(ctx, h.Client, nodepoolName)
 	if err != nil {
 		h.Log.Error(err, "Failed listing queues for department", common.LogDepartmentTag, department.Name,
@@ -148,7 +149,7 @@ func (h *DepartmentHandler) getExistingQueueOfDepartment(ctx context.Context,
 }
 
 func (h *DepartmentHandler) generateQueueNameOfDepartment(ctx context.Context,
-	departmentName, suggestedQueueName string) string {
+	departmentName string, departmentUID types.UID, suggestedQueueName string) string {
 	return generateQueueNameForResource(ctx, h.Client, "",
-		departmentName, suggestedQueueName)
+		departmentName, suggestedQueueName, departmentUID)
 }
