@@ -231,6 +231,10 @@ var _ = Describe("KAIScheduler.Check version", func() {
 			Expect(checkWith(image, msTag)).To(BeEmpty())
 		},
 		Entry("a tag that is not a version", "repo/operator:latest", ""),
+		Entry("a main branch build", "repo/operator:0.0.0-1db3d56", ""),
+		Entry("the FIPS build of a main branch build", "repo/operator:0.0.0-1db3d56-fips", ""),
+		Entry("a main branch build pinned by digest", "repo/operator@sha256:"+
+			"1111111111111111111111111111111111111111111111111111111111111111", "0.0.0-1db3d56"),
 		Entry("no tag at all", "repo/operator", ""),
 		Entry("a digest with no MS_TAG", "repo/operator@sha256:"+
 			"1111111111111111111111111111111111111111111111111111111111111111", ""),
