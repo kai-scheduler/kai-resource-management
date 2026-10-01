@@ -150,7 +150,9 @@ for `main` and one for each `v<major>.<minor>` release branch that is behind:
 - `main` follows KAI Scheduler's own development builds: the chart dependency
   moves to the newest published `0.0.0-<short-sha>`, and the Go module to the
   newest KAI Scheduler release. The pull request is labeled `dependencies` and
-  merges itself once its checks pass.
+  merges itself once its checks pass. Only the bot's own commit merges this way,
+  and only when it changes nothing but the version pins; anything pushed on top
+  of it waits for a maintainer.
 - Each `v<major>.<minor>` branch moves to the newest KAI Scheduler release of
   the same minor, for example `v0.18.2` on `v0.18`, with a `Changed` changelog
   fragment. A maintainer reviews and merges it. The pull request shows how KAI

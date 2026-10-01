@@ -190,9 +190,29 @@ jobs:
           fi
 
           if [ "$TARGET" = main ]; then
+            # Merges without a person, so only the commit pushed above, and only
+            # if it changes nothing but the pins: anything pushed on top of it
+            # needs a maintainer.
+            sha="$(git rev-parse HEAD)"
+            pr="$(gh pr view "$number" --json headRefOid,files)"
+            files="$(jq -r '.files[].path' <<<"$pr" | sort | tr '\n' ' ')"
+            allowed="NOTICE deployments/kai-resource-management-chart/Chart.yaml go.mod go.sum "
+            if [ "$(jq -r .headRefOid <<<"$pr")" != "$sha" ]; then
+              echo "::warning::The pull request head is no longer $sha; leaving it for a maintainer."
+              exit 0
+            fi
+            for file in $files; do
+              if [[ " $allowed" != *" $file "* ]]; then
+                echo "::warning::$file is not a KAI Scheduler pin; leaving the pull request for a maintainer."
+                exit 0
+              fi
+            done
+
             # Approved by github-actions and merged by KaiPilotBot: the author
             # cannot approve their own pull request, and a merge made with
             # GITHUB_TOKEN would not trigger push-artifacts.yaml on main.
-            GH_TOKEN="$APPROVER_TOKEN" gh pr review "$number" --approve
-            gh pr merge "$number" --auto --squash
+            GH_TOKEN="$APPROVER_TOKEN" gh api --method POST \
+              "repos/$GITHUB_REPOSITORY/pulls/$number/reviews" \
+              -f event=APPROVE -f commit_id="$sha" >/dev/null
+            gh pr merge "$number" --auto --squash --match-head-commit "$sha"
           fi
