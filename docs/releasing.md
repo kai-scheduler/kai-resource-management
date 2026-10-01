@@ -149,15 +149,15 @@ for `main` and one for each `v<major>.<minor>` release branch that is behind:
 
 - `main` follows KAI Scheduler's own development builds: the chart dependency
   moves to the newest published `0.0.0-<short-sha>`, and the Go module to the
-  newest KAI Scheduler release. The pull request is labeled `dependencies` and
-  merges itself once its checks pass. Only the bot's own commit merges this way,
-  and only when it changes nothing but the version pins; anything pushed on top
-  of it waits for a maintainer.
+  newest KAI Scheduler release.
 - Each `v<major>.<minor>` branch moves to the newest KAI Scheduler release of
   the same minor, for example `v0.18.2` on `v0.18`, with a `Changed` changelog
-  fragment. A maintainer reviews and merges it. The pull request shows how KAI
-  Scheduler's `values.yaml` changed; confirm every key this chart sets under
-  `kai-scheduler:` still exists, because Helm ignores unknown values.
+  fragment.
+
+Each pull request is labeled `dependencies` and merges itself once its checks
+pass. Only the bot's own commit merges this way, and only when it changes
+nothing but the version pins and their changelog fragment; anything pushed on
+top of it waits for a maintainer.
 
 Merging a bump does not release anything; it is included in the next release of
 that branch. A branch that is already current gets no pull request, and an open

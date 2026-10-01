@@ -1,9 +1,9 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Keeps the bundled KAI Scheduler current: main follows KAI's main builds and
-# merges itself, and each v*.* branch gets a pull request for the newest KAI
-# release of the same line, for a maintainer to merge. Nothing is pushed when a
+# Keeps the bundled KAI Scheduler current: main follows KAI's main builds, and
+# each v*.* branch the newest KAI release of the same line. Each bump is a pull
+# request that merges itself once its checks pass. Nothing is pushed when a
 # branch is already up to date.
 
 name: Bump KAI Scheduler
@@ -162,21 +162,6 @@ jobs:
             if [ -n "$GO_VERSION" ]; then
               echo "- Go module \`github.com/kai-scheduler/KAI-scheduler\`: \`$OLD_GO\` → \`$GO_VERSION\`"
             fi
-            if [ "$TARGET" != main ] && [ -n "$CHART" ]; then
-              chart=oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler
-              helm show values "$chart" --version "$OLD_CHART" > "$RUNNER_TEMP/old-values.yaml"
-              helm show values "$chart" --version "$CHART" > "$RUNNER_TEMP/new-values.yaml"
-              echo
-              echo "Before merging, confirm every key this chart sets under \`kai-scheduler:\` in \`values.yaml\` still exists: Helm ignores unknown values silently."
-              echo
-              echo "<details><summary>KAI Scheduler <code>values.yaml</code> changes</summary>"
-              echo
-              echo '```diff'
-              diff -u "$RUNNER_TEMP/old-values.yaml" "$RUNNER_TEMP/new-values.yaml" | head -n 1000 || true
-              echo '```'
-              echo
-              echo "</details>"
-            fi
           } > "$BODY"
 
           number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base "$TARGET" \
@@ -189,30 +174,30 @@ jobs:
             number="$(gh pr view "$BRANCH" --json number --jq .number)"
           fi
 
-          if [ "$TARGET" = main ]; then
-            # Merges without a person, so only the commit pushed above, and only
-            # if it changes nothing but the pins: anything pushed on top of it
-            # needs a maintainer.
-            sha="$(git rev-parse HEAD)"
-            pr="$(gh pr view "$number" --json headRefOid,files)"
-            files="$(jq -r '.files[].path' <<<"$pr" | sort | tr '\n' ' ')"
-            allowed="NOTICE deployments/kai-resource-management-chart/Chart.yaml go.mod go.sum "
-            if [ "$(jq -r .headRefOid <<<"$pr")" != "$sha" ]; then
-              echo "::warning::The pull request head is no longer $sha; leaving it for a maintainer."
-              exit 0
-            fi
-            for file in $files; do
-              if [[ " $allowed" != *" $file "* ]]; then
+          # Merges without a person, so only the commit pushed above, and only
+          # if it changes nothing but the pins and their changelog fragment:
+          # anything pushed on top of it needs a maintainer.
+          sha="$(git rev-parse HEAD)"
+          pr="$(gh pr view "$number" --json headRefOid,files)"
+          if [ "$(jq -r .headRefOid <<<"$pr")" != "$sha" ]; then
+            echo "::warning::The pull request head is no longer $sha; leaving it for a maintainer."
+            exit 0
+          fi
+          for file in $(jq -r '.files[].path' <<<"$pr"); do
+            case "$file" in
+              NOTICE | go.mod | go.sum | deployments/kai-resource-management-chart/Chart.yaml) ;;
+              .changes/unreleased/changed-*.yaml) ;;
+              *)
                 echo "::warning::$file is not a KAI Scheduler pin; leaving the pull request for a maintainer."
                 exit 0
-              fi
-            done
+                ;;
+            esac
+          done
 
-            # Approved by github-actions and merged by KaiPilotBot: the author
-            # cannot approve their own pull request, and a merge made with
-            # GITHUB_TOKEN would not trigger push-artifacts.yaml on main.
-            GH_TOKEN="$APPROVER_TOKEN" gh api --method POST \
-              "repos/$GITHUB_REPOSITORY/pulls/$number/reviews" \
-              -f event=APPROVE -f commit_id="$sha" >/dev/null
-            gh pr merge "$number" --auto --squash --match-head-commit "$sha"
-          fi
+          # Approved by github-actions and merged by KaiPilotBot: the author
+          # cannot approve their own pull request, and a merge made with
+          # GITHUB_TOKEN would not trigger push-artifacts.yaml.
+          GH_TOKEN="$APPROVER_TOKEN" gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/pulls/$number/reviews" \
+            -f event=APPROVE -f commit_id="$sha" >/dev/null
+          gh pr merge "$number" --auto --squash --match-head-commit "$sha"
