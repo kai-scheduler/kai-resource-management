@@ -49,6 +49,11 @@ func (handler QueueDeletionHandler) onDeleteInner(project *kaiv1alpha1.Project) 
 
 	for _, queue := range queues.Items {
 		existingQueue := queue.DeepCopy()
+		if handlers.IsExternalQueue(existingQueue, project.UID) {
+			handler.Log.Info("Queue is not owned by the Project, it will not be deleted",
+				common.LogQueueTag, queue.Name, common.LogProjectTag, project.Name)
+			continue
+		}
 		innerErr := handler.DeleteExistingResourceIfNeeded(
 			existingQueue, queue.Name,
 			common.LogQueueTag, project.Name,

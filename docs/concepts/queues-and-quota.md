@@ -119,6 +119,7 @@ You may name a queue yourself, as above. If you leave `name` out, KRM derives on
 | Queue for a named node pool | `<owner>-<nodepool>`, e.g. `research-h100` |
 | Queue for the **default** node pool | `<owner>`, e.g. `research` |
 | The derived name is already taken by another project or department | The same, plus a short random suffix |
+| The derived name is taken by a queue KRM did not create, with [external queues allowed](#queues-krm-did-not-create) | The same, plus a short random suffix |
 
 Names are capped at 63 characters, so a long project name is truncated before the suffix is
 added. Because of the collision suffix, the queue's actual name is not always predictable
@@ -201,6 +202,29 @@ without adding a queue for it is rejected at admission.
 
 A queue you have marked with the manual-override label is left alone. See [projects and
 departments](projects-and-departments.md#manually-overriding-something-krm-created).
+
+## Queues KRM did not create
+
+By default the project-controller treats every `Queue` on the cluster as KRM's. A queue
+that no project or department owns, but that carries the name one of them would use, is
+taken over: its labels, owner reference and spec are rewritten to match the spec. Deleting
+a project deletes every queue labelled with the project's name.
+
+That is wrong on a cluster whose queues predate KRM, such as a KAI Scheduler with a queue
+hierarchy an administrator built by hand. Start the project-controller with
+`--allow-external-queues` and it updates or deletes only a queue whose owner reference
+names the project or department being reconciled. Any other queue is left exactly as it
+is, with a line in the controller's log saying so. A project or department whose derived
+queue name is held by such a queue gets that name plus a random suffix instead.
+
+The `KRMConfig` does not model this flag, so set it through the project-controller's
+`extraArgs`, which the operator appends after every other argument:
+
+```yaml
+projectController:
+  extraArgs:
+    - --allow-external-queues
+```
 
 ## Next
 

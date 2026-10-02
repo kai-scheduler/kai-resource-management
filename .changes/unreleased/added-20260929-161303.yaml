@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  Add the project-controller --allow-external-queues flag, which leaves Queues it does not own untouched
