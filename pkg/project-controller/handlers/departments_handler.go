@@ -76,7 +76,7 @@ func (h *DepartmentHandler) reconcileQueueObject(ctx context.Context,
 	existingQueue, err := h.getExistingQueueOfDepartment(ctx, department, nodepoolName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			queueObject.Name = h.generateQueueNameOfDepartment(ctx, departmentName, department.UID, queueObject.Name)
+			queueObject.Name = h.generateQueueNameOfDepartment(ctx, departmentName, queueObject.Name, department.UID)
 			return createQueue(ctx, h.Client, h.Log,
 				queueObject, common.LogDepartmentTag, departmentName)
 		}
@@ -149,7 +149,7 @@ func (h *DepartmentHandler) getExistingQueueOfDepartment(ctx context.Context,
 }
 
 func (h *DepartmentHandler) generateQueueNameOfDepartment(ctx context.Context,
-	departmentName string, departmentUID types.UID, suggestedQueueName string) string {
+	departmentName, suggestedQueueName string, departmentUID types.UID) string {
 	return generateQueueNameForResource(ctx, h.Client, "",
 		departmentName, suggestedQueueName, departmentUID)
 }

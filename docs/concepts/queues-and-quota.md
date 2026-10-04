@@ -119,7 +119,6 @@ You may name a queue yourself, as above. If you leave `name` out, KRM derives on
 | Queue for a named node pool | `<owner>-<nodepool>`, e.g. `research-h100` |
 | Queue for the **default** node pool | `<owner>`, e.g. `research` |
 | The derived name is already taken by another project or department | The same, plus a short random suffix |
-| The derived name is taken by a queue KRM did not create, with [external queues allowed](#queues-krm-did-not-create) | The same, plus a short random suffix |
 
 Names are capped at 63 characters, so a long project name is truncated before the suffix is
 added. Because of the collision suffix, the queue's actual name is not always predictable
@@ -225,9 +224,10 @@ commonArgs:
   allowExternalQueues: true
 ```
 
-Turn it on before creating the first project or department. A queue taken over while it
-was off carries the owner reference from then on, so turning it on later does not hand
-that queue back.
+Turn it on when you install the chart. Installing with it off leaves existing queues
+alone, but the first project or department whose derived name matches one takes it over,
+and a queue taken over keeps the owner reference, so turning the flag on later does not
+hand it back.
 
 ## Next
 
