@@ -35,6 +35,7 @@ type TestCase struct {
 	Topologies         []TestTopology
 	ManagedNodesConfig []TestManagedNodesConfig
 	Projects           []TestProject
+	SchedulingShards   []*kaiv1.SchedulingShard
 	TestCallback       TestCallbackFn
 	AfterTestCallback  TestCallbackFn
 
@@ -209,6 +210,9 @@ func preTestSetup(ctx context.Context, stopper <-chan struct{},
 	}
 
 	objs = append(objs, getSchedulerOperands(testCase.NodePools)...)
+	for _, shard := range testCase.SchedulingShards {
+		objs = append(objs, shard)
+	}
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(
 		&v1alpha1.NodePool{}, &corev1.Node{}, &kaiv1.SchedulingShard{}).
 		WithIndex(&v1alpha1.NodePool{}, common.IsDeletingPhaseField, nodepool_controller.NodePoolIsDeletingPhaseIndexer).
@@ -279,4 +283,11 @@ func getSchedulerOperands(nodePools []TestNodePool) []client.Object {
 	objs = append(objs, clusterCR)
 
 	return objs
+}
+
+func unmanagedTestShard(partitionLabelValue string, labels map[string]string) *kaiv1.SchedulingShard {
+	return &kaiv1.SchedulingShard{
+		ObjectMeta: metav1.ObjectMeta{Name: partitionLabelValue + "-shard", Labels: labels},
+		Spec:       kaiv1.SchedulingShardSpec{PartitionLabelValue: partitionLabelValue},
+	}
 }
