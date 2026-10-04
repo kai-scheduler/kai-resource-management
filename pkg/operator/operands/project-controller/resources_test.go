@@ -153,6 +153,15 @@ var _ = Describe("buildArgsList", func() {
 		Expect(args).ToNot(ContainElement("--log-level"))
 	})
 
+	It("passes --allow-external-queues only when asked", func() {
+		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--allow-external-queues"))
+
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.Global.AllowExternalQueues = ptr.To(true)
+
+		Expect(buildArgsList(krmConfig)).To(ContainElement("--allow-external-queues"))
+	})
+
 	It("passes the controller's own label keys", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.Args.ProjectNamePrefix = ptr.To("acme")

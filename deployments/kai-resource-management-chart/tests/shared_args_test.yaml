@@ -64,6 +64,7 @@ tests:
       commonArgs.projectLabelKey: acme/project
       commonArgs.finalizerDomain: acme.io
       commonArgs.enforceSchedulerAnnotationKey: acme/enforce-scheduler-name
+      commonArgs.allowExternalQueues: true
     asserts:
       - equal: {path: spec.global.schedulerName, value: shared-scheduler}
       - equal: {path: spec.global.projectLabelKey, value: acme/project}
@@ -71,6 +72,7 @@ tests:
       # project-controller writes the annotation, pod-group-assigner reads it back; a
       # single shared value keeps the two keys from drifting apart.
       - equal: {path: spec.global.enforceSchedulerAnnotationKey, value: acme/enforce-scheduler-name}
+      - equal: {path: spec.global.allowExternalQueues, value: true}
 
   - it: defaultNodePool.name is the single source for the default node pool
     templates:

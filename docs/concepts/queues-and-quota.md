@@ -211,20 +211,23 @@ taken over: its labels, owner reference and spec are rewritten to match the spec
 a project deletes every queue labelled with the project's name.
 
 That is wrong on a cluster whose queues predate KRM, such as a KAI Scheduler with a queue
-hierarchy an administrator built by hand. Start the project-controller with
-`--allow-external-queues` and it updates or deletes only a queue whose owner reference
-names the project or department being reconciled. Any other queue is left exactly as it
-is, with a line in the controller's log saying so. A project or department whose derived
-queue name is held by such a queue gets that name plus a random suffix instead.
+hierarchy an administrator built by hand. Turn on `allowExternalQueues` and the
+project-controller updates or deletes only a queue whose owner reference names the project
+or department being reconciled. Any other queue is left exactly as it is, with a line in
+the controller's log saying so. A project or department whose derived queue name is held
+by such a queue gets that name plus a random suffix instead.
 
-The `KRMConfig` does not model this flag, so set it through the project-controller's
-`extraArgs`, which the operator appends after every other argument:
+Set it in the chart values, which carry it into the `KRMConfig` as
+`spec.global.allowExternalQueues`:
 
 ```yaml
-projectController:
-  extraArgs:
-    - --allow-external-queues
+commonArgs:
+  allowExternalQueues: true
 ```
+
+Turn it on before creating the first project or department. A queue taken over while it
+was off carries the owner reference from then on, so turning it on later does not hand
+that queue back.
 
 ## Next
 

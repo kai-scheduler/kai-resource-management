@@ -207,6 +207,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	args = appendStringArg(args, "--limit-range-name", config.Args.LimitRangeName)
 
 	args = appendSwitch(args, "--openshift", global.Openshift)
+	args = appendSwitch(args, "--allow-external-queues", global.AllowExternalQueues)
 	args = appendSwitch(args, "--namespaces", config.Features.CreateNamespaces)
 	args = appendSwitch(args, "--role-bindings", config.Features.CreateRoleBindings)
 	args = appendSwitch(args, "--limit-range", config.Features.LimitRange)
