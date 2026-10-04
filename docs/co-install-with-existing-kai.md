@@ -1,7 +1,5 @@
 # Design — Co-installing the OSS Resource-Management package with a pre-existing KAI-scheduler
 
-**Ticket:** RUN-41438 · **Epic:** RUN-38814 · **Status:** Draft for design review
-
 ## Problem
 
 The OSS package (chart: nodepool-controller, project-controller, pod-group-assigner, `kai.resources` CRDs,
