@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -94,6 +95,14 @@ func areQueuesEqual(left, right *schedv2.Queue) bool {
 		reflect.DeepEqual(left.Spec, right.Spec)
 }
 
+// IsExternalQueue reports whether queue belongs to someone other than the Project or Department
+// with ownerUID, and so must never be adopted, updated or deleted by it. Unless external queues
+// are allowed, no Queue is external: every one is KRM's, and one missing its OwnerReference is
+// adopted.
+func IsExternalQueue(queue *schedv2.Queue, ownerUID types.UID) bool {
+	return config.Get().AllowExternalQueues && !isOwnedByUID(queue.OwnerReferences, ownerUID)
+}
+
 func updateExistingQueueWithExpectedValues(expectedQueueObject, existingQueue *schedv2.Queue) {
 	existingQueue.Labels = expectedQueueObject.Labels
 	existingQueue.OwnerReferences = expectedQueueObject.OwnerReferences
@@ -117,7 +126,13 @@ func createQueue(ctx context.Context, k8sClient client.Client, log logr.Logger,
 }
 
 func updateExistingQueue(ctx context.Context, k8sClient client.Client, log logr.Logger,
-	expectedQueueObject, existingQueue *schedv2.Queue, objectType, objectName string) error {
+	expectedQueueObject, existingQueue *schedv2.Queue, ownerUID types.UID, objectType, objectName string) error {
+	if IsExternalQueue(existingQueue, ownerUID) {
+		log.Info(fmt.Sprintf("Queue is not owned by the %s, it will not be updated", objectType),
+			common.LogQueueTag, existingQueue.Name, objectType, objectName)
+		return nil
+	}
+
 	log.Info(fmt.Sprintf("Existing Queue differs from expected in %s spec, updating. Resources changes: %s",
 		objectType, printQueueResourcesChanges(existingQueue, expectedQueueObject)),
 		common.LogQueueTag, existingQueue.Name, objectType, objectName)
@@ -133,7 +148,13 @@ func updateExistingQueue(ctx context.Context, k8sClient client.Client, log logr.
 }
 
 func deleteQueue(ctx context.Context, k8sClient client.Client, log logr.Logger,
-	queue schedv2.Queue, objectType, objectName string) error {
+	queue schedv2.Queue, ownerUID types.UID, objectType, objectName string) error {
+	if IsExternalQueue(&queue, ownerUID) {
+		log.Info(fmt.Sprintf("Queue is not owned by the %s, it will not be deleted", objectType),
+			common.LogQueueTag, queue.Name, objectType, objectName)
+		return nil
+	}
+
 	log.Info(fmt.Sprintf("Deleting queue for %s as it no longer exists in spec", objectType),
 		common.LogQueueTag, queue.Name, objectType, objectName)
 	err := k8sClient.Delete(ctx, &queue)
@@ -190,8 +211,7 @@ func listQueuesWithLabelSelectors(ctx context.Context, k8sClient client.Client,
 // ownerKind are candidates for deletion, so a department reconcile never deletes its projects'
 // queues.
 func deleteUnnecessaryQueues(ctx context.Context, k8sClient client.Client, log logr.Logger,
-	reconciledQueues map[string]bool,
-	objectType, objectName string,
+	reconciledQueues map[string]bool, ownerUID types.UID, objectType, objectName string,
 	labelKey, labelValue, ownerKind string) error {
 	existingQueues, err := listQueuesWithLabelSelector(ctx, k8sClient, labelKey, labelValue)
 	if err != nil {
@@ -210,7 +230,7 @@ func deleteUnnecessaryQueues(ctx context.Context, k8sClient client.Client, log l
 			continue
 		}
 
-		innerErr := deleteQueue(ctx, k8sClient, log, existingQueue, objectType, objectName)
+		innerErr := deleteQueue(ctx, k8sClient, log, existingQueue, ownerUID, objectType, objectName)
 		if innerErr != nil {
 			err = multierror.Append(err, innerErr)
 		}
@@ -224,7 +244,7 @@ func deleteUnnecessaryQueues(ctx context.Context, k8sClient client.Client, log l
 // returns bool - whether the queue is taken by other resource or not.
 // and if the queue exists - returns the queue object.
 func isQueueTakenByOtherResource(ctx context.Context, k8sClient client.Client,
-	expectedDepartmentName, expectedProjectName, queueName string) (bool, *schedv2.Queue) {
+	expectedDepartmentName, expectedProjectName, queueName string, ownerUID types.UID) (bool, *schedv2.Queue) {
 	existingQueue := &schedv2.Queue{}
 	err := k8sClient.Get(ctx,
 		client.ObjectKey{Name: queueName},
@@ -233,6 +253,10 @@ func isQueueTakenByOtherResource(ctx context.Context, k8sClient client.Client,
 	if err != nil {
 		// queue doesn't exist - the suggested name is good, not taken by other resource
 		return false, nil
+	}
+
+	if IsExternalQueue(existingQueue, ownerUID) {
+		return true, existingQueue
 	}
 
 	// A queue "belongs" to a department only if it is owned by a Department (Kind), and to a
@@ -264,7 +288,7 @@ func isQueueTakenByOtherResource(ctx context.Context, k8sClient client.Client,
 }
 
 func getExistingQueueByLabels(ctx context.Context, k8sClient client.Client, log logr.Logger,
-	nodepoolName, projectName, departmentName string) (*schedv2.Queue, error) {
+	nodepoolName, projectName, departmentName string, ownerUID types.UID) (*schedv2.Queue, error) {
 	requirements, err := createRequirementsForQueuesList(log, nodepoolName, projectName, departmentName)
 	if err != nil {
 		return nil, err
@@ -288,7 +312,7 @@ func getExistingQueueByLabels(ctx context.Context, k8sClient client.Client, log 
 		expectedOwnerKind = common.ProjectKind
 	}
 	for i := range queues {
-		if isOwnedByKind(queues[i].OwnerReferences, expectedOwnerKind) {
+		if isOwnedByKind(queues[i].OwnerReferences, expectedOwnerKind) && !IsExternalQueue(&queues[i], ownerUID) {
 			return &queues[i], nil
 		}
 	}
@@ -346,9 +370,9 @@ func createRequirementsForQueuesList(log logr.Logger,
 }
 
 func getExistingQueueOfResource(ctx context.Context, k8sClient client.Client, log logr.Logger,
-	nodepoolName, projectName, departmentName, suggestedQueueName string) (*schedv2.Queue, error) {
+	nodepoolName, projectName, departmentName, suggestedQueueName string, ownerUID types.UID) (*schedv2.Queue, error) {
 	existingQueueByLabels, err := getExistingQueueByLabels(ctx, k8sClient, log,
-		nodepoolName, projectName, departmentName)
+		nodepoolName, projectName, departmentName, ownerUID)
 	if err == nil {
 		return existingQueueByLabels, nil
 	}
@@ -363,16 +387,21 @@ func getExistingQueueOfResource(ctx context.Context, k8sClient client.Client, lo
 	// and see if it doesn't belong to another resource.
 
 	isTaken, existingQueueWithExpectedName := isQueueTakenByOtherResource(ctx, k8sClient,
-		departmentName, projectName, suggestedQueueName)
+		departmentName, projectName, suggestedQueueName, ownerUID)
 	if !isTaken && existingQueueWithExpectedName != nil {
 		return existingQueueWithExpectedName, nil
+	}
+	if existingQueueWithExpectedName != nil && IsExternalQueue(existingQueueWithExpectedName, ownerUID) {
+		log.Info("Queue with the expected name belongs to someone else, it will not be adopted",
+			common.LogQueueTag, suggestedQueueName,
+			common.LogProjectTag, projectName, common.LogDepartmentTag, departmentName)
 	}
 
 	return nil, errors.NewNotFound(schedv2.Resource("queue"), suggestedQueueName)
 }
 
 func generateQueueNameForResource(ctx context.Context, k8sClient client.Client,
-	projectName, departmentName, suggestedQueueName string) string {
+	projectName, departmentName, suggestedQueueName string, ownerUID types.UID) string {
 	newSuggestedQueueName := suggestedQueueName
 
 	// limit the queue name to 63 characters, as per Kubernetes naming and label values conventions
@@ -384,7 +413,7 @@ func generateQueueNameForResource(ctx context.Context, k8sClient client.Client,
 	}
 
 	for i := 0; i < generateQueueNameTries; i++ {
-		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, projectName, departmentName, newSuggestedQueueName) {
+		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, projectName, departmentName, newSuggestedQueueName, ownerUID) {
 			return newSuggestedQueueName
 		}
 
@@ -401,9 +430,9 @@ func generateQueueNameForResource(ctx context.Context, k8sClient client.Client,
 }
 
 func isSuggestedQueueTakenByOtherResource(ctx context.Context, k8sClient client.Client,
-	expectedDepartmentName, expectedProjectName, suggestedQueueName string) bool {
+	expectedDepartmentName, expectedProjectName, suggestedQueueName string, ownerUID types.UID) bool {
 	isTaken, _ := isQueueTakenByOtherResource(ctx, k8sClient,
-		expectedDepartmentName, expectedProjectName, suggestedQueueName)
+		expectedDepartmentName, expectedProjectName, suggestedQueueName, ownerUID)
 	return isTaken
 }
 

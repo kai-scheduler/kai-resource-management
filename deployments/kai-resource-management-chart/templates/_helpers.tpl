@@ -237,6 +237,9 @@ projectLabelKey: {{ $commonArgs.projectLabelKey | quote }}
 {{- if $commonArgs.enforceSchedulerAnnotationKey }}
 enforceSchedulerAnnotationKey: {{ $commonArgs.enforceSchedulerAnnotationKey | quote }}
 {{- end }}
+{{- if $commonArgs.allowExternalQueues }}
+allowExternalQueues: true
+{{- end }}
 {{- with (.Values.defaultNodePool | default dict).name }}
 defaultNodePoolName: {{ . | quote }}
 {{- end }}
@@ -574,7 +577,7 @@ the only source and a per-service copy is refused rather than ignored. Usage:
   {{- include "kai-resource-management.reject-shared-arg-override" (dict "comp" "podGroupAssigner" "args" $args) }}
 */}}
 {{- define "kai-resource-management.reject-shared-arg-override" -}}
-{{- $shared := list "schedulerName" "finalizerDomain" "projectLabelKey" "namespaceProjectLabelKey" "enforceSchedulerAnnotationKey" -}}
+{{- $shared := list "schedulerName" "finalizerDomain" "projectLabelKey" "namespaceProjectLabelKey" "enforceSchedulerAnnotationKey" "allowExternalQueues" -}}
 {{- range $key := $shared }}
 {{- if hasKey ($.args | default dict) $key }}
 {{- fail (printf "%s.args.%s is not settable: %s is shared vocabulary, set commonArgs.%s instead" $.comp $key $key $key) }}

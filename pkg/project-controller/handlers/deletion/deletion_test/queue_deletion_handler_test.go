@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -71,4 +72,41 @@ var _ = Describe("Queue Deletion Handler", func() {
 			}
 		})
 	})
+
+	// Every Queue here carries the project's label, which is all the deletion lists by.
+	DescribeTable("Queues carrying the project's label",
+		func(externalQueuesAllowed bool) {
+			if externalQueuesAllowed {
+				withExternalQueues := *config.Get()
+				withExternalQueues.AllowExternalQueues = true
+				DeferCleanup(config.SetForTest(&withExternalQueues))
+			}
+			unowned := queue.DeepCopy()
+			unowned.Name = "platform-queue"
+			unowned.OwnerReferences = nil
+			ownedByAnother := queue.DeepCopy()
+			ownedByAnother.Name = "unrelated-proj-queue"
+			ownedByAnother.OwnerReferences = UnrelatedProjectOwnerRef
+			Expect(client.Create(context.TODO(), &project)).To(Succeed())
+			Expect(client.Create(context.TODO(), &queue)).To(Succeed())
+			Expect(client.Create(context.TODO(), unowned)).To(Succeed())
+			Expect(client.Create(context.TODO(), ownedByAnother)).To(Succeed())
+
+			_, err := handler.OnDelete(&project)
+			Expect(err).To(BeNil())
+
+			_, err = handler.GetQueue(queue.Name)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the owned Queue is always deleted")
+			for _, notOwned := range []*kaiv2.Queue{unowned, ownedByAnother} {
+				_, err = handler.GetQueue(notOwned.Name)
+				if !externalQueuesAllowed {
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), notOwned.Name)
+				} else {
+					Expect(err).ToNot(HaveOccurred(), notOwned.Name)
+				}
+			}
+		},
+		Entry("are all deleted when external queues are not allowed", false),
+		Entry("are deleted only if the project owns them when external queues are allowed", true),
+	)
 })

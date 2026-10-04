@@ -112,6 +112,13 @@ type ProjectReconcilerConfig struct {
 
 	ResourceManualOverrideLabelKey string
 
+	// AllowExternalQueues declares that Queues outside the KRM hierarchy may exist, such as
+	// those of a KAI Scheduler installed before KRM. Only a Queue whose OwnerReference names
+	// the reconciling Project or Department is then updated or deleted. Without it every Queue
+	// is taken to be KRM's, and one missing its OwnerReference is adopted.
+	// Flag-configurable (--allow-external-queues).
+	AllowExternalQueues bool
+
 	// EnableProjectValidationWebhook gates registration of the validating
 	// admission webhook handler for Project resources. Default off so a
 	// deployment that ships no serving certificate is unaffected; the helm

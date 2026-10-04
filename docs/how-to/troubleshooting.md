@@ -294,6 +294,14 @@ kubectl get namespace kai-research -o jsonpath='{.metadata.labels}' | jq
 
 `kai.resources/resource-manual-override: "true"` means intentional, by someone.
 
+For a queue, when `commonArgs.allowExternalQueues` is on, also check
+that its owner reference names the project or department. A queue owned by anything else
+is [left alone](../concepts/queues-and-quota.md#queues-krm-did-not-create):
+
+```bash
+kubectl get queue research -o jsonpath='{.metadata.ownerReferences}' | jq
+```
+
 ## Workloads
 
 ### The pod is not on the KAI scheduler

@@ -202,6 +202,33 @@ without adding a queue for it is rejected at admission.
 A queue you have marked with the manual-override label is left alone. See [projects and
 departments](projects-and-departments.md#manually-overriding-something-krm-created).
 
+## Queues KRM did not create
+
+By default the project-controller treats every `Queue` on the cluster as KRM's. A queue
+that no project or department owns, but that carries the name one of them would use, is
+taken over: its labels, owner reference and spec are rewritten to match the spec. Deleting
+a project deletes every queue labelled with the project's name.
+
+That is wrong on a cluster whose queues predate KRM, such as a KAI Scheduler with a queue
+hierarchy an administrator built by hand. Turn on `allowExternalQueues` and the
+project-controller updates or deletes only a queue whose owner reference names the project
+or department being reconciled. Any other queue is left exactly as it is, with a line in
+the controller's log saying so. A project or department whose derived queue name is held
+by such a queue gets that name plus a random suffix instead.
+
+Set it in the chart values, which carry it into the `KRMConfig` as
+`spec.global.allowExternalQueues`:
+
+```yaml
+commonArgs:
+  allowExternalQueues: true
+```
+
+Turn it on when you install the chart. Installing with it off leaves existing queues
+alone, but the first project or department whose derived name matches one takes it over,
+and a queue taken over keeps the owner reference, so turning the flag on later does not
+hand it back.
+
 ## Next
 
 - [Workload placement](workload-placement.md) — how a pod ends up charged to one of these.

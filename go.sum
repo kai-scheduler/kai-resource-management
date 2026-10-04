@@ -161,8 +161,8 @@ github.com/kai-scheduler/KAI-scheduler v0.18.2 h1:PAviSE6imo5bP24VabUi4+XvlD7f6I
 github.com/kai-scheduler/KAI-scheduler v0.18.2/go.mod h1:Iq9bW16dfU3vuhAT4CMM1ZqG5aKXg8z/0K4Qt+LiS0Q=
 github.com/kai-scheduler/api v0.1.1 h1:Yo3z3Vi6oNBidD0gDq1hEWa9FkM8Jv6EBmsLY7KciXc=
 github.com/kai-scheduler/api v0.1.1/go.mod h1:I3AqrOQVknNc3ZfLQkUpfWlQLIDqgg3dVGzsmVJhdTw=
-github.com/kai-scheduler/kai-resource-management-api v0.1.3 h1:pXsWyLcFSFccT+0vpfjwUK/PJX2UB90MD3R10lRz3bs=
-github.com/kai-scheduler/kai-resource-management-api v0.1.3/go.mod h1:z6EpbG08naJ9h1WQw98CRO/VS65diHbG/s+p/mZAu9k=
+github.com/kai-scheduler/kai-resource-management-api v0.1.4 h1:L9uVv6iEnjsyirQ38H6VuyYLVK0Ss0sgKFhyGjiolOE=
+github.com/kai-scheduler/kai-resource-management-api v0.1.4/go.mod h1:z6EpbG08naJ9h1WQw98CRO/VS65diHbG/s+p/mZAu9k=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.18.2 h1:iiPHWW0YrcFgpBYhsA6D1+fqHssJscY/Tm/y2Uqnapk=

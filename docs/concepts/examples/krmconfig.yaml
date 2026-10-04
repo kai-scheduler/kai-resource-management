@@ -47,6 +47,7 @@ spec:
     queueLabelKey: kai.scheduler/queue
     nodePoolLabelKey: kai.scheduler/node-pool
     defaultNodePoolName: default
+    allowExternalQueues: false
     replicaCount: 1
     leaderElection: false
     serviceMonitor:
