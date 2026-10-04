@@ -6,10 +6,15 @@ package resources
 import (
 	"testing"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
@@ -22,6 +27,14 @@ const (
 )
 
 var suite = "KAI Scheduler Operand Resources"
+
+// fakeShardClient registers the partition index that every shard and ServiceMonitor function looks the
+// NodePool's shard up through; a fake client rejects a field selector it has no index for.
+func fakeShardClient(scheme *runtime.Scheme, objects ...client.Object) client.Client {
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).
+		WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, SchedulingShardPartitionIndexer).
+		Build()
+}
 
 func TestResources(t *testing.T) {
 	RegisterFailHandler(Fail)

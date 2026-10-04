@@ -19,18 +19,25 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 )
 
+// ServiceMonitorForNodePool derives its name and selector from the shard's name, not the NodePool's: the KAI
+// operator names each shard's Service "<scheduler>-<shard>", and an adopted shard keeps its own name.
 func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
-	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, operandName string) (client.Object, error) {
+	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, _ string) (client.Object, error) {
+	shardName, err := shardNameForNodePool(ctx, k8sReader, nodePool)
+	if err != nil {
+		return nil, err
+	}
+
 	schedulerName := SchedulerBaseOperandName()
 	var (
-		name      = fmt.Sprintf("%s-%s", schedulerName, operandName)
+		name      = fmt.Sprintf("%s-%s", schedulerName, shardName)
 		namespace = config.Get().SchedulerNamespace
 		appName   = name
 	)
 
 	serviceMonitor := &monitorv1.ServiceMonitor{}
 	// Get the existing serviceMonitor if it exists to consume any cluster-set values
-	err := k8sReader.Get(ctx, types.NamespacedName{
+	err = k8sReader.Get(ctx, types.NamespacedName{
 		Name:      name,
 		Namespace: namespace,
 	}, serviceMonitor)

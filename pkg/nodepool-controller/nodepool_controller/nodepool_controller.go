@@ -24,6 +24,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -143,6 +144,14 @@ func (npc *NodePoolController) indexFields(ctx context.Context, mgr ctrl.Manager
 		common.PodRunningWithKaiSchedulerNodeNameField, PodRunningWithKaiSchedulerNodeNameIndexer)
 	if err != nil {
 		log.Error().Msgf("Failed indexing pod field: %v, err: %v", common.PodRunningWithKaiSchedulerNodeNameField, err.Error())
+		return err
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx, &kaiv1.SchedulingShard{},
+		common.SchedulingShardPartitionField, resources.SchedulingShardPartitionIndexer)
+	if err != nil {
+		log.Error().Msgf("Failed indexing scheduling shard field: %v, err: %v", common.SchedulingShardPartitionField, err.Error())
 		return err
 	}
 

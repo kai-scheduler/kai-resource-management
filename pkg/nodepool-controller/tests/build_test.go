@@ -24,6 +24,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 )
 
 type TestCase struct {
@@ -213,6 +214,7 @@ func preTestSetup(ctx context.Context, stopper <-chan struct{},
 		&v1alpha1.NodePool{}, &corev1.Node{}, &kaiv1.SchedulingShard{}).
 		WithIndex(&v1alpha1.NodePool{}, common.IsDeletingPhaseField, nodepool_controller.NodePoolIsDeletingPhaseIndexer).
 		WithIndex(&corev1.Pod{}, common.PodRunningWithKaiSchedulerNodeNameField, nodepool_controller.PodRunningWithKaiSchedulerNodeNameIndexer).
+		WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, resources.SchedulingShardPartitionIndexer).
 		Build()
 
 	fakeCachedClient := NewFakeCachedClient(fakeClient)
@@ -240,9 +242,17 @@ func getSchedulerOperands(nodePools []TestNodePool) []client.Object {
 			status = metav1.ConditionFalse
 		}
 
+		partition := np.Name
+		if np.Name == defaultTestNodePool.Name {
+			partition = ""
+		}
+
 		schedulingShard := &kaiv1.SchedulingShard{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: np.Name,
+			},
+			Spec: kaiv1.SchedulingShardSpec{
+				PartitionLabelValue: partition,
 			},
 			Status: kaiv1.SchedulingShardStatus{
 				Conditions: []metav1.Condition{
