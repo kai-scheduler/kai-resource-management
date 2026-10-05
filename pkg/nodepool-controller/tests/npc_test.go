@@ -746,7 +746,7 @@ var _ = Describe("NodePoolController Tests", func() {
 					Labels: map[string]string{kaiconstants.DefaultNodePoolLabelKey: "legacy"},
 				},
 			},
-			SchedulingShards: []*kaiv1.SchedulingShard{unmanagedTestShard("legacy", nil)},
+			SchedulingShards: []*kaiv1.SchedulingShard{getTestSchedulingShardObj("legacy", nil)},
 			ManagedNodesConfig: []TestManagedNodesConfig{
 				getEmptyTestManagedNodesConfig(),
 			},
@@ -770,7 +770,7 @@ var _ = Describe("NodePoolController Tests", func() {
 				},
 			},
 			SchedulingShards: []*kaiv1.SchedulingShard{
-				unmanagedTestShard("legacy", map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}),
+				getTestSchedulingShardObj("legacy", map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}),
 			},
 			ManagedNodesConfig: []TestManagedNodesConfig{
 				getEmptyTestManagedNodesConfig(),
@@ -2515,7 +2515,7 @@ var _ = Describe("NodePoolController Tests", func() {
 				},
 			},
 			SchedulingShards: []*kaiv1.SchedulingShard{
-				unmanagedTestShard("legacy", map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}),
+				getTestSchedulingShardObj("legacy", map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}),
 			},
 			ManagedNodesConfig: []TestManagedNodesConfig{
 				{

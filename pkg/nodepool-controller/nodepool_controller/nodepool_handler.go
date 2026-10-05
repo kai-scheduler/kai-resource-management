@@ -188,6 +188,9 @@ func (npc *NodePoolController) reconcileNodesNotInDefaultNodePool(ctx context.Co
 		// fake nodepool, need to consider it as always existing.
 		config.Get().ExcludedNodepoolName: config.Get().ExcludedNodepoolName,
 	}
+	// Treat each unmanaged partition as an existing NodePool, so the loop below leaves its nodes alone.
+	// It has no NodePool of its own: without this, its nodes would be relabelled into another pool,
+	// and the pre-existing scheduler, which finds them by that label, would lose them.
 	for partitionLabelValue := range unmanagedPartitionLabelValues {
 		availableNodePoolsMap[partitionLabelValue] = partitionLabelValue
 	}

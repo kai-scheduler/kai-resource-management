@@ -294,7 +294,7 @@ func getSchedulerOperands(nodePools []TestNodePool) []client.Object {
 	return objs
 }
 
-func unmanagedTestShard(partitionLabelValue string, labels map[string]string) *kaiv1.SchedulingShard {
+func getTestSchedulingShardObj(partitionLabelValue string, labels map[string]string) *kaiv1.SchedulingShard {
 	return &kaiv1.SchedulingShard{
 		ObjectMeta: metav1.ObjectMeta{Name: partitionLabelValue + "-shard", Labels: labels},
 		Spec:       kaiv1.SchedulingShardSpec{PartitionLabelValue: partitionLabelValue},
