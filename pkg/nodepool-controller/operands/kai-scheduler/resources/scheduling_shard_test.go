@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	usagedbapi "github.com/kai-scheduler/KAI-scheduler/pkg/scheduler/cache/usagedb/api"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
+	usagedbapi "github.com/kai-scheduler/api/usagedb"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

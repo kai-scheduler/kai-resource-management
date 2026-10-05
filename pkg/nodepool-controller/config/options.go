@@ -6,7 +6,7 @@ package config
 import (
 	"flag"
 
-	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
+	kaiconstants "github.com/kai-scheduler/api/constants"
 )
 
 // AddLabelFlags binds the nodepool-controller's label-vocabulary

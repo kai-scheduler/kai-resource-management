@@ -6,8 +6,8 @@
 package pod_group_assigner
 
 import (
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	kaiconstants "github.com/kai-scheduler/api/constants"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

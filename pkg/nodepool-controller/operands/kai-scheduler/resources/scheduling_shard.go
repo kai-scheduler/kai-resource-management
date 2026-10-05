@@ -10,8 +10,8 @@ import (
 	"slices"
 	"time"
 
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	usagedbapi "github.com/kai-scheduler/KAI-scheduler/pkg/scheduler/cache/usagedb/api"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
+	usagedbapi "github.com/kai-scheduler/api/usagedb"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
+	kaiconstants "github.com/kai-scheduler/api/constants"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"

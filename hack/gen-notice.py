@@ -105,8 +105,6 @@ OVERRIDES = {
     "gomodules.xyz/jsonpatch/v2": {"copyright": "Copyright (c) 2015 The Authors"},
     "k8s.io/kube-openapi": {"copyright": "Copyright The Kubernetes Authors."},
     "github.com/kai-scheduler/api": {"copyright": "Copyright 2025 NVIDIA CORPORATION"},
-    # Upstream's own NOTICE opens "Copyright Copyright 2025 NVIDIA CORPORATION".
-    "github.com/kai-scheduler/KAI-scheduler": {"copyright": "Copyright 2025 NVIDIA CORPORATION"},
 }
 
 # Apache-2.0 and MIT templates both carry a bracketed placeholder rather than a real

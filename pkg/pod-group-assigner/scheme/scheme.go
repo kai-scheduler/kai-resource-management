@@ -9,9 +9,9 @@
 package scheme
 
 import (
-	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	kaitopologyv1alpha1 "github.com/kai-scheduler/api/kai/v1alpha1"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
