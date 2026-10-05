@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - 'v*.*'
     tags:
       - '*.*.*'
 
@@ -34,7 +35,12 @@ jobs:
       - name: Extract package version from branch commit
         if: startsWith(github.ref, 'refs/heads/')
         run: |
-          PACKAGE_VERSION=0.0.0-$(git rev-parse --short HEAD)
+          SHA=$(git rev-parse --short HEAD)
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            PACKAGE_VERSION=0.0.0-$SHA
+          else
+            PACKAGE_VERSION=${GITHUB_REF_NAME#v}-dev-$SHA
+          fi
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
 
