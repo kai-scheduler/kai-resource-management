@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	vpav1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
@@ -253,6 +254,52 @@ var _ = Describe("DeployableOperands", func() {
 			Expect(deploy()).To(Succeed())
 
 			Expect(updatedWith).ToNot(BeEmpty())
+		})
+
+		It("takes ownership of a Service whose create is rejected for its allocated clusterIP", func() {
+			const servingCertAnnotation = "service.beta.openshift.io/serving-cert-secret-name"
+			runtimeClient = newClientBuilder(scheme).
+				WithObjects(&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "pod-group-assigner",
+						Namespace:   testNamespace,
+						Annotations: map[string]string{servingCertAnnotation: "runai-pod-group-assigner-tls-secret"},
+					},
+					Spec: corev1.ServiceSpec{ClusterIP: "172.30.108.211", ClusterIPs: []string{"172.30.108.211"}},
+				}).
+				WithInterceptorFuncs(interceptor.Funcs{
+					// The API server allocates the clusterIP before it checks the
+					// name, so the copied IP fails as Invalid, never AlreadyExists.
+					Create: func(
+						ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption,
+					) error {
+						if service, isService := obj.(*corev1.Service); isService && service.Spec.ClusterIP != "" {
+							return apierrors.NewInvalid(
+								schema.GroupKind{Kind: "Service"}, service.Name, field.ErrorList{field.Invalid(
+									field.NewPath("spec", "clusterIPs"), service.Spec.ClusterIPs,
+									"failed to allocate IP: provided IP is already allocated")})
+						}
+						return c.Create(ctx, obj, opts...)
+					},
+				}).
+				Build()
+			desired, err := common.ObjectForKRMConfig(
+				ctx, runtimeClient, &corev1.Service{}, "pod-group-assigner", testNamespace)
+			Expect(err).ToNot(HaveOccurred())
+			service := desired.(*corev1.Service)
+			service.TypeMeta = metav1.TypeMeta{Kind: "Service", APIVersion: "v1"}
+			service.Annotations[servingCertAnnotation] = "pod-group-assigner-tls-secret"
+			operand.extra = []client.Object{service}
+
+			Expect(deploy()).To(Succeed())
+
+			adopted := &corev1.Service{}
+			Expect(runtimeClient.Get(ctx, types.NamespacedName{
+				Namespace: testNamespace, Name: "pod-group-assigner"}, adopted)).To(Succeed())
+			Expect(adopted.OwnerReferences).To(HaveLen(1))
+			Expect(adopted.OwnerReferences[0].Kind).To(Equal(krmv1alpha1.KRMConfigKind))
+			Expect(adopted.Annotations).To(
+				HaveKeyWithValue(servingCertAnnotation, "pod-group-assigner-tls-secret"))
 		})
 
 	})
