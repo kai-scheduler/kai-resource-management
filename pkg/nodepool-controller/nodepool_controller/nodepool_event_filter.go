@@ -22,6 +22,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -106,8 +107,15 @@ func (npc *NodePoolController) MapNodeToNodePoolEvent(ctx context.Context, objec
 		return requests
 	}
 
+	unmanagedPartitionLabelValues, err := unmanaged_shards.ListPartitionLabelValues(ctx, npc.Client)
+	if err != nil {
+		log.Error().Msgf("Failed listing unmanaged partitions while mapping node <%v>, error: %v", node.Name, err)
+	} else if unmanagedPartitionLabelValues[nodePoolName] {
+		return requests
+	}
+
 	nodePool := &v1alpha1.NodePool{}
-	err := npc.Client.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool)
+	err = npc.Client.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool)
 	if err != nil {
 		log.Info().Msgf("Warning - Node pool <%v> not found for node <%v>, using default instead, error: %v",
 			nodePoolName, node.Name, err.Error())

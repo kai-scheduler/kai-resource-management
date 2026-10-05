@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,10 +15,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
 var _ = Describe("mapNodeToOtherDestNodePools", Ordered, func() {
@@ -195,5 +199,78 @@ var _ = Describe("mapNodeToOtherDestNodePools", Ordered, func() {
 		requests := npc.mapNodeToOtherDestNodePools(ctx, n, "other")
 		Expect(requests).To(HaveLen(1))
 		Expect(requests[0].NamespacedName.Name).To(Equal(config.Get().DefaultNodepoolName))
+	})
+})
+
+var _ = Describe("MapNodeToNodePoolEvent", func() {
+	const (
+		partitionLabelValue = "legacy"
+		unschedulableLabel  = "kai.scheduler/unschedulable"
+	)
+
+	var ctx context.Context
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		config.SetCurrent(&config.NodePoolControllerConfig{
+			NodePoolNameLabel:     kaiconstants.DefaultNodePoolLabelKey,
+			DefaultNodepoolName:   kaiconstants.DefaultNodePoolName,
+			ExcludedNodepoolName:  "kai-excluded-nodes",
+			UnschedulableLabelKey: unschedulableLabel,
+		})
+	})
+
+	newController := func(shardLabels map[string]string) *NodePoolController {
+		scheme := runtime.NewScheme()
+		Expect(v1alpha1.AddToScheme(scheme)).To(Succeed())
+		Expect(corev1.AddToScheme(scheme)).To(Succeed())
+		Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
+
+		objs := []client.Object{
+			&v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: kaiconstants.DefaultNodePoolName}},
+			&kaiv1.SchedulingShard{
+				ObjectMeta: metav1.ObjectMeta{Name: "legacy-shard", Labels: shardLabels},
+				Spec:       kaiv1.SchedulingShardSpec{PartitionLabelValue: partitionLabelValue},
+			},
+		}
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+		return &NodePoolController{Client: fakeClient, Scheme: scheme}
+	}
+
+	newNode := func(unschedulableByUs bool) *corev1.Node {
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node1",
+				Labels: map[string]string{kaiconstants.DefaultNodePoolLabelKey: partitionLabelValue},
+			},
+		}
+		if unschedulableByUs {
+			node.Labels[unschedulableLabel] = "true"
+			node.Spec.Unschedulable = true
+		}
+		return node
+	}
+
+	defaultRequest := reconcile.Request{NamespacedName: types.NamespacedName{Name: kaiconstants.DefaultNodePoolName}}
+
+	Context("node in a partition whose shard is labelled to be ignored", func() {
+		ignored := map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}
+
+		It("enqueues no NodePool", func() {
+			npc := newController(ignored)
+			Expect(npc.MapNodeToNodePoolEvent(ctx, newNode(false))).To(BeEmpty())
+		})
+
+		It("enqueues no NodePool even when the node is unschedulable by us", func() {
+			npc := newController(ignored)
+			Expect(npc.MapNodeToNodePoolEvent(ctx, newNode(true))).To(BeEmpty())
+		})
+	})
+
+	Context("node in a managed partition with no NodePool (shard not labelled to be ignored)", func() {
+		It("enqueues the default NodePool", func() {
+			npc := newController(nil)
+			Expect(npc.MapNodeToNodePoolEvent(ctx, newNode(false))).To(ConsistOf(defaultRequest))
+		})
 	})
 })
