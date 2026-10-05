@@ -59,7 +59,7 @@ func SchedulingShardForNodePool(
 	shard.Spec = kaiv1.SchedulingShardSpec{
 		Args:                buildShardArgs(cfg, params),
 		PlacementStrategy:   getPlacementStrategy(cfg),
-		PartitionLabelValue: getNodePoolNameLabelValueForScheduler(nodePool.Name),
+		PartitionLabelValue: PartitionLabelValueForNodePool(nodePool.Name),
 		QueueDepthPerAction: getQueueDepthPerAction(cfg),
 		MinRuntime:          getMinRuntime(cfg),
 		KValue:              getKValue(nodePool),
@@ -73,7 +73,7 @@ func SchedulingShardForNodePool(
 func resolveShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 ) (*kaiv1.SchedulingShard, error) {
-	partition := getNodePoolNameLabelValueForScheduler(nodePool.Name)
+	partition := PartitionLabelValueForNodePool(nodePool.Name)
 	shards := &kaiv1.SchedulingShardList{}
 	if err := k8sReader.List(ctx, shards,
 		client.MatchingFields{common.SchedulingShardPartitionField: partition}); err != nil {
@@ -111,7 +111,7 @@ func newShardForNodePool(
 	if !metav1.IsControlledBy(shard, nodePool) {
 		return nil, fmt.Errorf(
 			"scheduling shard %s serves partition %q and is not owned by node pool %s, which needs its name for partition %q",
-			shard.Name, shard.Spec.PartitionLabelValue, nodePool.Name, getNodePoolNameLabelValueForScheduler(nodePool.Name))
+			shard.Name, shard.Spec.PartitionLabelValue, nodePool.Name, PartitionLabelValueForNodePool(nodePool.Name))
 	}
 	return shard, nil
 }
@@ -211,7 +211,7 @@ func SchedulingShardStatus(
 	return operands.NotReadyStatus(fmt.Sprintf("scheduler [%s] is not running yet: %s", shard.Name, message)), nil
 }
 
-func getNodePoolNameLabelValueForScheduler(nodePoolName string) string {
+func PartitionLabelValueForNodePool(nodePoolName string) string {
 	if nodePoolName == config.Get().DefaultNodepoolName {
 		return ""
 	}

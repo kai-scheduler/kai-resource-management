@@ -82,6 +82,11 @@ tests:
           pattern: ^LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
+      - matchRegex:
+          path: webhooks[0].clientConfig.caBundle
+          pattern: ^LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
       # Both entries of the project VWC come from one helper invocation, so both are set.
       - matchRegex:
           path: webhooks[1].clientConfig.caBundle
@@ -104,6 +109,10 @@ tests:
           value: /validate-kai-resources-v1alpha1-nodepool
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
+      # Chosen by hand with WithValidatorCustomPath, unlike the nodepool's.
+      - equal: {path: "webhooks[0].clientConfig.service.path", value: /validate-krm-v1-schedulingshard}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
       - equal: {path: "webhooks[0].clientConfig.service.path", value: /validate-project}
         template: templates/project-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-project-validation}
@@ -144,6 +153,27 @@ tests:
       - equal: {path: "webhooks[0].rules[0].scope", value: Cluster}
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
+
+  - it: validates SchedulingShards on create and update
+    asserts:
+      - lengthEqual: {path: webhooks, count: 1}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - equal: {path: "webhooks[0].rules[0].operations", value: ["CREATE", "UPDATE"]}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - equal: {path: "webhooks[0].rules[0].apiGroups", value: ["kai.scheduler"]}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - equal: {path: "webhooks[0].rules[0].resources", value: ["schedulingshards"]}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - equal: {path: "webhooks[0].rules[0].scope", value: Cluster}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - equal: {path: "webhooks[0].failurePolicy", value: Fail}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
 
   - it: an overridden Secret name reaches the operand that mounts it
     # The chart mints the Secret and the operator mounts it, so the two only meet
@@ -218,13 +248,21 @@ tests:
       # The platform mints the Secret, so the chart renders only the webhook objects.
       - hasDocuments: {count: 2}
         template: templates/pod-group-assigner/webhook.yaml
-      - hasDocuments: {count: 1}
+      - hasDocuments: {count: 2}
         template: templates/nodepool-controller/webhook.yaml
       - equal:
           path: metadata.annotations["service.beta.openshift.io/inject-cabundle"]
           value: "true"
         template: templates/nodepool-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-nodepool-validation}
+      - equal:
+          path: metadata.annotations["service.beta.openshift.io/inject-cabundle"]
+          value: "true"
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
+      - notExists: {path: "webhooks[0].clientConfig.caBundle"}
+        template: templates/nodepool-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-schedulingshard-validation}
       # caBundle must be absent, not empty - an empty value would fight the injector.
       - notExists: {path: "webhooks[0].clientConfig.caBundle"}
         template: templates/project-controller/webhook.yaml
