@@ -122,12 +122,19 @@ no upgrade guarantee, and exist to try an unreleased fix — not to run in
 production. `0.0.0` sorts below every real release, so an install that does not
 name a version never selects one.
 
-No FIPS variant is built from `main`, and no GitHub Release exists to attach the
-chart to. Both remain tag-only.
+Every push to a `v<x>.<y>` release branch publishes the same kind of build,
+versioned `<x>.<y>-dev-<short-sha>`, for example `0.18-dev-1db3d56` from `v0.18`.
+It carries no patch number, so it cannot be mistaken for a `v0.18.z` release, and
+as a pre-release it is likewise never selected by an install that does not name a
+version.
+
+No FIPS variant is built from a branch, and no GitHub Release exists to attach
+the chart to. Both remain tag-only.
 
 Development versions are pruned weekly by **Clean up development packages**,
-which keeps the 30 most recent per package. It ignores every version that does
-not begin with `0.0.0-`, so a release can never be selected for deletion.
+which keeps the 30 most recent per package, counting both kinds together. It
+ignores every version that does not begin with `0.0.0-` or `<x>.<y>-dev-`, so a
+release can never be selected for deletion.
 Anything older than those 30 is removed: do not pin to a development version you
 need to keep.
 
