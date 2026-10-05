@@ -21,16 +21,23 @@ import (
 
 func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, operandName string) (client.Object, error) {
+	shardName, err := shardNameForNodePool(ctx, k8sReader, nodePool)
+	if err != nil {
+		return nil, err
+	}
+
 	schedulerName := SchedulerBaseOperandName()
 	var (
 		name      = fmt.Sprintf("%s-%s", schedulerName, operandName)
 		namespace = config.Get().SchedulerNamespace
-		appName   = name
+		// The KAI Scheduler operator labels each shard's Service "app: <scheduler>-<shard name>". An adopted shard keeps
+		// its own name, so a selector built from the node pool's name would match no Service and metrics would silently stop.
+		appName = fmt.Sprintf("%s-%s", schedulerName, shardName)
 	)
 
 	serviceMonitor := &monitorv1.ServiceMonitor{}
 	// Get the existing serviceMonitor if it exists to consume any cluster-set values
-	err := k8sReader.Get(ctx, types.NamespacedName{
+	err = k8sReader.Get(ctx, types.NamespacedName{
 		Name:      name,
 		Namespace: namespace,
 	}, serviceMonitor)

@@ -146,6 +146,14 @@ func (npc *NodePoolController) indexFields(ctx context.Context, mgr ctrl.Manager
 		return err
 	}
 
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx, &kaiv1.SchedulingShard{},
+		common.SchedulingShardPartitionField, SchedulingShardPartitionIndexer)
+	if err != nil {
+		log.Error().Msgf("Failed indexing scheduling shard field: %v, err: %v", common.SchedulingShardPartitionField, err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -194,6 +202,16 @@ func PodRunningWithKaiSchedulerNodeNameIndexer(object client.Object) (indexedKey
 func isPodBoundToNode(pod *corev1.Pod) bool {
 	return pod.Status.Phase == corev1.PodRunning ||
 		(pod.Status.Phase == corev1.PodPending && pod.Spec.NodeName != "")
+}
+
+func SchedulingShardPartitionIndexer(object client.Object) (indexedKeys []string) {
+	shard, ok := object.(*kaiv1.SchedulingShard)
+	if !ok {
+		log.Error().Msgf("SchedulingShardPartitionIndexer: Cannot convert object to *kaiv1.SchedulingShard: %v", object)
+		return indexedKeys
+	}
+
+	return []string{shard.Spec.PartitionLabelValue}
 }
 
 func (npc *NodePoolController) SetServiceMonitorEnabled(enabled bool) {

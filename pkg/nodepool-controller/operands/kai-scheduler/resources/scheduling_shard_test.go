@@ -16,9 +16,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 )
 
 var _ = Describe("getTimeBasedFairShareFields", func() {
@@ -395,7 +396,7 @@ var _ = Describe("SchedulingShardForNodePool SchedulingShardConfig pass-through"
 	buildShardSpec := func(cfg *v1alpha1.SchedulingShardConfig) kaiv1.SchedulingShardSpec {
 		scheme := runtime.NewScheme()
 		Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
-		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+		fakeClient := fakeIndexersClient(scheme)
 
 		nodePool := &v1alpha1.NodePool{
 			ObjectMeta: metav1.ObjectMeta{Name: "np-passthrough"},
@@ -494,5 +495,155 @@ var _ = Describe("SchedulingShardForNodePool SchedulingShardConfig pass-through"
 			Expect(*spec.KValue).To(Equal(0.5))
 			Expect(spec.UsageDBConfig).NotTo(BeNil())
 		})
+	})
+})
+
+var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", func() {
+	var (
+		ctx      context.Context
+		scheme   *runtime.Scheme
+		params   *common.NodePoolControllerParams
+		nodePool *v1alpha1.NodePool
+	)
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		scheme = runtime.NewScheme()
+		Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
+		Expect(monitoringv1.AddToScheme(scheme)).To(Succeed())
+		params = &common.NodePoolControllerParams{}
+		nodePool = &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-a", UID: "np-a-uid"}}
+	})
+
+	runningShard := func(name, partition string) *kaiv1.SchedulingShard {
+		return &kaiv1.SchedulingShard{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Spec:       kaiv1.SchedulingShardSpec{PartitionLabelValue: partition},
+			Status: kaiv1.SchedulingShardStatus{Conditions: []metav1.Condition{
+				{Type: string(kaiv1.ConditionTypeDeployed), Status: metav1.ConditionTrue},
+				{Type: string(kaiv1.ConditionTypeAvailable), Status: metav1.ConditionTrue},
+			}},
+		}
+	}
+
+	ownedBy := func(shard *kaiv1.SchedulingShard, owner *v1alpha1.NodePool) *kaiv1.SchedulingShard {
+		shard.OwnerReferences = []metav1.OwnerReference{
+			*metav1.NewControllerRef(owner, v1alpha1.GroupVersion.WithKind("NodePool")),
+		}
+		return shard
+	}
+
+	shardFor := func(c client.Client, np *v1alpha1.NodePool) *kaiv1.SchedulingShard {
+		obj, err := SchedulingShardForNodePool(ctx, c, np, params, np.Name)
+		Expect(err).NotTo(HaveOccurred())
+		return obj.(*kaiv1.SchedulingShard)
+	}
+
+	serviceMonitorFor := func(c client.Client, np *v1alpha1.NodePool) *monitoringv1.ServiceMonitor {
+		obj, err := ServiceMonitorForNodePool(ctx, c, np, params, np.Name)
+		Expect(err).NotTo(HaveOccurred())
+		return obj.(*monitoringv1.ServiceMonitor)
+	}
+
+	It("resolves a shard named after the NodePool", func() {
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("np-a", "np-a"), nodePool))
+
+		shard := shardFor(c, nodePool)
+		Expect(shard.Name).To(Equal("np-a"))
+		Expect(shard.ResourceVersion).NotTo(BeEmpty(), "the existing shard is reconciled, not a new one")
+
+		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status.Ready).To(BeTrue())
+
+		serviceMonitor := serviceMonitorFor(c, nodePool)
+		Expect(serviceMonitor.Name).To(Equal("runai-scheduler-np-a"))
+		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-np-a"))
+	})
+
+	It("resolves a shard whose name differs from the NodePool's and keeps that name", func() {
+		c := fakeIndexersClient(scheme, runningShard("admin-shard", "np-a"))
+
+		shard := shardFor(c, nodePool)
+		Expect(shard.Name).To(Equal("admin-shard"))
+		Expect(shard.ResourceVersion).NotTo(BeEmpty())
+		Expect(shard.Spec.PartitionLabelValue).To(Equal("np-a"))
+
+		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status.Ready).To(BeTrue(), "status is read from the resolved shard, not from one named np-a")
+
+		serviceMonitor := serviceMonitorFor(c, nodePool)
+		Expect(serviceMonitor.Name).To(Equal("runai-scheduler-np-a"))
+		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-admin-shard"))
+	})
+
+	It("names a new shard and its ServiceMonitor after the NodePool when its partition has no shard yet", func() {
+		c := fakeIndexersClient(scheme, runningShard("np-b", "np-b"))
+
+		shard := shardFor(c, nodePool)
+		Expect(shard.Name).To(Equal("np-a"))
+		Expect(shard.ResourceVersion).To(BeEmpty(), "a shard on another partition is not picked up")
+		Expect(shard.Spec.PartitionLabelValue).To(Equal("np-a"))
+
+		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(status.Ready).To(BeFalse())
+		Expect(status.Reasons).To(ConsistOf("scheduler [np-a] is not running yet: no status message available"))
+
+		serviceMonitor := serviceMonitorFor(c, nodePool)
+		Expect(serviceMonitor.Name).To(Equal("runai-scheduler-np-a"))
+		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-np-a"))
+	})
+
+	It("resolves the default NodePool to the empty partition", func() {
+		defaultNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: config.Get().DefaultNodepoolName}}
+		c := fakeIndexersClient(scheme, runningShard("admin-default", ""), runningShard("np-a", "np-a"))
+
+		shard := shardFor(c, defaultNodePool)
+		Expect(shard.Name).To(Equal("admin-default"))
+		Expect(shard.Spec.PartitionLabelValue).To(BeEmpty())
+		serviceMonitor := serviceMonitorFor(c, defaultNodePool)
+		Expect(serviceMonitor.Name).To(Equal("runai-scheduler-" + defaultNodePool.Name))
+		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-admin-default"))
+	})
+
+	It("refuses to pick a shard when more than one serves the partition", func() {
+		c := fakeIndexersClient(scheme, runningShard("np-a", "np-a"), runningShard("admin-shard", "np-a"))
+
+		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(MatchError(And(ContainSubstring("admin-shard"), ContainSubstring("np-a"))))
+		Expect(obj).To(BeNil())
+
+		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(HaveOccurred())
+		Expect(status.Ready).To(BeFalse())
+
+		_, err = ServiceMonitorForNodePool(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("corrects the partition of a shard it owns under its name", func() {
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("np-a", "drifted"), nodePool))
+
+		shard := shardFor(c, nodePool)
+		Expect(shard.Name).To(Equal("np-a"))
+		Expect(shard.ResourceVersion).NotTo(BeEmpty())
+		Expect(shard.Spec.PartitionLabelValue).To(Equal("np-a"))
+		Expect(metav1.IsControlledBy(shard, nodePool)).To(BeTrue())
+	})
+
+	It("never takes over a shard on another partition that only shares the NodePool's name", func() {
+		otherNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "gpu-a100", UID: "gpu-a100-uid"}}
+		for _, foreign := range []*kaiv1.SchedulingShard{
+			runningShard("np-a", "gpu-a100"),
+			ownedBy(runningShard("np-a", "gpu-a100"), otherNodePool),
+		} {
+			c := fakeIndexersClient(scheme, foreign)
+
+			obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
+			Expect(err).To(MatchError(And(ContainSubstring(`"gpu-a100"`), ContainSubstring("np-a"))))
+			Expect(obj).To(BeNil())
+		}
 	})
 })
