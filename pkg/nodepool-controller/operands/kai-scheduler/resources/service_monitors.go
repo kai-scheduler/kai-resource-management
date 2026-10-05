@@ -30,7 +30,9 @@ func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 	var (
 		name      = fmt.Sprintf("%s-%s", schedulerName, operandName)
 		namespace = config.Get().SchedulerNamespace
-		appName   = fmt.Sprintf("%s-%s", schedulerName, shardName)
+		// The KAI Scheduler operator labels each shard's Service "app: <scheduler>-<shard name>". An adopted shard keeps
+		// its own name, so a selector built from the node pool's name would match no Service and metrics would silently stop.
+		appName = fmt.Sprintf("%s-%s", schedulerName, shardName)
 	)
 
 	serviceMonitor := &monitorv1.ServiceMonitor{}
