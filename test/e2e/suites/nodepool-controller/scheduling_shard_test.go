@@ -4,7 +4,7 @@
 package nodepool_controller
 
 import (
-	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
+	kaischedulerv1 "github.com/kai-scheduler/api/kai/v1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	. "github.com/onsi/ginkgo/v2"

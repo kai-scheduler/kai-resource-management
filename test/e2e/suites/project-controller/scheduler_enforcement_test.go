@@ -4,8 +4,8 @@
 package project_controller
 
 import (
-	kaipgconstants "github.com/kai-scheduler/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/constants"
 	kaiconstants "github.com/kai-scheduler/api/constants"
+	kaipgconstants "github.com/kai-scheduler/api/podgrouper/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

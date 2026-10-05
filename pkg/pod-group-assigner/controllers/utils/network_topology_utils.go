@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
+	kaitopologyv1alpha1 "github.com/kai-scheduler/api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/types"

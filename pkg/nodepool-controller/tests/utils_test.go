@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	kaiv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
-	"github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
+	kaiv1alpha1 "github.com/kai-scheduler/api/kai/v1alpha1"
+	"github.com/kai-scheduler/api/scheduling/v2alpha2"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/gomega"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
