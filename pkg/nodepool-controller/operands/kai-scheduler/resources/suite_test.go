@@ -28,9 +28,11 @@ const (
 
 var suite = "KAI Scheduler Operand Resources"
 
-func fakeShardClient(scheme *runtime.Scheme, objects ...client.Object) client.Client {
+func fakeIndexersClient(scheme *runtime.Scheme, objects ...client.Object) client.Client {
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).
-		WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, SchedulingShardPartitionIndexer).
+		WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, func(object client.Object) []string {
+			return []string{object.(*kaiv1.SchedulingShard).Spec.PartitionLabelValue}
+		}).
 		Build()
 }
 

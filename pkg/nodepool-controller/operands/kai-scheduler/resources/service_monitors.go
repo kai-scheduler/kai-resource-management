@@ -20,7 +20,7 @@ import (
 )
 
 func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
-	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, _ string) (client.Object, error) {
+	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, operandName string) (client.Object, error) {
 	shardName, err := shardNameForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return nil, err
@@ -28,9 +28,9 @@ func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 
 	schedulerName := SchedulerBaseOperandName()
 	var (
-		name      = fmt.Sprintf("%s-%s", schedulerName, shardName)
+		name      = fmt.Sprintf("%s-%s", schedulerName, operandName)
 		namespace = config.Get().SchedulerNamespace
-		appName   = name
+		appName   = fmt.Sprintf("%s-%s", schedulerName, shardName)
 	)
 
 	serviceMonitor := &monitorv1.ServiceMonitor{}

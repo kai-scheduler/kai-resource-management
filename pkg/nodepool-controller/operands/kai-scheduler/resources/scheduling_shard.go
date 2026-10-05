@@ -102,7 +102,7 @@ func newShardForNodePool(
 ) (*kaiv1.SchedulingShard, error) {
 	shard := &kaiv1.SchedulingShard{}
 	err := k8sReader.Get(ctx, types.NamespacedName{Name: nodePool.Name}, shard)
-	if errors.IsNotFound(err) {
+	if err != nil && errors.IsNotFound(err) {
 		return &kaiv1.SchedulingShard{ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name}}, nil
 	}
 	if err != nil {
@@ -125,15 +125,6 @@ func shardNameForNodePool(ctx context.Context, k8sReader client.Reader, nodePool
 		return nodePool.Name, nil
 	}
 	return shard.Name, nil
-}
-
-func SchedulingShardPartitionIndexer(object client.Object) []string {
-	shard, ok := object.(*kaiv1.SchedulingShard)
-	if !ok {
-		log.Error().Msgf("SchedulingShardPartitionIndexer: Cannot convert object to *kaiv1.SchedulingShard: %v", object)
-		return nil
-	}
-	return []string{shard.Spec.PartitionLabelValue}
 }
 
 func buildShardArgs(cfg *v1alpha1.SchedulingShardConfig, params *common.NodePoolControllerParams) map[string]string {
