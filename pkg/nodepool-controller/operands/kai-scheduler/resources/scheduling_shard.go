@@ -70,9 +70,6 @@ func SchedulingShardForNodePool(
 	return shard, nil
 }
 
-// resolveShardForNodePool finds the shard serving the NodePool's partition. The partition value, not the
-// name, identifies it: a pre-existing scheduler's shards carry arbitrary names, and renaming one would mean
-// deleting a live scheduler. Returns nil when the partition has no shard yet.
 func resolveShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 ) (*kaiv1.SchedulingShard, error) {
@@ -100,9 +97,6 @@ func resolveShardForNodePool(
 	}
 }
 
-// newShardForNodePool names a new shard after its NodePool. A shard already holding that name serves another
-// partition: if this NodePool controls it, its partition drifted and the reconcile corrects it; otherwise it
-// belongs to someone else and sharing the name does not make it ours to overwrite.
 func newShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 ) (*kaiv1.SchedulingShard, error) {
@@ -122,7 +116,6 @@ func newShardForNodePool(
 	return shard, nil
 }
 
-// shardNameForNodePool names the NodePool's shard, or the one about to be created for it.
 func shardNameForNodePool(ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool) (string, error) {
 	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {

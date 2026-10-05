@@ -19,8 +19,6 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
 )
 
-// ServiceMonitorForNodePool derives its name and selector from the shard's name, not the NodePool's: the KAI
-// operator names each shard's Service "<scheduler>-<shard>", and an adopted shard keeps its own name.
 func ServiceMonitorForNodePool(ctx context.Context, k8sReader client.Reader,
 	nodePool *v1alpha1.NodePool, params *common.NodePoolControllerParams, _ string) (client.Object, error) {
 	shardName, err := shardNameForNodePool(ctx, k8sReader, nodePool)

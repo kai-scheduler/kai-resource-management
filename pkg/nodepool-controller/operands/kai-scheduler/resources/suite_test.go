@@ -28,8 +28,6 @@ const (
 
 var suite = "KAI Scheduler Operand Resources"
 
-// fakeShardClient registers the partition index that every shard and ServiceMonitor function looks the
-// NodePool's shard up through; a fake client rejects a field selector it has no index for.
 func fakeShardClient(scheme *runtime.Scheme, objects ...client.Object) client.Client {
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).
 		WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, SchedulingShardPartitionIndexer).

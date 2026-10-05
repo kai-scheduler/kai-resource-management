@@ -573,7 +573,6 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 		Expect(err).NotTo(HaveOccurred())
 		Expect(status.Ready).To(BeTrue(), "status is read from the resolved shard, not from one named np-a")
 
-		// The KAI operator names the shard's Service after the shard, so the ServiceMonitor must follow it.
 		serviceMonitor := serviceMonitorFor(c, nodePool)
 		Expect(serviceMonitor.Name).To(Equal("runai-scheduler-admin-shard"))
 		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-admin-shard"))
