@@ -84,10 +84,10 @@ func (d *DeployableOperands) Deploy(
 		Controller: ptr.To(true),
 	}
 
-	if err := createObjectsInCluster(ctx, runtimeClient, reconcilerAsOwnerReference, objectsToCreate); err != nil {
+	if err = createObjectsInCluster(ctx, runtimeClient, reconcilerAsOwnerReference, objectsToCreate); err != nil {
 		return err
 	}
-	if err := deleteObjectsInCluster(ctx, runtimeClient, objectsToDelete); err != nil {
+	if err = deleteObjectsInCluster(ctx, runtimeClient, objectsToDelete); err != nil {
 		return err
 	}
 	return updateObjectsInCluster(ctx, runtimeClient, reconcilerAsOwnerReference, objectsToUpdate)
@@ -265,6 +265,14 @@ func createObjectForKRMConfig(
 	obj client.Object) error {
 	obj.SetOwnerReferences([]metav1.OwnerReference{reconcilerAsOwnerReference})
 
+	// Desired objects are built from a live read, so a resourceVersion means the
+	// object already exists. Creating it anyway can fail validation before the
+	// name conflict is reached: a Service carrying its allocated clusterIP comes
+	// back Invalid, not AlreadyExists, and would never be adopted.
+	if obj.GetResourceVersion() != "" {
+		return takeOwnership(ctx, runtimeClient, obj)
+	}
+
 	objectToCreate := obj.DeepCopyObject().(client.Object)
 	objectToCreate.SetResourceVersion("")
 
@@ -278,6 +286,10 @@ func createObjectForKRMConfig(
 			obj.GetNamespace(), obj.GetName(), err)
 	}
 
+	return takeOwnership(ctx, runtimeClient, obj)
+}
+
+func takeOwnership(ctx context.Context, runtimeClient client.Client, obj client.Object) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Object already exists, updating to take ownership",
 		"GroupVersionKind", obj.GetObjectKind().GroupVersionKind(), "Name", obj.GetName())

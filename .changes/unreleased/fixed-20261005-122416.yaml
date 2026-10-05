@@ -1,0 +1,3 @@
+kind: Fixed
+body: |-
+  Adopt a pre-existing Service on upgrade, fixing pod-group-assigner stuck without certificates on OpenShift
