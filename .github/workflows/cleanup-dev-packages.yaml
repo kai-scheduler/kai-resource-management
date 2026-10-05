@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Prunes the development versions push-artifacts.yaml publishes on every push to
-# main or a release branch. Without this they accumulate for the life of the repository against the
-# organisation's package storage.
+# main or a release branch. Without this they accumulate for the life of the
+# repository against the organisation's package storage.
 
 name: KAI Resource Management - Clean up development packages
 
