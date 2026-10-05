@@ -18,4 +18,5 @@ const (
 	IsDeletingPhaseField                    = "status.phase.isDeleting"
 	PodRunningWithKaiSchedulerNodeNameField = "spec.runningNodeName"
 	NameField                               = "metadata.name"
+	SchedulingShardPartitionField           = "spec.partitionLabelValue"
 )

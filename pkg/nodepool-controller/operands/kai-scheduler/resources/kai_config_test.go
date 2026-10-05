@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
@@ -84,7 +83,8 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			scheme := runtime.NewScheme()
 			Expect(monitorv1.AddToScheme(scheme)).To(Succeed())
 			Expect(corev1.AddToScheme(scheme)).To(Succeed())
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
+			fakeClient := fakeIndexersClient(scheme)
 
 			nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-1"}}
 
@@ -115,7 +115,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 		It("uses the configured scheduler-name in the resource labels and reads the configured default-nodepool-name when computing PartitionLabelValue", func() {
 			scheme := runtime.NewScheme()
 			Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			fakeClient := fakeIndexersClient(scheme)
 
 			params := &common.NodePoolControllerParams{}
 
@@ -140,7 +140,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 		It("merges the cluster-wide scheduler args over the base worker-label args", func() {
 			scheme := runtime.NewScheme()
 			Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			fakeClient := fakeIndexersClient(scheme)
 
 			params := &common.NodePoolControllerParams{
 				SchedulingShardArgs: map[string]string{
@@ -168,7 +168,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 		It("sets only the base worker-label args when no scheduler args are provided", func() {
 			scheme := runtime.NewScheme()
 			Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			fakeClient := fakeIndexersClient(scheme)
 
 			nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-empty"}}
 			obj, err := SchedulingShardForNodePool(context.Background(), fakeClient, nodePool,
@@ -186,7 +186,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-existing"}}
 
 			expectedObject, err := SchedulingShardForNodePool(
-				context.Background(), fake.NewClientBuilder().WithScheme(scheme).Build(), nodePool, params, nodePool.Name)
+				context.Background(), fakeIndexersClient(scheme), nodePool, params, nodePool.Name)
 			Expect(err).NotTo(HaveOccurred())
 
 			existing := &kaiv1.SchedulingShard{
@@ -205,7 +205,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 					}},
 				},
 				Spec: kaiv1.SchedulingShardSpec{
-					PartitionLabelValue: "stale-partition",
+					PartitionLabelValue: nodePool.Name,
 					Args:                map[string]string{"stale": "true"},
 				},
 				Status: kaiv1.SchedulingShardStatus{Conditions: []metav1.Condition{{
@@ -214,7 +214,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 					Message: "preserve status",
 				}}},
 			}
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+			fakeClient := fakeIndexersClient(scheme, existing)
 
 			obj, err := SchedulingShardForNodePool(context.Background(), fakeClient, nodePool, params, nodePool.Name)
 			Expect(err).NotTo(HaveOccurred())

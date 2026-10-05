@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
@@ -38,14 +39,18 @@ func SchedulerBaseOperandName() string { return config.Get().SchedulerName }
 
 func SchedulingShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
-	params *common.NodePoolControllerParams, operandName string,
+	params *common.NodePoolControllerParams, _ string,
 ) (client.Object, error) {
-	shard := &kaiv1.SchedulingShard{}
-	if err := k8sReader.Get(ctx, types.NamespacedName{Name: operandName}, shard); err != nil && !errors.IsNotFound(err) {
+	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	if err != nil {
 		return nil, err
 	}
+	if shard == nil {
+		if shard, err = newShardForNodePool(ctx, k8sReader, nodePool); err != nil {
+			return nil, err
+		}
+	}
 
-	shard.Name = operandName
 	if shard.Labels == nil {
 		shard.Labels = map[string]string{}
 	}
@@ -63,6 +68,63 @@ func SchedulingShardForNodePool(
 		Actions:             getActions(cfg),
 	}
 	return shard, nil
+}
+
+func resolveShardForNodePool(
+	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
+) (*kaiv1.SchedulingShard, error) {
+	partition := getNodePoolNameLabelValueForScheduler(nodePool.Name)
+	shards := &kaiv1.SchedulingShardList{}
+	if err := k8sReader.List(ctx, shards,
+		client.MatchingFields{common.SchedulingShardPartitionField: partition}); err != nil {
+		return nil, fmt.Errorf("listing scheduling shards of partition %q for node pool %s: %w",
+			partition, nodePool.Name, err)
+	}
+
+	switch len(shards.Items) {
+	case 0:
+		return nil, nil
+	case 1:
+		return &shards.Items[0], nil
+	default:
+		names := make([]string, 0, len(shards.Items))
+		for _, shard := range shards.Items {
+			names = append(names, shard.Name)
+		}
+		slices.Sort(names)
+		return nil, fmt.Errorf("partition %q of node pool %s is served by more than one scheduling shard %v",
+			partition, nodePool.Name, names)
+	}
+}
+
+func newShardForNodePool(
+	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
+) (*kaiv1.SchedulingShard, error) {
+	shard := &kaiv1.SchedulingShard{}
+	err := k8sReader.Get(ctx, types.NamespacedName{Name: nodePool.Name}, shard)
+	if err != nil && errors.IsNotFound(err) {
+		return &kaiv1.SchedulingShard{ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name}}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !metav1.IsControlledBy(shard, nodePool) {
+		return nil, fmt.Errorf(
+			"scheduling shard %s serves partition %q and is not owned by node pool %s, which needs its name for partition %q",
+			shard.Name, shard.Spec.PartitionLabelValue, nodePool.Name, getNodePoolNameLabelValueForScheduler(nodePool.Name))
+	}
+	return shard, nil
+}
+
+func shardNameForNodePool(ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool) (string, error) {
+	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	if err != nil {
+		return "", err
+	}
+	if shard == nil {
+		return nodePool.Name, nil
+	}
+	return shard.Name, nil
 }
 
 func buildShardArgs(cfg *v1alpha1.SchedulingShardConfig, params *common.NodePoolControllerParams) map[string]string {
@@ -113,13 +175,15 @@ func getQueueDepthPerAction(cfg *v1alpha1.SchedulingShardConfig) map[string]int 
 }
 
 func SchedulingShardStatus(
-	ctx context.Context, k8sReader client.Reader, _ *v1alpha1.NodePool,
-	_ *common.NodePoolControllerParams, operandName string,
+	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
+	_ *common.NodePoolControllerParams, _ string,
 ) (operands.Status, error) {
-	shard := &kaiv1.SchedulingShard{}
-	err := k8sReader.Get(ctx, types.NamespacedName{Name: operandName}, shard)
-	if err != nil && !errors.IsNotFound(err) {
+	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	if err != nil {
 		return operands.NotReadyStatus("scheduling shard is not deployed"), err
+	}
+	if shard == nil {
+		shard = &kaiv1.SchedulingShard{ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name}}
 	}
 
 	var deployed, available bool
@@ -144,7 +208,7 @@ func SchedulingShardStatus(
 	if message == "" {
 		message = "no status message available"
 	}
-	return operands.NotReadyStatus(fmt.Sprintf("scheduler [%s] is not running yet: %s", operandName, message)), nil
+	return operands.NotReadyStatus(fmt.Sprintf("scheduler [%s] is not running yet: %s", shard.Name, message)), nil
 }
 
 func getNodePoolNameLabelValueForScheduler(nodePoolName string) string {

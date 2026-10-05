@@ -1,0 +1,3 @@
+kind: Changed
+body: |-
+  Find a node pool's SchedulingShard by partition value instead of by name
