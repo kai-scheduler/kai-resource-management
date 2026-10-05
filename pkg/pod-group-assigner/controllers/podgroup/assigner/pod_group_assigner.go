@@ -66,6 +66,17 @@ func (pga *PodGroupAssigner) Run(ctx context.Context, podGroup *kaiv2alpha2.PodG
 		podGroup.Labels = map[string]string{}
 	}
 
+	external, err := utils.IsExternalNamespace(ctx, pga.Client, podGroup.Namespace)
+	if err != nil {
+		return err
+	}
+	if external {
+		log.Ctx(ctx).Debug().Msgf("Pod Group <%s> is not eligible for node pool assignment; its namespace is outside every project",
+			getPodGroupNamespacedName(podGroup.ObjectMeta))
+
+		return nil
+	}
+
 	isUpForAssignment, lastSchedulingCondition, err := pga.isEligibleForNodePoolAssignment(ctx, podGroup)
 	if err != nil {
 		return err

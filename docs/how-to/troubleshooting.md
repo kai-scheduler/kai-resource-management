@@ -347,6 +347,9 @@ An empty `QUEUE` means the pod group assigner could not resolve one. Usual cause
 - The project has no queue for the node pool that was chosen.
 - The pod's project could not be resolved — its namespace lacks the project label.
 - Every candidate node pool is unavailable, so no pool was chosen at all.
+- With `commonArgs.allowExternalQueues` on: the namespace has no project label, or its
+  label names a project that does not exist, so the PodGroup is left to the scheduler that
+  predates KRM; or the only queue labelled for the project is not owned by a Project.
 
 ```bash
 kubectl -n kai-resource-management logs deploy/pod-group-assigner --tail=100

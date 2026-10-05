@@ -152,7 +152,7 @@ func registerWebhooks(mgr manager.Manager) {
 		CertDir: options.certDir,
 	})
 
-	webhookServer.Register("/mutate-pod-group", &webhook.Admission{Handler: podgroupmutator.NewPodGroupMutator()})
+	webhookServer.Register("/mutate-pod-group", &webhook.Admission{Handler: podgroupmutator.NewPodGroupMutator(mgr.GetClient())})
 
 	if options.enablePodWebhook {
 		log.Info().Msgf("Registering pod mutating webhook at %s", podmutator.WebhookPath)

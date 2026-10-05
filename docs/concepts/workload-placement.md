@@ -80,7 +80,9 @@ the unit that gets a node pool and a queue.
 On creation, admission marks the PodGroup as **not yet assigned** to any node pool, using
 a sentinel value rather than leaving the label off. That distinguishes "no node pool has
 been chosen yet" from "this belongs to the default node pool", which is itself expressed
-by the label's absence.
+by the label's absence. With [`allowExternalQueues`](queues-and-quota.md#queues-krm-did-not-create)
+on, a PodGroup whose namespace belongs to no existing project is left as it is, for the
+scheduler that ran the cluster before KRM.
 
 ## Step 3: the pod group assigner picks a node pool
 
