@@ -1,8 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Prunes the development versions push-artifacts.yaml publishes on every merge to
-# main. Without this they accumulate for the life of the repository against the
+# Prunes the development versions push-artifacts.yaml publishes on every push to
+# main or a release branch. Without this they accumulate for the life of the repository against the
 # organisation's package storage.
 
 name: KAI Resource Management - Clean up development packages
@@ -41,9 +41,10 @@ jobs:
           package-name: kai-resource-management/${{ matrix.package }}
           package-type: container
           # Released versions are tagged v<x>.<y>.<z>; development ones are
-          # 0.0.0-<sha>. Ignoring everything that does not start with 0.0.0- means a
-          # release can never be selected for deletion, whatever else is published.
-          ignore-versions: '^(?!0\.0\.0-)'
+          # 0.0.0-<sha> from main and <x>.<y>-dev-<sha> from a release branch.
+          # Ignoring everything else means a release can never be selected for
+          # deletion, whatever else is published.
+          ignore-versions: '^(?!0\.0\.0-|\d+\.\d+-dev-)'
           # Applied after the ignore filter, so this is 30 development versions,
           # not 30 versions in total. Enough to bisect a regression across a few
           # weeks of merges.
