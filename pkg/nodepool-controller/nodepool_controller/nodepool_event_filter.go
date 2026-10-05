@@ -107,6 +107,8 @@ func (npc *NodePoolController) MapNodeToNodePoolEvent(ctx context.Context, objec
 		return requests
 	}
 
+	// A node in an unmanaged partition has no NodePool, so it would fall back to default
+	// below, and we don't want that - so just don't map to any nodepool.
 	unmanagedPartitionLabelValues, err := unmanaged_shards.ListPartitionLabelValues(ctx, npc.Client)
 	if err != nil {
 		log.Error().Msgf("Failed listing unmanaged partitions while mapping node <%v>, error: %v", node.Name, err)

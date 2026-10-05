@@ -2502,6 +2502,52 @@ var _ = Describe("NodePoolController Tests", func() {
 				},
 			},
 		}),
+		Entry("Managed nodes config - Node in an unmanaged shard's partition not excluded", &TestCase{
+			Name: "Managed nodes config - Node in an unmanaged shard's partition not excluded",
+			Nodes: map[string]TestNode{
+				"kind-worker": {
+					Name:   "kind-worker",
+					Labels: map[string]string{kaiconstants.DefaultNodePoolLabelKey: "legacy"},
+				},
+				"kind-worker2": {
+					Name:   "kind-worker2",
+					Labels: map[string]string{},
+				},
+			},
+			SchedulingShards: []*kaiv1.SchedulingShard{
+				unmanagedTestShard("legacy", map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}),
+			},
+			ManagedNodesConfig: []TestManagedNodesConfig{
+				{
+					Name: testManagedNodesConfigName,
+					NodeSelector: corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "kubernetes.io/os",
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{"linux"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedNodePoolsState: map[string]ExpectedNodePoolState{
+				kaiconstants.DefaultNodePoolName: {},
+			},
+			ExpectedNodeLabels: map[string]ExpectedNodeLabels{
+				"kind-worker": {
+					expectedExistingLabels:    map[string]string{kaiconstants.DefaultNodePoolLabelKey: "legacy"},
+					expectedNonExistingLabels: []string{testToExcludeLabel},
+				},
+				"kind-worker2": {
+					expectedExistingLabels: map[string]string{kaiconstants.DefaultNodePoolLabelKey: testExcludedNodepoolName},
+				},
+			},
+		}),
 		Entry("Managed nodes config - Exclude some nodes", &TestCase{
 			Name: "Managed nodes config - Exclude some nodes",
 			NodePools: []TestNodePool{

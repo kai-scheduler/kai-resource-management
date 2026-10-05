@@ -14,6 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -54,7 +55,10 @@ func (mncc *ManagedNodesConfigController) reconcileManagedNodesConfig(ctx contex
 		return nodes, err
 	}
 
-	includedNodes, excludedNodes := mncc.splitNodeToIncludedExcluded(allNodes.Items)
+	includedNodes, excludedNodes, err := mncc.splitNodeToIncludedExcluded(ctx, allNodes.Items)
+	if err != nil {
+		return nodes, err
+	}
 
 	toBeExcludedNodes, innerErr := mncc.reconcileIncludedNodesThatShouldBeExcluded(ctx, mnc, includedNodes)
 	err = utils.AppendErrIfNotNil(err, innerErr)
@@ -79,7 +83,10 @@ func (mncc *ManagedNodesConfigController) reconcileNode(ctx context.Context, req
 		return err
 	}
 
-	includedNodes, excludedNodes := mncc.splitNodeToIncludedExcluded([]corev1.Node{node})
+	includedNodes, excludedNodes, err := mncc.splitNodeToIncludedExcluded(ctx, []corev1.Node{node})
+	if err != nil {
+		return err
+	}
 
 	_, innerErr := mncc.reconcileIncludedNodesThatShouldBeExcluded(ctx, mnc, includedNodes)
 	err = utils.AppendErrIfNotNil(err, innerErr)
@@ -90,13 +97,26 @@ func (mncc *ManagedNodesConfigController) reconcileNode(ctx context.Context, req
 	return err
 }
 
-func (mncc *ManagedNodesConfigController) splitNodeToIncludedExcluded(nodes []corev1.Node) (includedNodes []corev1.Node, excludedNodes []corev1.Node) {
+func (mncc *ManagedNodesConfigController) splitNodeToIncludedExcluded(ctx context.Context, nodes []corev1.Node) (
+	includedNodes []corev1.Node, excludedNodes []corev1.Node, err error) {
+	unmanagedPartitionLabelValues, err := unmanaged_shards.ListPartitionLabelValues(ctx, mncc.Client)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for _, node := range nodes {
-		if node.Labels[config.Get().NodePoolNameLabel] == config.Get().ExcludedNodepoolName {
+		nodePoolName := node.Labels[config.Get().NodePoolNameLabel]
+		switch {
+		case unmanagedPartitionLabelValues[nodePoolName]:
+			// The pre-existing scheduler finds these nodes by their node-pool label.
+			// Excluding one relabels it, so that scheduler would silently lose the node.
+			// Keep them out of both lists, so this reconcile neither excludes nor re-includes them.
+			continue
+		case nodePoolName == config.Get().ExcludedNodepoolName:
 			excludedNodes = append(excludedNodes, node)
-		} else {
+		default:
 			includedNodes = append(includedNodes, node)
 		}
 	}
-	return includedNodes, excludedNodes
+	return includedNodes, excludedNodes, nil
 }
