@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
@@ -42,7 +43,7 @@ func SetupSchedulingShardWebhookWithManager(mgr ctrl.Manager) error {
 func (v *schedulingShardValidator) ValidateCreate(ctx context.Context, shard *kaiv1.SchedulingShard) (admission.Warnings, error) {
 	partitionLabelValue := shard.Spec.PartitionLabelValue
 
-	others, err := listShardsWithPartitionLabelValue(ctx, v.client, partitionLabelValue)
+	others, err := resources.ListShardsWithPartitionLabelValue(ctx, v.client, partitionLabelValue)
 	if err != nil {
 		log.Error().Err(err).Str("name", shard.Name).
 			Msg("failed to list scheduling shards for partitionLabelValue validation")
@@ -87,7 +88,7 @@ func (v *schedulingShardValidator) ValidateDelete(_ context.Context, _ *kaiv1.Sc
 }
 
 func (v *schedulingShardValidator) requireNodePool(ctx context.Context, shard *kaiv1.SchedulingShard) error {
-	nodePoolName := nodePoolNameForPartitionLabelValue(shard.Spec.PartitionLabelValue)
+	nodePoolName := resources.NodePoolNameForPartitionLabelValue(shard.Spec.PartitionLabelValue)
 	err := v.client.Get(ctx, types.NamespacedName{Name: nodePoolName}, &v1alpha1.NodePool{})
 	if err == nil {
 		return nil

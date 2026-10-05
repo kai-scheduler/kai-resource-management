@@ -42,12 +42,12 @@ func SchedulingShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 	params *common.NodePoolControllerParams, _ string,
 ) (client.Object, error) {
-	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return nil, err
 	}
 	if shard == nil {
-		if shard, err = newShardForNodePool(ctx, k8sReader, nodePool); err != nil {
+		if shard, err = GetOrInitShardNamedAfterNodePool(ctx, k8sReader, nodePool); err != nil {
 			return nil, err
 		}
 	}
@@ -71,39 +71,50 @@ func SchedulingShardForNodePool(
 	return shard, nil
 }
 
-func resolveShardForNodePool(
+func ResolveShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 ) (*kaiv1.SchedulingShard, error) {
-	partition := PartitionLabelValueForNodePool(nodePool.Name)
-	shards := &kaiv1.SchedulingShardList{}
-	if err := k8sReader.List(ctx, shards,
-		client.MatchingFields{common.SchedulingShardPartitionField: partition}); err != nil {
-		return nil, fmt.Errorf("listing scheduling shards of partition %q for node pool %s: %w",
-			partition, nodePool.Name, err)
+	partitionLabelValue := PartitionLabelValueForNodePool(nodePool.Name)
+	shards, err := ListShardsWithPartitionLabelValue(ctx, k8sReader, partitionLabelValue)
+	if err != nil {
+		return nil, fmt.Errorf("node pool %s: %w", nodePool.Name, err)
 	}
 
-	switch len(shards.Items) {
+	switch len(shards) {
 	case 0:
 		return nil, nil
 	case 1:
-		shard := &shards.Items[0]
+		shard := &shards[0]
 		if unmanaged_shards.IsUnmanaged(shard) {
-			return nil, fmt.Errorf("partition %q of node pool %s is served by scheduling shard %s, labelled %s",
-				partition, nodePool.Name, shard.Name, unmanaged_shards.IgnoreShardLabelKey)
+			return nil, fmt.Errorf("partitionLabelValue %q of node pool %s is served by scheduling shard %s, labelled %s",
+				partitionLabelValue, nodePool.Name, shard.Name, unmanaged_shards.IgnoreShardLabelKey)
 		}
 		return shard, nil
 	default:
-		names := make([]string, 0, len(shards.Items))
-		for _, shard := range shards.Items {
+		names := make([]string, 0, len(shards))
+		for _, shard := range shards {
 			names = append(names, shard.Name)
 		}
 		slices.Sort(names)
-		return nil, fmt.Errorf("partition %q of node pool %s is served by more than one scheduling shard %v",
-			partition, nodePool.Name, names)
+		return nil, fmt.Errorf("partitionLabelValue %q of node pool %s is served by more than one scheduling shard %v",
+			partitionLabelValue, nodePool.Name, names)
 	}
 }
 
-func newShardForNodePool(
+func ListShardsWithPartitionLabelValue(
+	ctx context.Context, k8sReader client.Reader, partitionLabelValue string,
+) ([]kaiv1.SchedulingShard, error) {
+	shards := &kaiv1.SchedulingShardList{}
+	if err := k8sReader.List(ctx, shards,
+		client.MatchingFields{common.SchedulingShardPartitionField: partitionLabelValue}); err != nil {
+		return nil, fmt.Errorf("listing scheduling shards with partitionLabelValue %q: %w", partitionLabelValue, err)
+	}
+	return shards.Items, nil
+}
+
+// GetOrInitShardNamedAfterNodePool returns the shard named after the NodePool, or an unsaved one
+// when none exists yet. It fails when another owner's shard already holds that name.
+func GetOrInitShardNamedAfterNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 ) (*kaiv1.SchedulingShard, error) {
 	shard := &kaiv1.SchedulingShard{}
@@ -116,14 +127,15 @@ func newShardForNodePool(
 	}
 	if !metav1.IsControlledBy(shard, nodePool) {
 		return nil, fmt.Errorf(
-			"scheduling shard %s serves partition %q and is not owned by node pool %s, which needs its name for partition %q",
+			"scheduling shard %s serves partitionLabelValue %q and is not owned by node pool %s, "+
+				"which needs its name for partitionLabelValue %q",
 			shard.Name, shard.Spec.PartitionLabelValue, nodePool.Name, PartitionLabelValueForNodePool(nodePool.Name))
 	}
 	return shard, nil
 }
 
 func shardNameForNodePool(ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool) (string, error) {
-	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +196,7 @@ func SchedulingShardStatus(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 	_ *common.NodePoolControllerParams, _ string,
 ) (operands.Status, error) {
-	shard, err := resolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return operands.NotReadyStatus("scheduling shard is not deployed"), err
 	}
@@ -222,6 +234,13 @@ func PartitionLabelValueForNodePool(nodePoolName string) string {
 		return ""
 	}
 	return nodePoolName
+}
+
+func NodePoolNameForPartitionLabelValue(partitionLabelValue string) string {
+	if partitionLabelValue == "" {
+		return config.Get().DefaultNodepoolName
+	}
+	return partitionLabelValue
 }
 
 func timeBasedFairShare(nodePool *v1alpha1.NodePool) *v1alpha1.TimeBasedFairShare {

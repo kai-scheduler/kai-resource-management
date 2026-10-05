@@ -23,7 +23,7 @@ const IgnoreShardLabelKey = "kai/ignore-shard-for-krm"
 func IsUnmanaged(shard *kaiv1.SchedulingShard) bool {
 	return shard.Labels[IgnoreShardLabelKey] == "true" &&
 		shard.Spec.PartitionLabelValue != "" &&
-		!isOwnedByNodePool(shard)
+		OwningNodePoolName(shard) == ""
 }
 
 // ListPartitionLabelValues returns the partition label values of every unmanaged shard.
@@ -42,14 +42,15 @@ func ListPartitionLabelValues(ctx context.Context, reader client.Reader) (map[st
 	return partitionLabelValues, nil
 }
 
-func isOwnedByNodePool(shard *kaiv1.SchedulingShard) bool {
+// OwningNodePoolName returns the NodePool controlling the shard, or "" when none does.
+func OwningNodePoolName(shard *kaiv1.SchedulingShard) string {
 	owner := metav1.GetControllerOf(shard)
-	if owner == nil {
-		return false
+	if owner == nil || owner.Kind != "NodePool" {
+		return ""
 	}
 	ownerGroupVersion, err := schema.ParseGroupVersion(owner.APIVersion)
-	if err != nil {
-		return false
+	if err != nil || ownerGroupVersion.Group != v1alpha1.GroupVersion.Group {
+		return ""
 	}
-	return ownerGroupVersion.Group == v1alpha1.GroupVersion.Group && owner.Kind == "NodePool"
+	return owner.Name
 }

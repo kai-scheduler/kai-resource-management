@@ -7,11 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/rs/zerolog/log"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -118,51 +115,22 @@ func (v *nodePoolValidator) validateLabels(ctx context.Context, nodePool *v1alph
 	return nil
 }
 
-// validatePartitionLabelValue admits a NodePool only when no shard has its partitionLabelValue,
-// or exactly one does that nothing owns and nothing excludes, which the migration hook can
-// take over. Any other shard there already has a scheduler serving it for someone else.
+// validatePartitionLabelValue admits a NodePool only when the controller could reconcile it:
+// its shard resolves the same way the controller resolves it, and no other NodePool owns it.
 func (v *nodePoolValidator) validatePartitionLabelValue(ctx context.Context, nodePool *v1alpha1.NodePool) error {
-	partitionLabelValue := resources.PartitionLabelValueForNodePool(nodePool.Name)
-
-	shards, err := listShardsWithPartitionLabelValue(ctx, v.client, partitionLabelValue)
+	shard, err := resources.ResolveShardForNodePool(ctx, v.client, nodePool)
 	if err != nil {
-		log.Error().Err(err).Str("name", nodePool.Name).
-			Msg("failed to list scheduling shards for partitionLabelValue validation")
-		return fmt.Errorf("failed to validate nodepool %q: could not list scheduling shards", nodePool.Name)
+		return fmt.Errorf("nodepool %q cannot be created: %w", nodePool.Name, err)
 	}
-
-	for i := range shards {
-		shard := &shards[i]
-		if owner := owningNodePoolName(shard); owner != "" {
-			return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: scheduling shard %q already has it, "+
-				"for nodepool %q", nodePool.Name, partitionLabelValue, shard.Name, owner)
+	if shard == nil {
+		if _, err = resources.GetOrInitShardNamedAfterNodePool(ctx, v.client, nodePool); err != nil {
+			return fmt.Errorf("nodepool %q cannot be created: %w", nodePool.Name, err)
 		}
-		if unmanaged_shards.IsUnmanaged(shard) {
-			return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: scheduling shard %q has it and is "+
-				"labelled %s, leaving those nodes to another scheduler", nodePool.Name, partitionLabelValue, shard.Name,
-				unmanaged_shards.IgnoreShardLabelKey)
-		}
-	}
-	if len(shards) > 1 {
-		return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: more than one scheduling shard %v already has it",
-			nodePool.Name, partitionLabelValue, sortedShardNames(shards))
-	}
-	if len(shards) == 1 {
 		return nil
 	}
-
-	// With no shard to take over, the controller creates one named after the nodepool,
-	// and cannot if a shard with another partitionLabelValue already holds that name.
-	existing := &kaiv1.SchedulingShard{}
-	err = v.client.Get(ctx, types.NamespacedName{Name: nodePool.Name}, existing)
-	if err != nil && errors.IsNotFound(err) {
-		return nil
+	if owner := unmanaged_shards.OwningNodePoolName(shard); owner != "" {
+		return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: scheduling shard %q already has it, "+
+			"for nodepool %q", nodePool.Name, shard.Spec.PartitionLabelValue, shard.Name, owner)
 	}
-	if err != nil {
-		log.Error().Err(err).Str("name", nodePool.Name).Msg("failed to get the scheduling shard named after a nodepool")
-		return fmt.Errorf("failed to validate nodepool %q: could not get scheduling shard %q", nodePool.Name, nodePool.Name)
-	}
-	return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: its scheduling shard would be named %q, "+
-		"which already has partitionLabelValue %q", nodePool.Name, partitionLabelValue, existing.Name,
-		existing.Spec.PartitionLabelValue)
+	return nil
 }

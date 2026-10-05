@@ -303,7 +303,7 @@ var _ = Describe("NodePool duplicate-label validation", func() {
 
 				_, err := v.ValidateCreate(ctx, nodePool("pool-a", "gpu", "a100"))
 				Expect(err).To(MatchError(And(
-					ContainSubstring(`"legacy-a"`), ContainSubstring(`"pool-a"`),
+					ContainSubstring("legacy-a"), ContainSubstring(`"pool-a"`),
 					ContainSubstring(unmanaged_shards.IgnoreShardLabelKey))))
 			})
 
@@ -321,7 +321,7 @@ var _ = Describe("NodePool duplicate-label validation", func() {
 			v := &nodePoolValidator{client: c}
 
 			_, err := v.ValidateCreate(ctx, nodePool("pool-a", "gpu", "a100"))
-			Expect(err).To(MatchError(ContainSubstring("could not list scheduling shards")))
+			Expect(err).To(MatchError(errListFailed))
 		})
 	})
 })
