@@ -191,6 +191,30 @@ serves.
 
 See [excluding nodes from management](../how-to/exclude-nodes-from-management.md).
 
+## Leaving a partition to another scheduler
+
+On a cluster that already runs KAI Scheduler, a partition can stay with the scheduler that
+serves it today. Label that partition's `SchedulingShard`:
+
+```bash
+kubectl label schedulingshard legacy kai/ignore-shard-for-krm=true
+```
+
+KRM then leaves the partition alone. Nodes whose node-pool label equals the shard's
+`partitionLabelValue` are never relabelled, cordoned, excluded by a `ManagedNodesConfig`, or
+counted in any node pool's status, and the shard itself is never written.
+
+The label is ignored:
+
+- **On the `default` partition's shard** — the one with an empty `partitionLabelValue`.
+  The `default` node pool always needs it.
+- **On a shard a node pool already owns.** Labelling it later does not hand the partition
+  back.
+
+Do not create a node pool named after an unmanaged shard's `partitionLabelValue`. KRM
+refuses to use the labelled shard, so that node pool never becomes ready, yet it still moves
+nodes into and out of the partition.
+
 ## Next
 
 - [Projects and departments](projects-and-departments.md) — who gets to use these node pools.

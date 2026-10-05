@@ -26,6 +26,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
 const (
@@ -85,7 +86,12 @@ func resolveShardForNodePool(
 	case 0:
 		return nil, nil
 	case 1:
-		return &shards.Items[0], nil
+		shard := &shards.Items[0]
+		if unmanaged_shards.IsUnmanaged(shard) {
+			return nil, fmt.Errorf("partition %q of node pool %s is served by scheduling shard %s, labelled %s",
+				partition, nodePool.Name, shard.Name, unmanaged_shards.IgnoreShardLabelKey)
+		}
+		return shard, nil
 	default:
 		names := make([]string, 0, len(shards.Items))
 		for _, shard := range shards.Items {

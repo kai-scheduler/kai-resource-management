@@ -18,6 +18,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/nodepool_controller/metrics"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -178,9 +179,20 @@ func (npc *NodePoolController) reconcileNodesNotInDefaultNodePool(ctx context.Co
 		return []*corev1.Node{}, err
 	}
 
+	unmanagedPartitionLabelValues, err := unmanaged_shards.ListPartitionLabelValues(ctx, npc.Client)
+	if err != nil {
+		return []*corev1.Node{}, err
+	}
+
 	availableNodePoolsMap := map[string]string{
 		// fake nodepool, need to consider it as always existing.
 		config.Get().ExcludedNodepoolName: config.Get().ExcludedNodepoolName,
+	}
+	// Treat each unmanaged partition as an existing NodePool, so the loop below leaves its nodes alone.
+	// It has no NodePool of its own: without this, its nodes would be relabelled into another pool,
+	// and the pre-existing scheduler, which finds them by that label, would lose them.
+	for partitionLabelValue := range unmanagedPartitionLabelValues {
+		availableNodePoolsMap[partitionLabelValue] = partitionLabelValue
 	}
 	for _, nodePool := range nodePools {
 		availableNodePoolsMap[nodePool.Name] = nodePool.Name

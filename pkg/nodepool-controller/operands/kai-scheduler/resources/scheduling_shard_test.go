@@ -20,6 +20,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
 var _ = Describe("getTimeBasedFairShareFields", func() {
@@ -621,6 +622,33 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 
 		_, err = ServiceMonitorForNodePool(ctx, c, nodePool, params, nodePool.Name)
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("refuses a shard labelled to be ignored that serves the partition", func() {
+		ignored := runningShard("admin-shard", "np-a")
+		ignored.Labels = map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}
+		c := fakeIndexersClient(scheme, ignored)
+
+		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(MatchError(And(ContainSubstring("admin-shard"), ContainSubstring(unmanaged_shards.IgnoreShardLabelKey))))
+		Expect(obj).To(BeNil())
+
+		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(HaveOccurred())
+		Expect(status.Ready).To(BeFalse())
+
+		_, err = ServiceMonitorForNodePool(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("resolves a shard labelled to be ignored that it already owns", func() {
+		owned := ownedBy(runningShard("admin-shard", "np-a"), nodePool)
+		owned.Labels = map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}
+		c := fakeIndexersClient(scheme, owned)
+
+		shard := shardFor(c, nodePool)
+		Expect(shard.Name).To(Equal("admin-shard"))
+		Expect(shard.ResourceVersion).NotTo(BeEmpty())
 	})
 
 	It("corrects the partition of a shard it owns under its name", func() {
