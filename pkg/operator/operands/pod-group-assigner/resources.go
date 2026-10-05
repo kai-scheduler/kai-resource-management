@@ -129,6 +129,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 	args = appendStringArg(args, "--namespace-project-label-key", global.NamespaceProjectLabelKey)
 	args = appendStringArg(args, "--project-label-key", global.ProjectLabelKey)
 	args = appendStringArg(args, "--enforce-scheduler-annotation-key", global.EnforceSchedulerAnnotationKey)
+	args = appendSwitch(args, "--allow-external-queues", global.AllowExternalQueues)
 
 	args = appendStringArg(args, "--unexisting-nodepool-sentinel", config.Args.UnexistingNodepoolSentinel)
 	args = appendStringArg(args, "--annotation-nodepools-key", config.Args.AnnotationNodepoolsKey)

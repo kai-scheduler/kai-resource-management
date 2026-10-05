@@ -51,7 +51,7 @@ var _ = Describe("TestNodePoolOptionsConverter", Ordered, func() {
 			DefaultNodepoolName:        testDefaultNodePoolName,
 		}))
 
-		podGroupHandler = NewPodGroupMutator()
+		podGroupHandler = NewPodGroupMutator(nil)
 
 		podGroup = &kaiv2alpha2.PodGroup{
 			ObjectMeta: metav1.ObjectMeta{

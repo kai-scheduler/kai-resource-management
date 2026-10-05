@@ -104,7 +104,7 @@ commonArgs:
   finalizerDomain: ""               # --finalizer-domain
   namespaceProjectLabelKey: ""      # --namespace-project-label-key
   projectLabelKey: ""               # --project-label-key
-  allowExternalQueues: false        # --allow-external-queues; leave Queues no Project or Department owns untouched
+  allowExternalQueues: false        # --allow-external-queues; leave Queues no Project or Department owns, and PodGroups outside projects, untouched
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
   schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
 

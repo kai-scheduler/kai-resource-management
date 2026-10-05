@@ -21,7 +21,7 @@ commonArgs:
   finalizerDomain: ""                # --finalizer-domain (nodepool + project)
   namespaceProjectLabelKey: ""       # --namespace-project-label-key (project + pod-group-assigner)
   projectLabelKey: ""                # --project-label-key (project + pod-group-assigner)
-  allowExternalQueues: false         # --allow-external-queues (project)
+  allowExternalQueues: false         # --allow-external-queues (project + pod-group-assigner)
   enforceSchedulerAnnotationKey: ""  # --enforce-scheduler-annotation-key (project writes it, pod-group-assigner reads it)
   schedulerName: ""                  # --scheduler-name (nodepool + pod-group-assigner); must be the name KAI runs under
 

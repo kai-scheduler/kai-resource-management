@@ -52,6 +52,15 @@ var _ = Describe("buildArgsList", func() {
 		Expect(args).To(ContainElements("--enforce-scheduler-annotation-key", "acme/enforce"))
 	})
 
+	It("passes --allow-external-queues only when asked", func() {
+		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--allow-external-queues"))
+
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.Global.AllowExternalQueues = ptr.To(true)
+
+		Expect(buildArgsList(krmConfig)).To(ContainElement("--allow-external-queues"))
+	})
+
 	// This binary has no --finalizer-domain, so the shared setting must not reach it.
 	It("never passes the finalizer domain", func() {
 		krmConfig := newKRMConfig()

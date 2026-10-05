@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  With allowExternalQueues, pod-group-assigner skips PodGroups outside KRM projects and queues it does not own

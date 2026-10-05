@@ -20,6 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// The owner kinds project-controller sets on the Queues it creates.
+const (
+	projectKind    = "Project"
+	departmentKind = "Department"
+)
+
 // GetNodePoolFields returns the phase and the node-affinity label of the named node pool as
 // plain strings.
 func GetNodePoolFields(
@@ -89,6 +95,10 @@ func getExistingQueueByLabels(ctx context.Context, k8sClient client.Client,
 		return nil, err
 	}
 
+	if config.Config().AllowExternalQueues {
+		queues = ownedByProjectOrDepartment(queues)
+	}
+
 	if len(queues) == 0 {
 		notFoundQueueName := fmt.Sprintf("%s/%s", projectName, nodePoolName)
 
@@ -97,6 +107,22 @@ func getExistingQueueByLabels(ctx context.Context, k8sClient client.Client,
 	}
 
 	return &queues[0], nil
+}
+
+// A Queue outside KRM may carry a project's labels; only one a Project or Department owns is
+// project-controller's, and so a project's to be assigned.
+func ownedByProjectOrDepartment(queues []kaiv2.Queue) []kaiv2.Queue {
+	owned := make([]kaiv2.Queue, 0, len(queues))
+	for _, queue := range queues {
+		for _, owner := range queue.OwnerReferences {
+			if owner.Kind == projectKind || owner.Kind == departmentKind {
+				owned = append(owned, queue)
+				break
+			}
+		}
+	}
+
+	return owned
 }
 
 func createRequirementsForQueuesList(projectName, nodepoolName string,

@@ -216,6 +216,12 @@ or department being reconciled. Any other queue is left exactly as it is, with a
 the controller's log saying so. A project or department whose derived queue name is held
 by such a queue gets that name plus a random suffix instead.
 
+The pod-group-assigner follows the same setting. It leaves alone a PodGroup whose namespace
+has no project label: it does not mark it on creation and never gives it a node pool or a
+queue, so a workload outside KRM keeps the queue its own scheduler set. When it assigns a
+queue to a project's PodGroup, it takes only one the project owns, never a queue that just
+carries the project's labels.
+
 Set it in the chart values, which carry it into the `KRMConfig` as
 `spec.global.allowExternalQueues`:
 
