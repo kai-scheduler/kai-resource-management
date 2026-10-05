@@ -238,7 +238,7 @@ hand; use `kubectl explain krmconfig.spec --recursive` for the rest.
 | `namespaceProjectLabelKey` | string | service default | Label key linking a namespace to its project |
 | `projectLabelKey` | string | service default | Label key carrying a workload's project |
 | `enforceSchedulerAnnotationKey` | string | service default | Annotation key forcing a workload onto the scheduler |
-| `allowExternalQueues` | bool | `false` | The project-controller leaves Queues that no Project or Department owns untouched, and the pod-group-assigner leaves PodGroups in namespaces without a project label alone and assigns only project-owned Queues. See [queues KRM did not create](../concepts/queues-and-quota.md#queues-krm-did-not-create) |
+| `allowExternalQueues` | bool | `false` | The project-controller leaves Queues that no Project or Department owns untouched, and the pod-group-assigner leaves PodGroups alone in namespaces that belong to no existing Project and assigns only project-owned Queues. See [queues KRM did not create](../concepts/queues-and-quota.md#queues-krm-did-not-create) |
 | `replicaCount` | int32 | `1` | Default replicas for services that set none |
 | `leaderElection` | bool | `false` | Also implied by a replica count above one |
 | `imagePullSecrets` | []string | — | Added to every service pod |

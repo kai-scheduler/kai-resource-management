@@ -217,8 +217,9 @@ the controller's log saying so. A project or department whose derived queue name
 by such a queue gets that name plus a random suffix instead.
 
 The pod-group-assigner follows the same setting. It leaves alone a PodGroup whose namespace
-has no project label: it does not mark it on creation and never gives it a node pool or a
-queue, so a workload outside KRM keeps the queue its own scheduler set. When it assigns a
+has no project label, or whose label names a project that does not exist: it does not mark
+it on creation and never gives it a node pool or a queue, so a workload outside KRM keeps
+the queue its own scheduler set. When it assigns a
 queue to a project's PodGroup, it takes only one the project owns, never a queue that just
 carries the project's labels.
 

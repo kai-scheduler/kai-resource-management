@@ -93,8 +93,9 @@ type PodGroupAssignerConfig struct {
 
 	// AllowExternalQueues declares that the cluster holds workloads and Queues outside KRM,
 	// such as those of a KAI Scheduler installed before it. A PodGroup whose namespace lacks
-	// the project label is then neither mutated nor assigned, and only a Queue owned by a
-	// Project or Department is assigned. Must match project-controller's --allow-external-queues.
+	// the project label, or names a Project that does not exist, is then neither mutated nor
+	// assigned, and only a Queue owned by a Project or Department is assigned. Must match
+	// project-controller's --allow-external-queues.
 	AllowExternalQueues bool
 }
 
@@ -140,7 +141,7 @@ func AddLabelFlags(fs *flag.FlagSet) {
 			kaiconstants.DefaultSchedulerName,
 			"Scheduler name written on pods when scheduler enforcement applies")
 		fs.BoolVar(&cfg.AllowExternalQueues, "allow-external-queues", false,
-			"Leave PodGroups outside project namespaces untouched and assign only Queues a Project or Department owns")
+			"Leave PodGroups outside existing projects' namespaces untouched and assign only Queues a Project or Department owns")
 	})
 }
 

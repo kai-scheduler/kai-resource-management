@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,12 @@ var _ = Describe("Pod Group Assigner with external queues allowed", Ordered, fun
 		adminQueue        = getQueueObj("admin-"+externalQueuesProject, externalQueuesProject, testDefaultNodePoolName)
 		projectQueue      = ownedByProject(getQueueObj(externalQueuesProject, externalQueuesProject, testDefaultNodePoolName))
 		unownedAdminQueue = getQueueObj("admin-"+externalQueuesUnownedProject, externalQueuesUnownedProject, testDefaultNodePoolName)
+
+		// A labelled namespace is a project's only while its Project exists.
+		projects = []*v1alpha1.Project{
+			{ObjectMeta: metav1.ObjectMeta{Name: externalQueuesProject}},
+			{ObjectMeta: metav1.ObjectMeta{Name: externalQueuesUnownedProject}},
+		}
 	)
 
 	BeforeAll(func() {
@@ -50,8 +57,14 @@ var _ = Describe("Pod Group Assigner with external queues allowed", Ordered, fun
 		for _, queue := range []*kaiv2.Queue{adminQueue, projectQueue, unownedAdminQueue} {
 			expectCreateResource(k8sClient, queue)
 		}
+		for _, project := range projects {
+			expectCreateResource(k8sClient, project)
+		}
 
 		DeferCleanup(func() {
+			for _, project := range projects {
+				deleteAndPollUntilDeleted(k8sClient, project)
+			}
 			for _, queue := range []*kaiv2.Queue{adminQueue, projectQueue, unownedAdminQueue} {
 				deleteQueue(queue.Name, k8sClient)
 			}

@@ -9,6 +9,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -35,7 +36,7 @@ var _ = Describe("Handle with external queues allowed", func() {
 
 	It("mutates a pod group in a project namespace", func() {
 		podGroup := newPodGroup(projectNamespace)
-		mutator := newPodGroupMutatorForTest(namespace(projectNamespace, "research"))
+		mutator := newPodGroupMutatorForTest(namespace(projectNamespace, "research"), project("research"))
 
 		response := mutator.Handle(context.Background(), requestFor(podGroup))
 
@@ -49,6 +50,16 @@ var _ = Describe("Handle with external queues allowed", func() {
 	It("admits a pod group in a namespace with no project label unchanged", func() {
 		podGroup := newPodGroup(externalNamespace)
 		mutator := newPodGroupMutatorForTest(namespace(externalNamespace, ""))
+
+		response := mutator.Handle(context.Background(), requestFor(podGroup))
+
+		Expect(response.Allowed).To(BeTrue())
+		Expect(response.Patches).To(BeEmpty())
+	})
+
+	It("admits a pod group whose namespace names a project that is gone unchanged", func() {
+		podGroup := newPodGroup(projectNamespace)
+		mutator := newPodGroupMutatorForTest(namespace(projectNamespace, "research"))
 
 		response := mutator.Handle(context.Background(), requestFor(podGroup))
 
@@ -98,8 +109,13 @@ func externalQueuesConfig(allowed bool) config.PodGroupAssignerConfig {
 func newPodGroupMutatorForTest(initObjs ...client.Object) *PodGroupMutator {
 	scheme := runtime.NewScheme()
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
+	Expect(v1alpha1.AddToScheme(scheme)).To(Succeed())
 
 	return NewPodGroupMutator(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build())
+}
+
+func project(name string) *v1alpha1.Project {
+	return &v1alpha1.Project{ObjectMeta: metav1.ObjectMeta{Name: name}}
 }
 
 // namespace builds a namespace fixture; an empty project leaves the project label off.

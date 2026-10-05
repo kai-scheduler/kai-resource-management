@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -44,8 +45,10 @@ var _ = Describe("IsExternalNamespace", func() {
 		},
 		Entry("no namespace is external while external queues are not allowed",
 			false, []client.Object{namespace("ns", "")}, false),
-		Entry("a namespace with the project label is a project's",
-			true, []client.Object{namespace("ns", "research")}, false),
+		Entry("a namespace whose project label names an existing project is that project's",
+			true, []client.Object{namespace("ns", "research"), project("research")}, false),
+		Entry("a namespace whose project label names a project that is gone is external",
+			true, []client.Object{namespace("ns", "research")}, true),
 		Entry("a namespace without the project label is external",
 			true, []client.Object{namespace("ns", "")}, true),
 		Entry("a namespace that is gone is external",
@@ -98,8 +101,13 @@ func newFakeClient(objects ...client.Object) client.Client {
 	scheme := runtime.NewScheme()
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
 	Expect(kaiv2.AddToScheme(scheme)).To(Succeed())
+	Expect(v1alpha1.AddToScheme(scheme)).To(Succeed())
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+}
+
+func project(name string) *v1alpha1.Project {
+	return &v1alpha1.Project{ObjectMeta: metav1.ObjectMeta{Name: name}}
 }
 
 // namespace builds a namespace fixture; an empty project leaves the project label off.
