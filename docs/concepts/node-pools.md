@@ -211,8 +211,9 @@ The label is ignored:
 - **On a shard a node pool already owns.** Labelling it later does not hand the partition
   back.
 
-Do not create a node pool named after an unmanaged shard's `partitionLabelValue`: two
-schedulers would then serve the same nodes.
+Do not create a node pool named after an unmanaged shard's `partitionLabelValue`. KRM
+refuses to use the labelled shard, so that node pool never becomes ready, yet it still moves
+nodes into and out of the partition.
 
 ## Next
 
