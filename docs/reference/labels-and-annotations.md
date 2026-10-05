@@ -156,6 +156,19 @@ The only annotations you set yourself, rather than reading.
 | --- | --- | --- | --- |
 | `kai/force-delete` | `true` | Read | Skip deletion blockers and delete anyway. Anything left behind is yours to clean up |
 
+## SchedulingShard labels
+
+| Key | Values | R/W | Meaning |
+| --- | --- | --- | --- |
+| `kai/ignore-shard-for-krm` | `true` | Read | Leave this shard's partition to the scheduler serving it today. KRM never writes the shard and never touches nodes in its partition. Ignored on the `default` partition's shard and on a shard a node pool already owns |
+
+See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
+
+```bash
+kubectl get schedulingshard -l kai/ignore-shard-for-krm=true \
+  -o custom-columns=NAME:.metadata.name,PARTITION:.spec.partitionLabelValue
+```
+
 ## The manual-override label
 
 | Key | Default | R/W | Meaning |
