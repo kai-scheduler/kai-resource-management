@@ -25,4 +25,4 @@ appVersion: 0.0.0
 dependencies:
   - name: kai-scheduler
     repository: oci://ghcr.io/kai-scheduler/kai-scheduler
-    version: "0.0.0-dfbe76e"
+    version: "0.0.0-9fceedf"
