@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.1.2
 	github.com/kai-scheduler/api v0.1.4
-	github.com/kai-scheduler/kai-resource-management-api v0.1.5-0.20261005111724-52426a2a2942
+	github.com/kai-scheduler/kai-resource-management-api v0.1.5
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.40.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.0
