@@ -469,6 +469,22 @@ kubectl get validatingwebhookconfiguration,mutatingwebhookconfiguration | grep k
 failure. Turn the webhook off through its chart value instead, which removes the
 configuration and tells the controller to stop serving it, in step.
 
+### A SchedulingShard or node pool is rejected
+
+The `krm-schedulingshard-validation` and `kai-nodepool-validation` webhooks keep every
+`partitionLabelValue` served by exactly one shard. See [What the webhooks
+refuse](../concepts/node-pools.md#what-the-webhooks-refuse).
+
+| Message contains | Fix |
+| --- | --- |
+| `scheduling shard "x" cannot use partitionLabelValue "p": scheduling shard "y" already has it` | Use another `partitionLabelValue`, or delete shard `y` first |
+| `no nodepool "p" exists for it` | Create node pool `p` first, or label the shard `kai/ignore-shard-for-krm=true` when creating it |
+| `cannot change partitionLabelValue` | Create a new shard instead |
+| `cannot add, change or remove its kai/ignore-shard-for-krm label` | Set the label when creating the shard. Changing it means deleting and recreating the shard |
+| `nodepool "p" cannot be created: ... labelled kai/ignore-shard-for-krm` | That partition belongs to another scheduler; pick another node pool name |
+| `nodepool "p" cannot be created: ... more than one scheduling shard` | Delete the extra shards so one remains |
+| `nodepool "p" cannot use partitionLabelValue "p": scheduling shard "s" already has it, for nodepool "q"` | Node pool `q` owns the shard. If `q` is being deleted, wait for that to finish |
+
 ### A certificate problem after `helm template` or with ArgoCD
 
 The chart reuses an existing serving certificate by looking it up in the cluster, and that
