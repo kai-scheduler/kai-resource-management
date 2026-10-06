@@ -155,8 +155,8 @@ write permission and performs no registry login.
 for `main` and one for each `v<major>.<minor>` release branch that is behind:
 
 - `main` follows KAI Scheduler's own development builds: the chart dependency
-  moves to the newest published `0.0.0-<short-sha>`, and the Go module to the
-  newest KAI Scheduler release.
+  moves to the newest published `0.0.0-<short-sha>`. The Go API types come from
+  `github.com/kai-scheduler/api` and are bumped separately.
 - Each `v<major>.<minor>` branch moves to the newest KAI Scheduler release of
   the same minor, for example `v0.18.2` on `v0.18`, with a `Changed` changelog
   fragment.
@@ -175,7 +175,7 @@ Run the workflow from the Actions tab to bump sooner, with **dry-run** to see
 what it would change. The same bump can be made by hand:
 
 ```bash
-make bump-kai-scheduler KAI_VERSION=v0.18.2        # a release: chart and Go module
+make bump-kai-scheduler KAI_VERSION=v0.18.2        # a release: chart only
 make bump-kai-scheduler KAI_VERSION=0.0.0-1db3d56  # a main build: chart only
 ```
 
