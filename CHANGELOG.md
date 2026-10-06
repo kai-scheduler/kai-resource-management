@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.3] - 2026-10-06
+
+### Changed
+- Bundle KAI Scheduler v0.18.3
+
+### Fixed
+- Adopt a pre-existing Service on upgrade, fixing pod-group-assigner stuck without certificates on OpenShift
+
 ## [v0.18.2] - 2026-10-01
 
 ### Changed
