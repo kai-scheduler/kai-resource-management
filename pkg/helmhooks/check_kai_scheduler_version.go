@@ -20,7 +20,7 @@ func DetectKAISchedulerVersion(ctx context.Context, reader client.Reader) (strin
 	tag, err := dependencies.KAISchedulerVersionTag(ctx, reader)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot detect the KAI Scheduler version, "+
-			"install KAI Scheduler first or pass its version with --kai-scheduler-version: %w", err)
+			"install KAI Scheduler first or set the chart value versionCheck.kaiSchedulerVersion: %w", err)
 	}
 	return tag, "the kai-operator image tag", nil
 }

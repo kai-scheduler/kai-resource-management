@@ -57,7 +57,7 @@ var _ = Describe("DetectKAISchedulerVersion", func() {
 	It("fails, pointing at the explicit version, when KAI Scheduler is not installed", func() {
 		_, _, err := detect()
 
-		Expect(err).To(MatchError(And(ContainSubstring("kai-config"), ContainSubstring("--kai-scheduler-version"))))
+		Expect(err).To(MatchError(And(ContainSubstring("kai-config"), ContainSubstring("versionCheck.kaiSchedulerVersion"))))
 	})
 
 	It("fails when kai-config names no running kai-operator", func() {
