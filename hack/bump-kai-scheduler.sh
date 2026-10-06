@@ -91,19 +91,19 @@ set_chart() {
 }
 
 plan() {
-  local line="${1:-}" chart_pin release chart=""
+  local line="${1:-}" chart_pin chart=""
   chart_pin="$(pinned_chart)"
 
   if [ -z "$line" ]; then
     local build
     build="$(latest_main_build)"
     [ "$build" = "$chart_pin" ] || chart="$build"
-    release="$(latest_release "")"
   else
     [[ "$line" =~ ^v[0-9]+\.[0-9]+$ ]] || {
       echo "Not a release line: $line" >&2
       exit 1
     }
+    local release
     release="$(latest_release "$line")"
     if [ -n "$release" ] && is_newer "$release" "$chart_pin"; then
       chart="$release"
