@@ -129,6 +129,17 @@ var _ = Describe("buildArgsList", func() {
 		Expect(buildArgsList(krmConfig)).ToNot(ContainElement("--webhook-port"))
 	})
 
+	// The binary serves the Queue webhook whenever external queues are allowed, so
+	// its server needs the port even with both toggled webhooks off.
+	It("passes the webhook port when only external queues are allowed", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Webhooks.EnableProjectValidation = ptr.To(false)
+		krmConfig.Spec.ProjectController.Webhooks.EnableDepartmentValidation = ptr.To(false)
+		krmConfig.Spec.Global.AllowExternalQueues = ptr.To(true)
+
+		Expect(buildArgsList(krmConfig)).To(ContainElements("--webhook-port", "8443"))
+	})
+
 	It("switches the profiler on with its port", func() {
 		krmConfig := newKRMConfig()
 		krmConfig.Spec.ProjectController.Profiling.Enabled = ptr.To(true)
@@ -215,10 +226,10 @@ var _ = Describe("leader election", func() {
 
 var _ = Describe("ports", func() {
 	It("has the container listen on the ports the Service targets", func() {
-		config := newKRMConfig().Spec.ProjectController
+		krmConfig := newKRMConfig()
 
-		containers := containerPorts(config)
-		services := servicePorts(config)
+		containers := containerPorts(krmConfig)
+		services := servicePorts(krmConfig)
 
 		Expect(containers).To(HaveLen(2))
 		Expect(services).To(HaveLen(2))
@@ -229,7 +240,7 @@ var _ = Describe("ports", func() {
 	})
 
 	It("publishes 443 for a webhook served on 8443", func() {
-		services := servicePorts(newKRMConfig().Spec.ProjectController)
+		services := servicePorts(newKRMConfig())
 
 		Expect(services[1].Port).To(Equal(int32(443)))
 		Expect(services[1].TargetPort.IntVal).To(Equal(int32(8443)))

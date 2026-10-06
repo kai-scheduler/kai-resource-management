@@ -194,6 +194,7 @@ Not labels, but the other thing that acts on your objects at create time.
 | `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
 | `kai-nodepool-validation` | Validating | `nodepools` on create and delete | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
+| `kai-queue-tree-validation` | Validating | `queues` on create and update, only with `commonArgs.allowExternalQueues`, and only a queue KRM does not own gaining a parent | `projectController.webhook.queue` |
 
 All use `failurePolicy: Fail`, so an unreachable controller means the API server rejects
 the resources it intercepts. Turn a webhook off through its value rather than by scaling

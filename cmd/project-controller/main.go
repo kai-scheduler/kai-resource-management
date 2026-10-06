@@ -151,9 +151,11 @@ func createDepartmentReconciler(mgr manager.Manager) {
 // handler is only the serving side; the webhook configuration that routes
 // admission requests to it is provisioned separately by the deployment's helm
 // chart. When no resource is enabled, no webhook server is added so deployments
-// without serving certificates are unaffected.
+// without serving certificates are unaffected. Queues are validated whenever
+// external queues are allowed, the only setup in which one can be grafted onto a
+// KRM queue tree.
 func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcilerConfig) {
-	if !cfg.EnableProjectValidationWebhook && !cfg.EnableDepartmentValidationWebhook {
+	if !cfg.EnableProjectValidationWebhook && !cfg.EnableDepartmentValidationWebhook && !cfg.AllowExternalQueues {
 		setupLog.Info("validation webhooks are disabled, skipping webhook server registration")
 		return
 	}
@@ -181,6 +183,9 @@ func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcil
 	if cfg.EnableDepartmentValidationWebhook {
 		webhookServer.Register(validation.DepartmentWebhookPath, &webhook.Admission{Handler: validator})
 	}
+	if cfg.AllowExternalQueues {
+		webhookServer.Register(validation.QueueWebhookPath, &webhook.Admission{Handler: validator})
+	}
 
 	if err := mgr.Add(webhookServer); err != nil {
 		setupLog.Error(err, "unable to add validation webhook server to manager")
@@ -191,7 +196,8 @@ func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcil
 		"port", cfg.WebhookPort,
 		"certDir", cfg.WebhookCertDir,
 		"projectWebhookEnabled", cfg.EnableProjectValidationWebhook,
-		"departmentWebhookEnabled", cfg.EnableDepartmentValidationWebhook)
+		"departmentWebhookEnabled", cfg.EnableDepartmentValidationWebhook,
+		"queueWebhookEnabled", cfg.AllowExternalQueues)
 }
 
 func printVersion() {

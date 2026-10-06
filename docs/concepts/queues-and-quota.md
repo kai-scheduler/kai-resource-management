@@ -236,6 +236,35 @@ alone, but the first project or department whose derived name matches one takes 
 and a queue taken over keeps the owner reference, so turning the flag on later does not
 hand it back.
 
+### Keeping the two kinds of tree apart
+
+KRM's queue tree is exactly two levels deep: a department's queue, with its projects'
+queues under it. So with `allowExternalQueues` on, the project-controller also rejects a
+queue that no project or department owns when its `parentQueue` is one that does. It
+rejects creating such a queue, and moving an existing one there:
+
+```text
+queue "team-x" cannot use "research" as its parent queue: "research" is managed by
+KAI Resource Management (Department "research"), which supports only its own two-level
+hierarchy. ...
+```
+
+Everything else is accepted: a root queue, a queue under one of your own queues, and
+KRM's own queues. Only a change of parent is checked, so a queue that was already under a
+KRM queue before you turned this on can still be edited and deleted.
+
+The check is the `kai-queue-tree-validation` webhook. To remove only the webhook, without
+changing which queues KRM takes over, set:
+
+```yaml
+projectController:
+  webhook:
+    queue: false
+```
+
+Turning `allowExternalQueues` off has the same effect on the webhook, but it also makes
+KRM take over your queues, as described above.
+
 ## Next
 
 - [Workload placement](workload-placement.md) — how a pod ends up charged to one of these.
