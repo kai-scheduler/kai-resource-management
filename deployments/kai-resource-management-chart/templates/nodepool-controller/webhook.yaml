@@ -54,7 +54,7 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: kai-schedulingshard-validation
+  name: krm-schedulingshard-validation
   labels:
     {{- include "kai-resource-management.labels" . | nindent 4 }}
   {{- if $openshift }}
