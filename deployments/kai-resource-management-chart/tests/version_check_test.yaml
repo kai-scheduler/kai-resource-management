@@ -1,0 +1,87 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+suite: KAI Scheduler version-check hook
+templates:
+  - templates/hooks/pre/version-check/job.yaml
+  - templates/hooks/pre/version-check/rbac.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  # Unset is today's default, and means the subchart is bundled.
+  - it: renders nothing while kai-scheduler.enabled is unset
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders nothing while kai-scheduler.enabled is true
+    set:
+      kai-scheduler.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: runs the check before the CRD upgrader when kai-scheduler.enabled is false
+    template: templates/hooks/pre/version-check/job.yaml
+    set:
+      kai-scheduler.enabled: false
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "1"
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["check-kai-scheduler-version"]
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry/local/kai-resource-management/helm-hooks:0.0.0
+      - equal:
+          path: spec.backoffLimit
+          value: 0
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+
+  - it: passes an explicit KAI Scheduler version instead of detecting it
+    template: templates/hooks/pre/version-check/job.yaml
+    set:
+      kai-scheduler.enabled: false
+      versionCheck.kaiSchedulerVersion: v0.18.2
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["check-kai-scheduler-version", "--kai-scheduler-version=v0.18.2"]
+
+  - it: grants its ServiceAccount read on kai-config and the kai-operator only, before the Job
+    template: templates/hooks/pre/version-check/rbac.yaml
+    set:
+      kai-scheduler.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-1"
+      - equal:
+          path: rules
+          value:
+            - apiGroups: ["kai.scheduler"]
+              resources: ["configs"]
+              resourceNames: ["kai-config"]
+              verbs: ["get"]
+            - apiGroups: ["apps"]
+              resources: ["deployments"]
+              resourceNames: ["kai-operator"]
+              verbs: ["get"]
+        documentIndex: 1
+      - equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: kai-resource-management-version-check
+              namespace: kai
+        documentIndex: 2

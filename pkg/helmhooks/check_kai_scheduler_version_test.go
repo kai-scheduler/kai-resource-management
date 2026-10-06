@@ -4,15 +4,12 @@
 package helmhooks
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"errors"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,42 +17,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
-
-// releaseSecret is the Secret Helm writes for a release revision: its record as JSON,
-// gzipped, then base64-encoded.
-func releaseSecret(namespace, name, chartName, chartVersion, status string) *corev1.Secret {
-	record, err := json.Marshal(map[string]any{
-		"name":      name,
-		"namespace": namespace,
-		"chart":     map[string]any{"metadata": map[string]any{"name": chartName, "version": chartVersion}},
-	})
-	Expect(err).ToNot(HaveOccurred())
-	var zipped bytes.Buffer
-	writer := gzip.NewWriter(&zipped)
-	_, err = writer.Write(record)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(writer.Close()).To(Succeed())
-
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      "sh.helm.release.v1." + name + ".v1",
-			Labels:    map[string]string{"owner": "helm", "status": status, "name": name},
-		},
-		Type: helmReleaseSecretType,
-		Data: map[string][]byte{
-			helmReleaseDataKey: []byte(base64.StdEncoding.EncodeToString(zipped.Bytes())),
-		},
-	}
-}
-
-func newSecretsClientBuilder() *fake.ClientBuilder {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	return fake.NewClientBuilder().WithScheme(scheme)
-}
 
 var _ = Describe("DetectKAISchedulerVersion", func() {
 	var ctx context.Context
@@ -64,86 +26,51 @@ var _ = Describe("DetectKAISchedulerVersion", func() {
 		ctx = context.Background()
 	})
 
+	kaiConfig := &kaiv1.Config{
+		ObjectMeta: metav1.ObjectMeta{Name: "kai-config"},
+		Spec:       kaiv1.ConfigSpec{Namespace: "kai-scheduler"},
+	}
+	kaiOperator := func(image string) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "kai-operator", Namespace: "kai-scheduler"},
+			Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{Name: "operator", Image: image}},
+			}}},
+		}
+	}
 	detect := func(objects ...client.Object) (string, string, error) {
-		return DetectKAISchedulerVersion(ctx, newSecretsClientBuilder().WithObjects(objects...).Build())
+		scheme := runtime.NewScheme()
+		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+		utilruntime.Must(kaiv1.AddToScheme(scheme))
+		reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+		return DetectKAISchedulerVersion(ctx, reader)
 	}
 
-	It("reads the chart version of the deployed release", func() {
-		version, source, err := detect(
-			releaseSecret("kai-scheduler", "kai", "kai-scheduler", "v0.18.2", "deployed"))
+	It("reads the kai-operator image tag in the namespace kai-config names", func() {
+		version, source, err := detect(kaiConfig, kaiOperator("ghcr.io/kai-scheduler/operator:v0.18.2"))
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(version).To(Equal("v0.18.2"))
-		Expect(source).To(Equal("Helm release kai-scheduler/kai"))
+		Expect(source).To(Equal("the kai-operator image tag"))
 	})
 
-	It("ignores other charts, superseded revisions, Secrets of another type and undecodable ones", func() {
-		opaque := releaseSecret("kai-scheduler", "opaque", "kai-scheduler", "v0.17.0", "deployed")
-		opaque.Type = corev1.SecretTypeOpaque
-		broken := releaseSecret("elsewhere", "broken", "kai-scheduler", "v0.17.0", "deployed")
-		broken.Data[helmReleaseDataKey] = []byte("not base64!")
-
-		version, _, err := detect(
-			releaseSecret("kai-scheduler", "kai", "kai-scheduler", "v0.18.2", "deployed"),
-			releaseSecret("kai-scheduler", "old", "kai-scheduler", "v0.17.0", "superseded"),
-			releaseSecret("monitoring", "prometheus", "kube-prometheus-stack", "65.0.0", "deployed"),
-			opaque, broken)
-
-		Expect(err).ToNot(HaveOccurred())
-		Expect(version).To(Equal("v0.18.2"))
-	})
-
-	It("fails when there is no release", func() {
+	It("fails, pointing at the explicit version, when KAI Scheduler is not installed", func() {
 		_, _, err := detect()
 
-		Expect(err).To(MatchError(ContainSubstring("no deployed Helm release of the kai-scheduler chart")))
+		Expect(err).To(MatchError(And(ContainSubstring("kai-config"), ContainSubstring("--kai-scheduler-version"))))
 	})
 
-	It("fails, naming each, when there is more than one release", func() {
-		_, _, err := detect(
-			releaseSecret("kai-scheduler", "kai", "kai-scheduler", "v0.18.2", "deployed"),
-			releaseSecret("other", "kai-two", "kai-scheduler", "v0.19.0", "deployed"))
+	It("fails when kai-config names no running kai-operator", func() {
+		_, _, err := detect(kaiConfig)
 
-		Expect(err).To(MatchError(And(ContainSubstring("kai-scheduler/kai"), ContainSubstring("other/kai-two"))))
-	})
-
-	It("reads every page of the list", func() {
-		pages := map[string]corev1.SecretList{
-			"":       {ListMeta: metav1.ListMeta{Continue: "page-2"}},
-			"page-2": {Items: []corev1.Secret{*releaseSecret("kai", "kai", "kai-scheduler", "v0.18.2", "deployed")}},
-		}
-		reader := newSecretsClientBuilder().WithInterceptorFuncs(interceptor.Funcs{
-			List: func(_ context.Context, _ client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
-				listOptions := &client.ListOptions{}
-				listOptions.ApplyOptions(opts)
-				*list.(*corev1.SecretList) = pages[listOptions.Continue]
-				return nil
-			},
-		}).Build()
-
-		version, _, err := DetectKAISchedulerVersion(ctx, reader)
-
-		Expect(err).ToNot(HaveOccurred())
-		Expect(version).To(Equal("v0.18.2"))
-	})
-
-	It("returns an error when the Secrets cannot be listed", func() {
-		reader := newSecretsClientBuilder().WithInterceptorFuncs(interceptor.Funcs{
-			List: func(context.Context, client.WithWatch, client.ObjectList, ...client.ListOption) error {
-				return errors.New("forbidden")
-			},
-		}).Build()
-
-		_, _, err := DetectKAISchedulerVersion(ctx, reader)
-
-		Expect(err).To(MatchError(ContainSubstring("forbidden")))
+		Expect(err).To(MatchError(ContainSubstring("kai-scheduler/kai-operator")))
 	})
 })
 
 var _ = Describe("CheckKAISchedulerVersion", func() {
 	const (
 		minimum = "v0.18.0"
-		source  = "Helm release kai-scheduler/kai"
+		source  = "the kai-operator image tag"
 	)
 	ctx := context.Background()
 
@@ -155,6 +82,7 @@ var _ = Describe("CheckKAISchedulerVersion", func() {
 		Entry("a newer patch", "v0.18.2"),
 		Entry("a newer minor", "v0.19.0"),
 		Entry("a release candidate of a newer minor", "v0.19.0-rc.1"),
+		Entry("the FIPS build of the minimum", "v0.18.0-fips"),
 		Entry("a main branch build", "0.0.0-1db3d56"),
 	)
 

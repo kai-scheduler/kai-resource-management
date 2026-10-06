@@ -47,6 +47,7 @@ users:
 - system:serviceaccount:{{ .Release.Namespace }}:project-controller
 - system:serviceaccount:{{ .Release.Namespace }}:pod-group-assigner
 - system:serviceaccount:{{ .Release.Namespace }}:kai-resource-management-crd-manager
+- system:serviceaccount:{{ .Release.Namespace }}:kai-resource-management-version-check
 - system:serviceaccount:{{ .Release.Namespace }}:krm-config-deployer
 - system:serviceaccount:{{ .Release.Namespace }}:krm-config-cleanup
 volumes:
@@ -124,6 +125,9 @@ subjects:
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: kai-resource-management-crd-manager
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: kai-resource-management-version-check
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: krm-config-deployer

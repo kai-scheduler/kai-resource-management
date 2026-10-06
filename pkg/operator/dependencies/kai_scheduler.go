@@ -5,6 +5,7 @@ package dependencies
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -107,28 +108,14 @@ func (k *KAIScheduler) runningVersion(
 ) (*version.Version, string) {
 	logger := log.FromContext(ctx)
 
-	if namespace == "" {
-		logger.V(1).Info("KAI Scheduler Config names no namespace, skipping the version check")
-		return nil, ""
-	}
-
-	deployment := &appsv1.Deployment{}
-	err := reader.Get(ctx,
-		client.ObjectKey{Namespace: namespace, Name: kaiOperatorDeploymentName}, deployment)
+	tag, err := operatorVersionTag(ctx, reader, namespace)
 	if err != nil {
-		// Its Config reports ready, so something runs it another way.
-		logger.V(1).Info("Cannot read the KAI Scheduler operator, skipping the version check",
-			"namespace", namespace, "name", kaiOperatorDeploymentName, "reason", err.Error())
+		logger.V(1).Info("Cannot read the KAI Scheduler version, skipping the version check",
+			"reason", err.Error())
 		return nil, ""
 	}
 
-	tag := versionTag(deployment)
-	if tag == "" {
-		logger.V(1).Info("KAI Scheduler operator carries no version tag, skipping the version check")
-		return nil, ""
-	}
-
-	running := parseVersionTag(tag)
+	running := ParseVersionTag(tag)
 	if running == nil {
 		logger.V(1).Info("KAI Scheduler version tag is not a release version, skipping the version check",
 			"tag", tag)
@@ -136,11 +123,40 @@ func (k *KAIScheduler) runningVersion(
 	return running, tag
 }
 
-// parseVersionTag returns nil for a tag that is not a release version — "latest",
+// KAISchedulerVersionTag returns the running KAI Scheduler's version tag, from the
+// kai-operator Deployment in the namespace kai-config names.
+func KAISchedulerVersionTag(ctx context.Context, reader client.Reader) (string, error) {
+	kaiConfig := &kaiv1.Config{}
+	configName := kaiconstants.DefaultKAIConfigSingeltonInstanceName
+	if err := reader.Get(ctx, client.ObjectKey{Name: configName}, kaiConfig); err != nil {
+		return "", fmt.Errorf("reading KAI Scheduler Config %s: %w", configName, err)
+	}
+	return operatorVersionTag(ctx, reader, kaiConfig.Spec.Namespace)
+}
+
+func operatorVersionTag(ctx context.Context, reader client.Reader, namespace string) (string, error) {
+	if namespace == "" {
+		return "", errors.New("KAI Scheduler Config names no namespace")
+	}
+
+	deployment := &appsv1.Deployment{}
+	key := client.ObjectKey{Namespace: namespace, Name: kaiOperatorDeploymentName}
+	if err := reader.Get(ctx, key, deployment); err != nil {
+		return "", fmt.Errorf("reading the KAI Scheduler operator %s: %w", key, err)
+	}
+
+	tag := versionTag(deployment)
+	if tag == "" {
+		return "", fmt.Errorf("KAI Scheduler operator %s carries no version tag", key)
+	}
+	return tag, nil
+}
+
+// ParseVersionTag returns nil for a tag that is not a release version — "latest",
 // a mirror's own, or a 0.0.0-<commit> build of KAI's main branch, which is newer
 // than every release despite its number. Not knowing is an ordinary outcome
 // here, not a failure.
-func parseVersionTag(tag string) *version.Version {
+func ParseVersionTag(tag string) *version.Version {
 	parsed, err := version.ParseSemantic(strings.TrimSuffix(tag, fipsTagSuffix))
 	if err != nil || (parsed.Major() == 0 && parsed.Minor() == 0 && parsed.Patch() == 0) {
 		return nil

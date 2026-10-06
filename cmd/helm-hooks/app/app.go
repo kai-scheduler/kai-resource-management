@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"go.uber.org/zap/zapcore"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -40,6 +41,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(kaires.AddToScheme(scheme))
+	utilruntime.Must(kaiv1.AddToScheme(scheme))
 }
 
 // Run executes the subcommand named by args[0] with the remaining args as its flags.
@@ -123,7 +125,7 @@ func cleanup(ctx context.Context, newClient clientFactory, flags []string) error
 func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flags []string) error {
 	flagSet := flag.NewFlagSet(checkKAISchedulerVersionCommand, flag.ContinueOnError)
 	installed := flagSet.String("kai-scheduler-version", "",
-		"the installed KAI Scheduler's version; skips reading it from its Helm release")
+		"the installed KAI Scheduler's version; skips reading it from the kai-operator")
 	if err := parseFlags(flagSet, flags); err != nil {
 		return err
 	}
@@ -169,7 +171,7 @@ Subcommands:
                                     optionally the named KRMConfig
   %s [--kai-scheduler-version=<v>]
                                     fail when KAI Scheduler is older than the minimum
-                                    supported; its version is read from its Helm
-                                    release unless given
+                                    supported; its version is read from the
+                                    kai-operator image tag unless given
 `, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand)
 }
