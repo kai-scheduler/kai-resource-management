@@ -42,6 +42,13 @@ var _ = Describe("Subcommand arguments", func() {
 			To(MatchError(ContainSubstring("--namespace is required")))
 	})
 
+	It("checks an explicit KAI Scheduler version without connecting to the cluster", func() {
+		Expect(checkKAISchedulerVersion(ctx, unreachableClient,
+			[]string{"--kai-scheduler-version=v99.0.0"})).To(Succeed())
+		Expect(checkKAISchedulerVersion(ctx, unreachableClient,
+			[]string{"--kai-scheduler-version=v0.1.0"})).To(MatchError(ContainSubstring("older than")))
+	})
+
 	It("rejects an unknown flag", func() {
 		Expect(applyConfig(ctx, unreachableClient, []string{"--nonesuch=1"})).To(HaveOccurred())
 	})

@@ -21,12 +21,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/helmhooks"
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 )
 
 const (
-	applyCRDsCommand   = "apply-crds"
-	applyConfigCommand = "apply-config"
-	cleanupCommand     = "cleanup"
+	applyCRDsCommand                = "apply-crds"
+	applyConfigCommand              = "apply-config"
+	cleanupCommand                  = "cleanup"
+	checkKAISchedulerVersionCommand = "check-kai-scheduler-version"
 )
 
 // clientFactory defers connecting to the cluster until the subcommand arguments are valid.
@@ -58,6 +60,8 @@ func Run(args []string) error {
 		return applyConfig(ctx, newClusterClient, flags)
 	case cleanupCommand:
 		return cleanup(ctx, newClusterClient, flags)
+	case checkKAISchedulerVersionCommand:
+		return checkKAISchedulerVersion(ctx, newClusterClient, flags)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown subcommand %q", command)
@@ -116,6 +120,29 @@ func cleanup(ctx context.Context, newClient clientFactory, flags []string) error
 	return helmhooks.Cleanup(ctx, k8sClient, *namespace, *deleteConfig)
 }
 
+func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flags []string) error {
+	flagSet := flag.NewFlagSet(checkKAISchedulerVersionCommand, flag.ContinueOnError)
+	installed := flagSet.String("kai-scheduler-version", "",
+		"the installed KAI Scheduler's version; skips reading it from its Helm release")
+	if err := parseFlags(flagSet, flags); err != nil {
+		return err
+	}
+	minimum := dependencies.DefaultMinimumSchedulerVersion
+	if *installed != "" {
+		return helmhooks.CheckKAISchedulerVersion(ctx, *installed, "--kai-scheduler-version", minimum)
+	}
+
+	k8sClient, err := newClient()
+	if err != nil {
+		return err
+	}
+	detected, source, err := helmhooks.DetectKAISchedulerVersion(ctx, k8sClient)
+	if err != nil {
+		return err
+	}
+	return helmhooks.CheckKAISchedulerVersion(ctx, detected, source, minimum)
+}
+
 // parseFlags also rejects leftover positional arguments, which the flag package otherwise ignores.
 func parseFlags(flagSet *flag.FlagSet, flags []string) error {
 	if err := flagSet.Parse(flags); err != nil {
@@ -140,5 +167,9 @@ Subcommands:
   %s --namespace=<ns> [--delete-config=<name>]
                                     delete the operator-managed deployments, and
                                     optionally the named KRMConfig
-`, applyCRDsCommand, applyConfigCommand, cleanupCommand)
+  %s [--kai-scheduler-version=<v>]
+                                    fail when KAI Scheduler is older than the minimum
+                                    supported; its version is read from its Helm
+                                    release unless given
+`, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand)
 }
