@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaitopologyv1alpha1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1alpha1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 	projectcommon "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/utils"
@@ -71,6 +73,33 @@ func GeneratedNodePool(prefix, labelKey string, options ...NodePoolOption) *kair
 	name := utils.GenerateName(prefix)
 
 	return NodePool(name, labelKey, name, options...)
+}
+
+// SchedulingShardOption customises a SchedulingShard before it is created.
+type SchedulingShardOption func(*kaischedulerv1.SchedulingShard)
+
+// Unmanaged labels the shard kai/ignore-shard-for-krm, leaving its partitionLabelValue to
+// another scheduler. KRM's webhook admits such a shard without a node pool.
+func Unmanaged() SchedulingShardOption {
+	return func(shard *kaischedulerv1.SchedulingShard) {
+		shard.Labels[unmanaged_shards.IgnoreShardLabelKey] = "true"
+	}
+}
+
+// SchedulingShard builds a shard serving the nodes labelled with partitionLabelValue. The KAI
+// operator deploys a scheduler for it, so give it a partitionLabelValue no node carries.
+func SchedulingShard(
+	name, partitionLabelValue string, options ...SchedulingShardOption,
+) *kaischedulerv1.SchedulingShard {
+	shard := &kaischedulerv1.SchedulingShard{
+		ObjectMeta: objectMeta(name),
+		Spec:       kaischedulerv1.SchedulingShardSpec{PartitionLabelValue: partitionLabelValue},
+	}
+	for _, apply := range options {
+		apply(shard)
+	}
+
+	return shard
 }
 
 // Topology builds a kai.scheduler Topology from its node labels, ordered highest level
