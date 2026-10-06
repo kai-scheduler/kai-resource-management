@@ -478,7 +478,7 @@ refuse](../concepts/node-pools.md#what-the-webhooks-refuse).
 | Message contains | Fix |
 | --- | --- |
 | `scheduling shard "x" cannot use partitionLabelValue "p": scheduling shard "y" already has it` | Use another `partitionLabelValue`, or delete shard `y` first |
-| `no nodepool "p" exists for it` | Create node pool `p` first, or label the shard `kai/ignore-shard-for-krm=true` when creating it |
+| `no nodepool "p" exists for it` | Create node pool `p` first, or label the shard `kai/ignore-shard-for-krm=true` when creating it. The label has no effect on the default shard, so there only the node pool helps |
 | `cannot change partitionLabelValue` | Create a new shard instead |
 | `cannot add, change or remove its kai/ignore-shard-for-krm label` | Set the label when creating the shard. Changing it means deleting and recreating the shard |
 | `nodepool "p" cannot be created: ... labelled kai/ignore-shard-for-krm` | That partition belongs to another scheduler; pick another node pool name |

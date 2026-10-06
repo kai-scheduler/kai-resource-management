@@ -98,7 +98,12 @@ func (v *schedulingShardValidator) requireNodePool(ctx context.Context, shard *k
 			Msg("failed to get the nodepool for a scheduling shard's partitionLabelValue")
 		return fmt.Errorf("failed to validate scheduling shard %q: could not get nodepool %q", shard.Name, nodePoolName)
 	}
+	// The label has no effect on the default partitionLabelValue, so suggesting it would not help.
+	labelHint := ""
+	if shard.Spec.PartitionLabelValue != "" {
+		labelHint = fmt.Sprintf(", or label the shard %s=true to leave its nodes to another scheduler",
+			unmanaged_shards.IgnoreShardLabelKey)
+	}
 	return fmt.Errorf("scheduling shard %q cannot use partitionLabelValue %q: no nodepool %q exists for it; "+
-		"create that nodepool, or label the shard %s=true to leave its nodes to another scheduler",
-		shard.Name, shard.Spec.PartitionLabelValue, nodePoolName, unmanaged_shards.IgnoreShardLabelKey)
+		"create that nodepool%s", shard.Name, shard.Spec.PartitionLabelValue, nodePoolName, labelHint)
 }

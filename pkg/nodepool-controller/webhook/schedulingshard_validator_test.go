@@ -91,7 +91,10 @@ var _ = Describe("SchedulingShard partitionLabelValue validation", func() {
 				v := validatorWith()
 
 				_, err := v.ValidateCreate(ctx, unmanaged(shard("default", "")))
-				Expect(err).To(MatchError(ContainSubstring(`nodepool "default"`)))
+				Expect(err).To(MatchError(SatisfyAll(
+					ContainSubstring(`nodepool "default"`),
+					Not(ContainSubstring(unmanaged_shards.IgnoreShardLabelKey)))),
+					"the label has no effect on the default partitionLabelValue, so it must not be suggested")
 			})
 		})
 
