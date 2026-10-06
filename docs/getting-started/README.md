@@ -4,6 +4,7 @@
 | --- | --- |
 | [Quickstart](quickstart.md) | Installing KAI Resource Management and running your first workload through it |
 | [Building from source](building-from-source.md) | Contributors building, testing and validating the repository |
+| [Adding a Helm hook](adding-a-helm-hook.md) | Contributors adding a lifecycle Job to the chart |
 
 Most people want the [quickstart](quickstart.md). Building from source is only needed if
 you are changing KRM itself.

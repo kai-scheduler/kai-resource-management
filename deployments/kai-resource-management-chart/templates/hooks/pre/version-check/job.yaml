@@ -1,0 +1,46 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Only beside an existing KAI Scheduler; unset means bundled, whose version is this chart's own.
+{{- if not (dig "enabled" true (index .Values "kai-scheduler")) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kai-resource-management-version-check
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    # After its RBAC (-1), before the CRD upgrader (2).
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  # A version below the minimum fails the same way every time; retries would outlast
+  # Helm's timeout and hide the message behind "timed out".
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: kai-resource-management-version-check
+    spec:
+      serviceAccountName: kai-resource-management-version-check
+      containers:
+      - name: version-check
+        image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.versionCheck.image) }}
+        imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.versionCheck.image) }}
+        args:
+          - check-kai-scheduler-version
+          {{- with dig "args" "minKaiSchedulerVersion" "" .Values.krmOperator }}
+          - --minimum-version={{ . }}
+          {{- end }}
+          {{- with .Values.versionCheck.kaiSchedulerVersion }}
+          - --kai-scheduler-version={{ . }}
+          {{- end }}
+        env:
+          {{- include "kai-resource-management.godebug" . | nindent 10 }}
+        resources:
+          {{- toYaml (.Values.versionCheck.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 10 }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        {{- include "kai-resource-management.securityContext" . | nindent 8 }}
+      restartPolicy: Never
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

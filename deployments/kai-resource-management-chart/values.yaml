@@ -150,6 +150,16 @@ crdUpgrader:
     name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
+# Pre-install/pre-upgrade hook, rendered only when kai-scheduler.enabled=false: fails the
+# install when the existing KAI Scheduler is older than the minimum this release supports.
+versionCheck:
+  # The existing KAI Scheduler's version, e.g. v0.18.2. Empty reads it from the kai-operator
+  # image tag; set it when that tag is not a version, e.g. a re-tagged mirror image.
+  kaiSchedulerVersion: ""
+  image:
+    name: helm-hooks
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+
 # The krm-operator installs this controller; these values reach it through the KRMConfig.
 # Its RBAC and admission webhook are still rendered by this chart.
 nodePoolController:

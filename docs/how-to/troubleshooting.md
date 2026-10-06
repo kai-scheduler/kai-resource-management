@@ -149,6 +149,26 @@ kubectl -n kai-resource-management logs job/kai-resource-management-crd-upgrader
 
 A failed Job is replaced automatically on the next attempt.
 
+### `helm install` fails on the KAI Scheduler version check
+
+```text
+job kai-resource-management-version-check failed: BackoffLimitExceeded
+```
+
+Only with `kai-scheduler.enabled=false`. The reason is in the Job's log:
+
+```bash
+kubectl -n kai-resource-management logs job/kai-resource-management-version-check
+```
+
+| Message | What to do |
+| --- | --- |
+| `KAI Scheduler v0.17.0, from the kai-operator image tag, is older than the minimum supported v0.18.0` | Upgrade KAI Scheduler, then retry. |
+| `cannot detect the KAI Scheduler version` | Install KAI Scheduler first. If it is installed, the reason after the colon says what could not be read. |
+| `KAI Scheduler version "<tag>" from the kai-operator image tag is not a version` | Set `versionCheck.kaiSchedulerVersion` to the running version. |
+
+See [KAI Scheduler version check](../../deployments/kai-resource-management-chart/README.md#kai-scheduler-version-check).
+
 ## Node pools
 
 ### Node pool is `Empty` but the nodes look right

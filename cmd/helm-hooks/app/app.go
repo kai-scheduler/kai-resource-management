@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"go.uber.org/zap/zapcore"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -21,12 +22,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/helmhooks"
+	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 )
 
 const (
-	applyCRDsCommand   = "apply-crds"
-	applyConfigCommand = "apply-config"
-	cleanupCommand     = "cleanup"
+	applyCRDsCommand                = "apply-crds"
+	applyConfigCommand              = "apply-config"
+	cleanupCommand                  = "cleanup"
+	checkKAISchedulerVersionCommand = "check-kai-scheduler-version"
 )
 
 // clientFactory defers connecting to the cluster until the subcommand arguments are valid.
@@ -38,6 +41,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(kaires.AddToScheme(scheme))
+	utilruntime.Must(kaiv1.AddToScheme(scheme))
 }
 
 // Run executes the subcommand named by args[0] with the remaining args as its flags.
@@ -58,6 +62,8 @@ func Run(args []string) error {
 		return applyConfig(ctx, newClusterClient, flags)
 	case cleanupCommand:
 		return cleanup(ctx, newClusterClient, flags)
+	case checkKAISchedulerVersionCommand:
+		return checkKAISchedulerVersion(ctx, newClusterClient, flags)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown subcommand %q", command)
@@ -116,6 +122,30 @@ func cleanup(ctx context.Context, newClient clientFactory, flags []string) error
 	return helmhooks.Cleanup(ctx, k8sClient, *namespace, *deleteConfig)
 }
 
+func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flags []string) error {
+	flagSet := flag.NewFlagSet(checkKAISchedulerVersionCommand, flag.ContinueOnError)
+	installed := flagSet.String("kai-scheduler-version", "",
+		"the installed KAI Scheduler's version; skips reading it from the kai-operator")
+	minimum := flagSet.String("minimum-version", dependencies.DefaultMinimumSchedulerVersion,
+		"oldest KAI Scheduler version supported")
+	if err := parseFlags(flagSet, flags); err != nil {
+		return err
+	}
+	if *installed != "" {
+		return helmhooks.CheckKAISchedulerVersion(ctx, *installed, "--kai-scheduler-version", *minimum)
+	}
+
+	k8sClient, err := newClient()
+	if err != nil {
+		return err
+	}
+	detected, source, err := helmhooks.DetectKAISchedulerVersion(ctx, k8sClient)
+	if err != nil {
+		return err
+	}
+	return helmhooks.CheckKAISchedulerVersion(ctx, detected, source, *minimum)
+}
+
 // parseFlags also rejects leftover positional arguments, which the flag package otherwise ignores.
 func parseFlags(flagSet *flag.FlagSet, flags []string) error {
 	if err := flagSet.Parse(flags); err != nil {
@@ -140,5 +170,9 @@ Subcommands:
   %s --namespace=<ns> [--delete-config=<name>]
                                     delete the operator-managed deployments, and
                                     optionally the named KRMConfig
-`, applyCRDsCommand, applyConfigCommand, cleanupCommand)
+  %s [--minimum-version=<v>] [--kai-scheduler-version=<v>]
+                                    fail when KAI Scheduler is older than the minimum
+                                    supported; its version is read from the
+                                    kai-operator image tag unless given
+`, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand)
 }

@@ -82,6 +82,7 @@ The main configuration groups are:
 | `rbac.create` | Creation of required roles and bindings. |
 | `openshift` | OpenShift mode: SecurityContextConstraints and uid handling. |
 | `crdUpgrader` | Resources for the CRD install/upgrade hook, and the shared `helm-hooks` image every hook uses. |
+| `versionCheck` | The [KAI Scheduler version check](#kai-scheduler-version-check) hook, and the version to check when it cannot be detected. |
 | `krmOperator` | KRM operator deployment and arguments. |
 | `krmConfig`, `krmConfigDeployer` | How the `KRMConfig` CR is created, and the toggle to manage it yourself. |
 | `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. |
@@ -374,6 +375,25 @@ Use a values file for persistent overrides and review new defaults before each
 upgrade. Do not assume `helm rollback` is a safe downgrade path: the bundled KAI
 Scheduler uses lifecycle hooks and retained resources. Back up custom resources
 and follow the target release's migration guidance before downgrading.
+
+### KAI Scheduler version check
+
+With `kai-scheduler.enabled=false`, a `pre-install` and `pre-upgrade` hook Job,
+`kai-resource-management-version-check`, runs before the CRD upgrader. It fails the
+install or upgrade when the KAI Scheduler already in the cluster is older than the
+minimum this release supports. It reads the version the way the operator does at run
+time: the image tag of the `kai-operator` Deployment in the namespace the `kai-config`
+Config names. A build of KAI's `main` branch, tagged `0.0.0-<commit>`, is accepted.
+
+When that tag is not a version, as with a re-tagged mirror image, set
+`versionCheck.kaiSchedulerVersion` to the running version. It is still checked against
+the minimum.
+
+If the hook fails, read the reason from its log:
+
+```bash
+kubectl logs job/kai-resource-management-version-check -n "${KRM_NAMESPACE}"
+```
 
 ### Bumping the bundled KAI Scheduler
 
