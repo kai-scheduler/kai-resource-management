@@ -126,12 +126,13 @@ func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flag
 	flagSet := flag.NewFlagSet(checkKAISchedulerVersionCommand, flag.ContinueOnError)
 	installed := flagSet.String("kai-scheduler-version", "",
 		"the installed KAI Scheduler's version; skips reading it from the kai-operator")
+	minimum := flagSet.String("minimum-version", dependencies.DefaultMinimumSchedulerVersion,
+		"oldest KAI Scheduler version supported")
 	if err := parseFlags(flagSet, flags); err != nil {
 		return err
 	}
-	minimum := dependencies.DefaultMinimumSchedulerVersion
 	if *installed != "" {
-		return helmhooks.CheckKAISchedulerVersion(ctx, *installed, "--kai-scheduler-version", minimum)
+		return helmhooks.CheckKAISchedulerVersion(ctx, *installed, "--kai-scheduler-version", *minimum)
 	}
 
 	k8sClient, err := newClient()
@@ -142,7 +143,7 @@ func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flag
 	if err != nil {
 		return err
 	}
-	return helmhooks.CheckKAISchedulerVersion(ctx, detected, source, minimum)
+	return helmhooks.CheckKAISchedulerVersion(ctx, detected, source, *minimum)
 }
 
 // parseFlags also rejects leftover positional arguments, which the flag package otherwise ignores.
@@ -169,7 +170,7 @@ Subcommands:
   %s --namespace=<ns> [--delete-config=<name>]
                                     delete the operator-managed deployments, and
                                     optionally the named KRMConfig
-  %s [--kai-scheduler-version=<v>]
+  %s [--minimum-version=<v>] [--kai-scheduler-version=<v>]
                                     fail when KAI Scheduler is older than the minimum
                                     supported; its version is read from the
                                     kai-operator image tag unless given

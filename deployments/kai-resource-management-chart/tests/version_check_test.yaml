@@ -56,6 +56,17 @@ tests:
           path: spec.template.spec.containers[0].args
           value: ["check-kai-scheduler-version", "--kai-scheduler-version=v0.18.2"]
 
+  # The same override the operator's run-time check takes, so the two agree.
+  - it: passes krmOperator.args.minKaiSchedulerVersion as the minimum
+    template: templates/hooks/pre/version-check/job.yaml
+    set:
+      kai-scheduler.enabled: false
+      krmOperator.args.minKaiSchedulerVersion: 0.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["check-kai-scheduler-version", "--minimum-version=0.0.0"]
+
   - it: grants its ServiceAccount read on kai-config and the kai-operator only, before the Job
     template: templates/hooks/pre/version-check/rbac.yaml
     set:

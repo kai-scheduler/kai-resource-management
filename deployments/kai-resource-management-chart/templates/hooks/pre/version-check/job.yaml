@@ -29,6 +29,9 @@ spec:
         imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.versionCheck.image) }}
         args:
           - check-kai-scheduler-version
+          {{- with dig "args" "minKaiSchedulerVersion" "" .Values.krmOperator }}
+          - --minimum-version={{ . }}
+          {{- end }}
           {{- with .Values.versionCheck.kaiSchedulerVersion }}
           - --kai-scheduler-version={{ . }}
           {{- end }}

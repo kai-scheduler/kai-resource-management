@@ -49,6 +49,11 @@ var _ = Describe("Subcommand arguments", func() {
 			[]string{"--kai-scheduler-version=v0.1.0"})).To(MatchError(ContainSubstring("older than")))
 	})
 
+	It("checks against --minimum-version when given", func() {
+		Expect(checkKAISchedulerVersion(ctx, unreachableClient,
+			[]string{"--minimum-version=0.0.0", "--kai-scheduler-version=v0.1.0"})).To(Succeed())
+	})
+
 	It("rejects an unknown flag", func() {
 		Expect(applyConfig(ctx, unreachableClient, []string{"--nonesuch=1"})).To(HaveOccurred())
 	})
