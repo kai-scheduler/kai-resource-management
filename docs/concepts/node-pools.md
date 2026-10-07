@@ -191,6 +191,45 @@ serves.
 
 See [excluding nodes from management](../how-to/exclude-nodes-from-management.md).
 
+## Leaving a partition to another scheduler
+
+On a cluster that already runs KAI Scheduler, a partition can stay with the scheduler that
+serves it today. Label that partition's `SchedulingShard`:
+
+```bash
+kubectl label schedulingshard legacy kai/ignore-shard-for-krm=true
+```
+
+KRM then leaves the partition alone. Nodes whose node-pool label equals the shard's
+`partitionLabelValue` are never relabelled, cordoned, excluded by a `ManagedNodesConfig`, or
+counted in any node pool's status, and the shard itself is never written.
+
+The label is ignored:
+
+- **On the `default` partition's shard** — the one with an empty `partitionLabelValue`.
+  The `default` node pool always needs it.
+- **On a shard a node pool already owns.** Labelling it later does not hand the partition
+  back.
+
+Label the shard before installing KRM, or when creating it. Once KRM is installed, its
+SchedulingShard webhook refuses to add, change or remove the label on an existing shard,
+except on the `default` partition's shard, where the label has no effect.
+
+### What the webhooks refuse
+
+Every `partitionLabelValue` is served by exactly one shard, and that shard belongs either
+to a node pool or to the scheduler it is labelled for. On create, KRM's webhooks refuse:
+
+- **A second shard with the same `partitionLabelValue`**, labelled or not. Two shards
+  means two schedulers competing for the same nodes.
+- **A shard with no node pool and no `kai/ignore-shard-for-krm` label.** Nothing would
+  ever reconcile it. Create the node pool named after the shard's `partitionLabelValue`
+  first, or label the shard.
+- **A node pool whose `partitionLabelValue` is held by an unmanaged shard, by a shard
+  another node pool owns, or by more than one shard.**
+
+They also refuse to change a shard's `partitionLabelValue`. Create a new shard instead.
+
 ## Next
 
 - [Projects and departments](projects-and-departments.md) — who gets to use these node pools.

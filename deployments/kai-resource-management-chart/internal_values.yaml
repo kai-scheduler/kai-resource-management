@@ -40,6 +40,11 @@ postCleanup:
     limits: { cpu: 500m, memory: 256Mi }
     requests: { cpu: 100m, memory: 128Mi }
 
+versionCheck:
+  resources:
+    limits: { cpu: 500m, memory: 256Mi }
+    requests: { cpu: 100m, memory: 128Mi }
+
 krmOperator:
   replicas: 1
   metricsPort: 8080          # --metrics-bind-address

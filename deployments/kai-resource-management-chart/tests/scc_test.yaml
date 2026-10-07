@@ -116,6 +116,9 @@ tests:
       - contains:
           path: users
           content: system:serviceaccount:kai-resource-management:kai-resource-management-crd-manager
+      - contains:
+          path: users
+          content: system:serviceaccount:kai-resource-management:kai-resource-management-version-check
 
   # The SCC must outlive the hook run, so hook-succeeded is deliberately absent.
   - it: keeps the SCC for the lifetime of the release
@@ -167,7 +170,7 @@ tests:
           value: kai-resource-management-scc
       - lengthEqual:
           path: subjects
-          count: 7
+          count: 8
       - contains:
           path: subjects
           content:
@@ -188,6 +191,12 @@ tests:
             kind: ServiceAccount
             name: kai-resource-management-crd-manager
             namespace: kai-resource-management
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: kai-resource-management-version-check
+            namespace: kai-resource-management
 
   # Subjects and users are plain strings; entries for a disabled component are inert.
   - it: keeps every subject when components are disabled
@@ -200,7 +209,7 @@ tests:
     asserts:
       - lengthEqual:
           path: subjects
-          count: 7
+          count: 8
 
   - it: renders nothing when rbac.create is false
     set:

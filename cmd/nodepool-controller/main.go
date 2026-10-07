@@ -131,7 +131,11 @@ func main() {
 			setupLog.Error(err, "Error setting up NodePool validating webhook")
 			os.Exit(1)
 		}
-		setupLog.Info("NodePool validation webhook enabled",
+		if err = nodepoolwebhook.SetupSchedulingShardWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "Error setting up SchedulingShard validating webhook")
+			os.Exit(1)
+		}
+		setupLog.Info("NodePool and SchedulingShard validation webhooks enabled",
 			"port", ops.WebhookPort, "certDir", ops.WebhookCertDir)
 	}
 

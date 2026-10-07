@@ -49,7 +49,8 @@ func BindFlags() (*Options, *config.NodePoolControllerConfig) {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&options.EnableNodepoolValidationWebhook, "enable-nodepool-validation-webhook", true,
-		"Enable the NodePool validating webhook that enforces the labelKey/labelValue rules. "+
+		"Enable the NodePool and SchedulingShard validating webhooks, which enforce the labelKey/labelValue rules "+
+			"and keep each partition served by a single scheduling shard. "+
 			"When enabled, serving certs must be present in --cert-dir.")
 	flag.IntVar(&options.WebhookPort, "webhook-port", defaultWebhookPort, "The port the validating webhook server serves on")
 	flag.StringVar(&options.WebhookCertDir, "cert-dir", defaultWebhookCertDir,

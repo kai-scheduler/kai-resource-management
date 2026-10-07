@@ -50,4 +50,35 @@ webhooks:
         apiVersions: ["v1alpha1"]
         resources: ["nodepools"]
         scope: Cluster
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: krm-schedulingshard-validation
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if $openshift }}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+  {{- end }}
+webhooks:
+  - name: schedulingshard.nodepool-controller.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: nodepool-controller
+        namespace: {{ .Release.Namespace }}
+        path: /validate-krm-v1-schedulingshard
+        port: {{ $webhookPort }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["kai.scheduler"]
+        apiVersions: ["v1"]
+        resources: ["schedulingshards"]
+        scope: Cluster
 {{- end }}

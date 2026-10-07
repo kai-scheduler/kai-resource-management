@@ -74,8 +74,8 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 	})
 
 	It("returns empty PartitionLabelValue for the configured default nodepool", func() {
-		Expect(getNodePoolNameLabelValueForScheduler(kaiDefaultNodepoolName)).To(Equal(""))
-		Expect(getNodePoolNameLabelValueForScheduler("some-other-pool")).To(Equal("some-other-pool"))
+		Expect(PartitionLabelValueForNodePool(kaiDefaultNodepoolName)).To(Equal(""))
+		Expect(PartitionLabelValueForNodePool("some-other-pool")).To(Equal("some-other-pool"))
 	})
 
 	Describe("ServiceMonitorForNodePool", func() {

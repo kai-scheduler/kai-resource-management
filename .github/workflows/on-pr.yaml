@@ -118,7 +118,7 @@ jobs:
     steps:
       # The per-package table is a diff against main's profile, published by
       # update-coverage-badge.yaml.
-      - uses: fgrosse/go-coverage-report@2eb52af4e808426e2d4edd850ff8c9ca14fce029
+      - uses: fgrosse/go-coverage-report@c4bf7e78d1379325814b4dd42d80e526082e788b
         id: coverage_reporter
         continue-on-error: true
         with:

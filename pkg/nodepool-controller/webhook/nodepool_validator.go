@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
+	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
 // +kubebuilder:webhook:path=/validate-kai-resources-v1alpha1-nodepool,mutating=false,failurePolicy=fail,sideEffects=None,groups=kai.resources,resources=nodepools,verbs=create,versions=v1alpha1,name=nodepool-validation.kai.io,admissionReviewVersions=v1
@@ -32,6 +34,10 @@ import (
 //   - No two NodePools may share the same labelKey/labelValue pair, so a node is
 //     never claimed by more than one NodePool.
 //
+// On create it also refuses a NodePool whose partitionLabelValue another scheduler already
+// serves, since reconciling it would put a second scheduler on the same nodes. See
+// validatePartitionLabelValue.
+//
 // On delete it also refuses to let the default NodePool go.
 type nodePoolValidator struct {
 	client client.Client
@@ -46,7 +52,10 @@ func SetupNodePoolWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 func (v *nodePoolValidator) ValidateCreate(ctx context.Context, nodePool *v1alpha1.NodePool) (admission.Warnings, error) {
-	return nil, v.validateLabels(ctx, nodePool)
+	if err := v.validateLabels(ctx, nodePool); err != nil {
+		return nil, err
+	}
+	return nil, v.validatePartitionLabelValue(ctx, nodePool)
 }
 
 // ValidateUpdate is a no-op because the labelKey/labelValue pair is immutable after creation.
@@ -103,5 +112,25 @@ func (v *nodePoolValidator) validateLabels(ctx context.Context, nodePool *v1alph
 		}
 	}
 
+	return nil
+}
+
+// validatePartitionLabelValue admits a NodePool only when the controller could reconcile it:
+// its shard resolves the same way the controller resolves it, and no other NodePool owns it.
+func (v *nodePoolValidator) validatePartitionLabelValue(ctx context.Context, nodePool *v1alpha1.NodePool) error {
+	shard, err := resources.ResolveShardForNodePool(ctx, v.client, nodePool)
+	if err != nil {
+		return fmt.Errorf("nodepool %q cannot be created: %w", nodePool.Name, err)
+	}
+	if shard == nil {
+		if _, err = resources.GetOrInitShardNamedAfterNodePool(ctx, v.client, nodePool); err != nil {
+			return fmt.Errorf("nodepool %q cannot be created: %w", nodePool.Name, err)
+		}
+		return nil
+	}
+	if owner := unmanaged_shards.OwningNodePoolName(shard); owner != "" {
+		return fmt.Errorf("nodepool %q cannot use partitionLabelValue %q: scheduling shard %q already has it, "+
+			"for nodepool %q", nodePool.Name, shard.Spec.PartitionLabelValue, shard.Name, owner)
+	}
 	return nil
 }

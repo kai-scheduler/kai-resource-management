@@ -149,6 +149,26 @@ kubectl -n kai-resource-management logs job/kai-resource-management-crd-upgrader
 
 A failed Job is replaced automatically on the next attempt.
 
+### `helm install` fails on the KAI Scheduler version check
+
+```text
+job kai-resource-management-version-check failed: BackoffLimitExceeded
+```
+
+Only with `kai-scheduler.enabled=false`. The reason is in the Job's log:
+
+```bash
+kubectl -n kai-resource-management logs job/kai-resource-management-version-check
+```
+
+| Message | What to do |
+| --- | --- |
+| `KAI Scheduler v0.17.0, from the kai-operator image tag, is older than the minimum supported v0.18.0` | Upgrade KAI Scheduler, then retry. |
+| `cannot detect the KAI Scheduler version` | Install KAI Scheduler first. If it is installed, the reason after the colon says what could not be read. |
+| `KAI Scheduler version "<tag>" from the kai-operator image tag is not a version` | Set `versionCheck.kaiSchedulerVersion` to the running version. |
+
+See [KAI Scheduler version check](../../deployments/kai-resource-management-chart/README.md#kai-scheduler-version-check).
+
 ## Node pools
 
 ### Node pool is `Empty` but the nodes look right
@@ -485,6 +505,22 @@ department instead of a hand-made queue. To see who owns the parent:
 ```bash
 kubectl get queue research -o jsonpath='{.metadata.ownerReferences}' | jq
 ```
+
+### A SchedulingShard or node pool is rejected
+
+The `krm-schedulingshard-validation` and `kai-nodepool-validation` webhooks keep every
+`partitionLabelValue` served by exactly one shard. See [What the webhooks
+refuse](../concepts/node-pools.md#what-the-webhooks-refuse).
+
+| Message contains | Fix |
+| --- | --- |
+| `scheduling shard "x" cannot use partitionLabelValue "p": scheduling shard "y" already has it` | Use another `partitionLabelValue`, or delete shard `y` first |
+| `no nodepool "p" exists for it` | Create node pool `p` first, or label the shard `kai/ignore-shard-for-krm=true` when creating it. The label has no effect on the default shard, so there only the node pool helps |
+| `cannot change partitionLabelValue` | Create a new shard instead |
+| `cannot add, change or remove its kai/ignore-shard-for-krm label` | Set the label when creating the shard. Changing it means deleting and recreating the shard |
+| `nodepool "p" cannot be created: ... labelled kai/ignore-shard-for-krm` | That partition belongs to another scheduler; pick another node pool name |
+| `nodepool "p" cannot be created: ... more than one scheduling shard` | Delete the extra shards so one remains |
+| `nodepool "p" cannot use partitionLabelValue "p": scheduling shard "s" already has it, for nodepool "q"` | Node pool `q` owns the shard. If `q` is being deleted, wait for that to finish |
 
 ### A certificate problem after `helm template` or with ArgoCD
 
