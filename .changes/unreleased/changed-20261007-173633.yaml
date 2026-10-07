@@ -1,0 +1,3 @@
+kind: Changed
+body: |-
+  Node pools no longer take over a SchedulingShard they do not own; they report the conflict
