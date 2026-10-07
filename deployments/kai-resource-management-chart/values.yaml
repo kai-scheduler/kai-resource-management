@@ -178,7 +178,9 @@ nodePoolController:
   webhook:
     # Validate NodePools: on create, reject a missing or duplicate label key/value
     # pair; on delete, refuse to remove defaultNodePool.name, the catch-all that
-    # nothing recreates.
+    # nothing recreates. Also validates SchedulingShards and NodePools together, so a
+    # partition is never served by two shards, or by a shard with no NodePool that is
+    # not labelled kai/ignore-shard-for-krm=true.
     nodepool: true
 
 # The krm-operator installs this controller; these values reach it through the KRMConfig.

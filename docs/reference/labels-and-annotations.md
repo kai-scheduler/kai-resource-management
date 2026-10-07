@@ -160,7 +160,7 @@ The only annotations you set yourself, rather than reading.
 
 | Key | Values | R/W | Meaning |
 | --- | --- | --- | --- |
-| `kai/ignore-shard-for-krm` | `true` | Read | Leave this shard's partition to the scheduler serving it today. KRM never writes the shard and never touches nodes in its partition. Ignored on the `default` partition's shard and on a shard a node pool already owns |
+| `kai/ignore-shard-for-krm` | `true` | Read | Leave this shard's partition to the scheduler serving it today. KRM never writes the shard and never touches nodes in its partition. Ignored on the `default` partition's shard and on a shard a node pool already owns. Set it when the shard is created: the SchedulingShard webhook refuses to add, change or remove it later, except on the `default` partition's shard |
 
 See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
 
@@ -206,6 +206,7 @@ Not labels, but the other thing that acts on your objects at create time.
 | `kai-pod-group-mutation` | Mutating | `podgroups` on create | Always on |
 | `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
 | `kai-nodepool-validation` | Validating | `nodepools` on create and delete | `nodePoolController.webhook.nodepool` |
+| `krm-schedulingshard-validation` | Validating | `schedulingshards` on create and update | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
 
 All use `failurePolicy: Fail`, so an unreachable controller means the API server rejects
