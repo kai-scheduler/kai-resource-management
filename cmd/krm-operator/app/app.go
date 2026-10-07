@@ -4,7 +4,7 @@
 package app
 
 import (
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

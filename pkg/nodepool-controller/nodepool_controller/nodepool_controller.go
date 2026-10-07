@@ -9,7 +9,7 @@ import (
 	"time"
 
 	nrtv1alpha2 "github.com/k8stopologyawareschedwg/noderesourcetopology-api/pkg/apis/topology/v1alpha2"
-	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
+	kaiv1 "github.com/kai-scheduler/api/kai/v1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rs/zerolog/log"

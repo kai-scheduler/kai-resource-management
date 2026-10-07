@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	kaicommon "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1/common"
+	kaicommon "github.com/kai-scheduler/api/kai/v1/common"
 	krmv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"

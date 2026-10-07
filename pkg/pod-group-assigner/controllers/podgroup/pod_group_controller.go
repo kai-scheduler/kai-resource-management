@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
-	commonconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
+	commonconstants "github.com/kai-scheduler/api/constants"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/podgroup/assigner"

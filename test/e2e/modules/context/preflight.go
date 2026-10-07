@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

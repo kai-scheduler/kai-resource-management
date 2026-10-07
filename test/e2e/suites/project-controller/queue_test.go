@@ -4,7 +4,7 @@
 package project_controller
 
 import (
-	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

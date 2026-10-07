@@ -12,10 +12,10 @@ import (
 	goctx "context"
 	"fmt"
 
-	kaischedulerv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
 	kaiconstants "github.com/kai-scheduler/api/constants"
+	kaischedulerv1 "github.com/kai-scheduler/api/kai/v1"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"

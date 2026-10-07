@@ -7,8 +7,8 @@ import (
 	"flag"
 	"sync"
 
-	kaiconstants "github.com/kai-scheduler/KAI-scheduler/pkg/common/constants"
-	kaipgconstants "github.com/kai-scheduler/KAI-scheduler/pkg/podgrouper/podgrouper/plugins/constants"
+	kaiconstants "github.com/kai-scheduler/api/constants"
+	kaipgconstants "github.com/kai-scheduler/api/podgrouper/constants"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 )
 
