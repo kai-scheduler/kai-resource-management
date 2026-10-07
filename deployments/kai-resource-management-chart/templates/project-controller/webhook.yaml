@@ -105,8 +105,7 @@ webhooks:
     failurePolicy: Fail
     # Only a queue KRM does not own, gaining a parent, can end up under a KRM queue, so only
     # those writes are sent here; an outage blocks nothing else. The handler applies the same rules.
-    # matchConditions is GA in Kubernetes 1.30. Every field is guarded with has(), because an
-    # evaluation error rejects the write.
+    # Every field is guarded with has(): an evaluation error rejects the write.
     matchConditions:
       - name: has-parent
         expression: "has(object.spec) && has(object.spec.parentQueue) && object.spec.parentQueue != ''"
