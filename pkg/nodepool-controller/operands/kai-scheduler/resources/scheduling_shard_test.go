@@ -5,6 +5,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
@@ -12,6 +13,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -563,7 +565,7 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 	})
 
 	It("resolves a shard whose name differs from the NodePool's and keeps that name", func() {
-		c := fakeIndexersClient(scheme, runningShard("admin-shard", "np-a"))
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("admin-shard", "np-a"), nodePool))
 
 		shard := shardFor(c, nodePool)
 		Expect(shard.Name).To(Equal("admin-shard"))
@@ -598,8 +600,8 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 	})
 
 	It("resolves the default NodePool to the empty partition", func() {
-		defaultNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: config.Get().DefaultNodepoolName}}
-		c := fakeIndexersClient(scheme, runningShard("admin-default", ""), runningShard("np-a", "np-a"))
+		defaultNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: config.Get().DefaultNodepoolName, UID: "default-uid"}}
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("admin-default", ""), defaultNodePool), runningShard("np-a", "np-a"))
 
 		shard := shardFor(c, defaultNodePool)
 		Expect(shard.Name).To(Equal("admin-default"))
@@ -609,19 +611,26 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 		Expect(serviceMonitor.Spec.Selector.MatchLabels).To(HaveKeyWithValue("app", "runai-scheduler-admin-default"))
 	})
 
-	It("refuses to pick a shard when more than one serves the partition", func() {
-		c := fakeIndexersClient(scheme, runningShard("np-a", "np-a"), runningShard("admin-shard", "np-a"))
+	expectUnresolvable := func(c client.Client, np *v1alpha1.NodePool, messageMatchers ...types.GomegaMatcher) {
+		var unresolvable *UnresolvableShardError
 
-		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(MatchError(And(ContainSubstring("admin-shard"), ContainSubstring("np-a"))))
+		obj, err := SchedulingShardForNodePool(ctx, c, np, params, np.Name)
+		Expect(err).To(MatchError(And(messageMatchers...)))
+		Expect(errors.As(err, &unresolvable)).To(BeTrue(), "a conflict, not a failed read")
 		Expect(obj).To(BeNil())
 
-		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(HaveOccurred())
+		status, err := SchedulingShardStatus(ctx, c, np, params, np.Name)
+		Expect(errors.As(err, &unresolvable)).To(BeTrue())
 		Expect(status.Ready).To(BeFalse())
 
-		_, err = ServiceMonitorForNodePool(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(HaveOccurred())
+		_, err = ServiceMonitorForNodePool(ctx, c, np, params, np.Name)
+		Expect(errors.As(err, &unresolvable)).To(BeTrue())
+	}
+
+	It("refuses to pick a shard when more than one serves the partition", func() {
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("np-a", "np-a"), nodePool), runningShard("admin-shard", "np-a"))
+
+		expectUnresolvable(c, nodePool, ContainSubstring("admin-shard"), ContainSubstring("np-a"))
 	})
 
 	It("refuses a shard labelled to be ignored that serves the partition", func() {
@@ -629,16 +638,27 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 		ignored.Labels = map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}
 		c := fakeIndexersClient(scheme, ignored)
 
-		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(MatchError(And(ContainSubstring("admin-shard"), ContainSubstring(unmanaged_shards.IgnoreShardLabelKey))))
-		Expect(obj).To(BeNil())
+		expectUnresolvable(c, nodePool, ContainSubstring("admin-shard"), ContainSubstring(unmanaged_shards.IgnoreShardLabelKey))
+	})
 
-		status, err := SchedulingShardStatus(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(HaveOccurred())
-		Expect(status.Ready).To(BeFalse())
+	It("never adopts an un-owned shard that serves the partition", func() {
+		c := fakeIndexersClient(scheme, runningShard("admin-shard", "np-a"))
 
-		_, err = ServiceMonitorForNodePool(ctx, c, nodePool, params, nodePool.Name)
-		Expect(err).To(HaveOccurred())
+		expectUnresolvable(c, nodePool, ContainSubstring("admin-shard"), ContainSubstring("re-run the KRM upgrade"))
+	})
+
+	It("never adopts the default partition's un-owned shard", func() {
+		defaultNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: config.Get().DefaultNodepoolName, UID: "default-uid"}}
+		c := fakeIndexersClient(scheme, runningShard("admin-default", ""))
+
+		expectUnresolvable(c, defaultNodePool, ContainSubstring("admin-default"), ContainSubstring("re-run the KRM upgrade"))
+	})
+
+	It("refuses a shard on its partition that another NodePool owns", func() {
+		otherNodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-b", UID: "np-b-uid"}}
+		c := fakeIndexersClient(scheme, ownedBy(runningShard("np-b", "np-a"), otherNodePool))
+
+		expectUnresolvable(c, nodePool, ContainSubstring(`shard np-b, owned by node pool np-b`))
 	})
 
 	It("resolves a shard labelled to be ignored that it already owns", func() {
@@ -671,6 +691,8 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 
 			obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
 			Expect(err).To(MatchError(And(ContainSubstring(`"gpu-a100"`), ContainSubstring("np-a"))))
+			var unresolvable *UnresolvableShardError
+			Expect(errors.As(err, &unresolvable)).To(BeTrue())
 			Expect(obj).To(BeNil())
 		}
 	})
