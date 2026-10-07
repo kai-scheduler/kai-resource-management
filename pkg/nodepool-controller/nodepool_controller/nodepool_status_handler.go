@@ -6,6 +6,7 @@ package nodepool_controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
@@ -61,6 +63,10 @@ func (npc *NodePoolController) calculateNodePoolStatus(ctx context.Context,
 		log.Error().Msgf("Failed getting scheduler status for nodepool <%v>, err: %v", nodePool.Name, err)
 		nodePool.Status.Phase = v1alpha1.NodePoolUnschedulable
 		nodePool.Status.Message = common.SchedulerNotReadyMessage
+		var unresolvable *resources.UnresolvableShardError
+		if errors.As(err, &unresolvable) {
+			nodePool.Status.Message = fmt.Sprintf("%v, reason: %v", common.SchedulerNotReadyMessage, unresolvable)
+		}
 		npc.getNodesStatusForNodePool(nodePool, nodePoolNodes)
 		return nil
 	}
