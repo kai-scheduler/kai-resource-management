@@ -31,7 +31,7 @@ const (
 
 	// QueueWebhookPath is the path the validating handler is served on for KAI
 	// Queues. Served only when queues outside KRM are allowed, since only then can
-	// one be grafted onto a KRM queue tree.
+	// one be placed under a KRM queue.
 	QueueWebhookPath = "/validate-queue"
 
 	projectKind    = "Project"

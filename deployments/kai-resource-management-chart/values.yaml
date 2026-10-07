@@ -217,9 +217,6 @@ projectController:
   webhook:
     project: true
     department: true
-    # Only with commonArgs.allowExternalQueues: reject a Queue that no Project or Department
-    # owns when its parentQueue is one that does. Setting false removes just this check;
-    queue: true
 
 # The krm-operator installs this service; these values reach it through the KRMConfig.
 # Its RBAC and admission webhooks are still rendered by this chart.

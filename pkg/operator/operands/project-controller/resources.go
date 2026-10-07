@@ -47,7 +47,7 @@ func (p *ProjectController) deploymentForKRMConfig(
 
 	container := &deployment.Spec.Template.Spec.Containers[0]
 	container.Args = buildArgsList(krmConfig)
-	container.Ports = containerPorts(s)
+	container.Ports = containerPorts(krmConfig)
 
 	if webhooksEnabled(krmConfig) {
 		container.VolumeMounts = []corev1.VolumeMount{

@@ -253,17 +253,8 @@ Everything else is accepted: a root queue, a queue under one of your own queues,
 KRM's own queues. Only a change of parent is checked, so a queue that was already under a
 KRM queue before you turned this on can still be edited and deleted.
 
-The check is the `kai-queue-tree-validation` webhook. To remove only the webhook, without
-changing which queues KRM takes over, set:
-
-```yaml
-projectController:
-  webhook:
-    queue: false
-```
-
-Turning `allowExternalQueues` off has the same effect on the webhook, but it also makes
-KRM take over your queues, as described above.
+The check is the `kai-queue-tree-validation` webhook, and it exists only while
+`allowExternalQueues` is on.
 
 ## Next
 

@@ -152,8 +152,8 @@ func createDepartmentReconciler(mgr manager.Manager) {
 // admission requests to it is provisioned separately by the deployment's helm
 // chart. When no resource is enabled, no webhook server is added so deployments
 // without serving certificates are unaffected. Queues are validated whenever
-// external queues are allowed, the only setup in which one can be grafted onto a
-// KRM queue tree.
+// external queues are allowed, the only setup in which a queue KRM does not own
+// can be placed under one of KRM's queues.
 func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcilerConfig) {
 	if !cfg.EnableProjectValidationWebhook && !cfg.EnableDepartmentValidationWebhook && !cfg.AllowExternalQueues {
 		setupLog.Info("validation webhooks are disabled, skipping webhook server registration")

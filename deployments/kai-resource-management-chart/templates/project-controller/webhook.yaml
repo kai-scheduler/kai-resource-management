@@ -83,12 +83,11 @@ webhooks:
         scope: Cluster
   {{- end }}
 {{- end }}
-{{- if and $externalQueues $webhook.queue }}
+{{- if $externalQueues }}
 ---
-# A configuration of its own rather than a third entry above: it validates KAI's Queues, not
-# our own resources, so it can be dropped on its own - webhook.queue=false - without touching
-# allowExternalQueues, which also decides whether KRM adopts Queues it does not own. It sits
-# beside KAI's own Queue webhook; both are called and either can reject.
+# Its own configuration, not a third entry above: it validates KAI's Queues and follows
+# allowExternalQueues, not the project and department toggles. It sits beside KAI's own Queue
+# webhook; both are called and either can reject.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -104,13 +103,10 @@ webhooks:
     admissionReviewVersions: ["v1"]
     sideEffects: None
     failurePolicy: Fail
-    # Every Queue write in the cluster matches the rule below, KAI's own included, and admin
-    # queues carry no label an objectSelector could match. These conditions send only the
-    # writes that can graft a queue onto a KRM tree - a queue KRM does not own, gaining a
-    # parent - so a project-controller outage blocks those and nothing else. The handler
-    # applies the same rules, and stays the authority where matchConditions is unsupported.
-    # Every field is guarded with has(): an evaluation error counts as a failed call, which
-    # under failurePolicy Fail rejects the write.
+    # Only a queue KRM does not own, gaining a parent, can end up under a KRM queue, so only
+    # those writes are sent here; an outage blocks nothing else. The handler applies the same rules.
+    # matchConditions is GA in Kubernetes 1.30. Every field is guarded with has(), because an
+    # evaluation error rejects the write.
     matchConditions:
       - name: has-parent
         expression: "has(object.spec) && has(object.spec.parentQueue) && object.spec.parentQueue != ''"
@@ -134,7 +130,7 @@ webhooks:
         path: /validate-queue
         port: {{ $webhookPort }}
     rules:
-      # No DELETE, as for Projects: removing a queue cannot graft one.
+      # No DELETE, as for Projects: removing a queue cannot place one under a KRM queue.
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["scheduling.run.ai"]
         apiVersions: ["v2"]

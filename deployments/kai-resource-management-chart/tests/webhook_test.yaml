@@ -280,20 +280,6 @@ tests:
       - equal: {path: spec.global.allowExternalQueues, value: true}
         template: templates/krm-config.yaml
 
-  - it: drops only the Queue webhook when it is turned off
-    set:
-      commonArgs.allowExternalQueues: true
-      projectController.webhook.queue: false
-    asserts:
-      - hasDocuments: {count: 2}
-        template: templates/project-controller/webhook.yaml
-      - equal: {path: metadata.name, value: kai-project-validation}
-        template: templates/project-controller/webhook.yaml
-        documentIndex: 1
-      # The off-switch must not touch the setting that decides adoption.
-      - equal: {path: spec.global.allowExternalQueues, value: true}
-        template: templates/krm-config.yaml
-
   - it: defers the Queue webhook's CA to OpenShift too
     set:
       openshift: true
