@@ -1,0 +1,3 @@
+kind: Changed
+body: |-
+  Keep SchedulingShard fields and args a node pool doesn't set instead of overwriting them

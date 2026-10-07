@@ -7,12 +7,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	usagedbapi "github.com/kai-scheduler/KAI-scheduler/pkg/scheduler/cache/usagedb/api"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -21,6 +24,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/utils"
 )
 
 var _ = Describe("getTimeBasedFairShareFields", func() {
@@ -673,5 +677,141 @@ var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", fu
 			Expect(err).To(MatchError(And(ContainSubstring(`"gpu-a100"`), ContainSubstring("np-a"))))
 			Expect(obj).To(BeNil())
 		}
+	})
+})
+
+var _ = Describe("Merging a NodePool into its existing SchedulingShard", func() {
+	var (
+		ctx      context.Context
+		c        client.Client
+		params   *common.NodePoolControllerParams
+		nodePool *v1alpha1.NodePool
+	)
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		scheme := runtime.NewScheme()
+		Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
+		c = fakeIndexersClient(scheme)
+		params = &common.NodePoolControllerParams{}
+		nodePool = &v1alpha1.NodePool{
+			ObjectMeta: metav1.ObjectMeta{Name: "np-a", UID: "np-a-uid"},
+			Spec: v1alpha1.NodePoolSpec{SchedulingShardConfig: &v1alpha1.SchedulingShardConfig{
+				Args:              map[string]string{"v": "4"},
+				PlacementStrategy: &kaiv1.PlacementStrategy{GPU: ptr.To("spread")},
+				Actions:           map[string]kaiv1.ActionConfig{"reclaim": {Enabled: ptr.To(false)}},
+			}},
+		}
+	})
+
+	reconcile := func() *kaiv1.SchedulingShard {
+		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(utils.CreateOrUpdateIfNeeded(c, ctx, logr.Discard(), obj)).To(Succeed())
+
+		shard := &kaiv1.SchedulingShard{}
+		Expect(c.Get(ctx, client.ObjectKey{Name: nodePool.Name}, shard)).To(Succeed())
+		return shard
+	}
+
+	editShard := func(edit func(*kaiv1.SchedulingShard)) {
+		shard := &kaiv1.SchedulingShard{}
+		Expect(c.Get(ctx, client.ObjectKey{Name: nodePool.Name}, shard)).To(Succeed())
+		edit(shard)
+		Expect(c.Update(ctx, shard)).To(Succeed())
+	}
+
+	It("keeps the fields a NodePool does not model across reconciles that rewrite the shard", func() {
+		reconcile()
+		budgets := &kaiv1.ScenarioSearchBudgets{MaxJobSearchDuration: &metav1.Duration{Duration: 5 * time.Second}}
+		editShard(func(shard *kaiv1.SchedulingShard) {
+			shard.Spec.ScenarioSearchBudgets = budgets
+			shard.Spec.GoMemLimitRatio = ptr.To(0.8)
+			shard.Spec.GoMemLimit = ptr.To(resource.MustParse("2Gi"))
+		})
+
+		for _, v := range []string{"5", "6"} {
+			nodePool.Spec.SchedulingShardConfig.Args["v"] = v
+			shard := reconcile()
+
+			Expect(shard.Spec.Args).To(HaveKeyWithValue("v", v), "the shard is rewritten on every round")
+			Expect(shard.Spec.ScenarioSearchBudgets).To(Equal(budgets))
+			Expect(shard.Spec.GoMemLimitRatio).To(HaveValue(Equal(0.8)))
+			Expect(shard.Spec.GoMemLimit.String()).To(Equal("2Gi"))
+		}
+	})
+
+	It("keeps an arg set by hand and restores one the controller owns", func() {
+		reconcile()
+		editShard(func(shard *kaiv1.SchedulingShard) {
+			shard.Spec.Args["set-by-hand"] = "true"
+			shard.Spec.Args[schedulingshardargs.CPUWorkerNodeLabelKey] = "edited-by-hand"
+		})
+
+		for range 2 {
+			shard := reconcile()
+
+			Expect(shard.Spec.Args).To(HaveKeyWithValue("set-by-hand", "true"))
+			Expect(shard.Spec.Args).To(HaveKeyWithValue(schedulingshardargs.CPUWorkerNodeLabelKey, runaiCPUWorkerNodeLabelKey))
+		}
+	})
+
+	It("removes an arg dropped from the NodePool but not one set by hand", func() {
+		reconcile()
+		editShard(func(shard *kaiv1.SchedulingShard) { shard.Spec.Args["set-by-hand"] = "true" })
+
+		delete(nodePool.Spec.SchedulingShardConfig.Args, "v")
+		shard := reconcile()
+
+		Expect(shard.Spec.Args).NotTo(HaveKey("v"))
+		Expect(shard.Spec.Args).To(HaveKeyWithValue("set-by-hand", "true"))
+	})
+
+	It("takes over an arg set by hand once the NodePool sets the same key", func() {
+		reconcile()
+		editShard(func(shard *kaiv1.SchedulingShard) { shard.Spec.Args["verbosity"] = "set-by-hand" })
+
+		nodePool.Spec.SchedulingShardConfig.Args["verbosity"] = "from-node-pool"
+		Expect(reconcile().Spec.Args).To(HaveKeyWithValue("verbosity", "from-node-pool"))
+
+		delete(nodePool.Spec.SchedulingShardConfig.Args, "verbosity")
+		Expect(reconcile().Spec.Args).NotTo(HaveKey("verbosity"))
+	})
+
+	It("treats every arg on a shard it has not annotated yet as its own", func() {
+		Expect(c.Create(ctx, &kaiv1.SchedulingShard{
+			ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name},
+			Spec: kaiv1.SchedulingShardSpec{
+				PartitionLabelValue: nodePool.Name,
+				Args:                map[string]string{"v": "4", "stale": "true"},
+			},
+		})).To(Succeed())
+
+		shard := reconcile()
+
+		Expect(shard.Spec.Args).To(Equal(buildShardArgs(nodePool.Spec.SchedulingShardConfig, params)))
+		Expect(shard.Annotations).To(HaveKey(managedShardArgsAnnotation))
+	})
+
+	It("writes every field the NodePool models, clearing those it no longer sets", func() {
+		shard := reconcile()
+		Expect(shard.Spec.PlacementStrategy.GPU).To(HaveValue(Equal("spread")))
+		Expect(shard.Spec.Actions).To(HaveKey("reclaim"))
+
+		editShard(func(shard *kaiv1.SchedulingShard) {
+			shard.Spec.QueueDepthPerAction = map[string]int{"allocate": 10}
+		})
+		nodePool.Spec.SchedulingShardConfig.PlacementStrategy = nil
+		nodePool.Spec.SchedulingShardConfig.Actions = nil
+		shard = reconcile()
+
+		Expect(shard.Spec.PlacementStrategy).To(BeNil())
+		Expect(shard.Spec.Actions).To(BeEmpty())
+		Expect(shard.Spec.QueueDepthPerAction).To(BeEmpty(), "the NodePool models queueDepthPerAction, so it wins")
+	})
+
+	It("records the args it manages on a new shard", func() {
+		Expect(reconcile().Annotations).To(HaveKeyWithValue(managedShardArgsAnnotation,
+			"cpu-worker-node-label-key,gpu-worker-node-label-key,mig-worker-node-label-key,v"))
 	})
 })

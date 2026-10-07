@@ -10,6 +10,7 @@ import (
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -148,22 +149,24 @@ var _ = Describe("KAI Scheduler Operand", Ordered, func() {
 		})
 
 		Context("SchedulingShard", func() {
-			It("should reconcile a modified scheduling shard", func() {
+			It("keeps an arg set by hand on the shard and restores a controller-owned one", func() {
 				shard, err := resources.SchedulingShardForNodePool(ctx,
 					fakeClient, nodePool, nodePoolControllerParams, nodePool.Name)
 				Expect(err).NotTo(HaveOccurred())
 
-				shard.(*kaiv1.SchedulingShard).Spec.Args["v"] = "6"
+				args := shard.(*kaiv1.SchedulingShard).Spec.Args
+				args["v"] = "6"
+				args[schedulingshardargs.CPUWorkerNodeLabelKey] = "edited-by-hand"
 
 				EventuallyUpdateResource(fakeClient, shard)
 
 				reconcileAllNodePools(ctx, testCase.NodePools, npc, nil)
 
-				Eventually(func() bool {
-					ExpectGetResource(fakeClient, shard)
-					args := shard.(*kaiv1.SchedulingShard).Spec.Args
-					return args["v"] == "6"
-				}, validateTestTimeout, validateTestInterval).Should(BeFalse())
+				ExpectGetResource(fakeClient, shard)
+				Expect(shard.(*kaiv1.SchedulingShard).Spec.Args).To(SatisfyAll(
+					HaveKeyWithValue("v", "6"),
+					HaveKeyWithValue(schedulingshardargs.CPUWorkerNodeLabelKey, config.Get().CPUWorkerNodeLabelKey),
+				))
 			})
 		})
 

@@ -156,11 +156,12 @@ The only annotations you set yourself, rather than reading.
 | --- | --- | --- | --- |
 | `kai/force-delete` | `true` | Read | Skip deletion blockers and delete anyway. Anything left behind is yours to clean up |
 
-## SchedulingShard labels
+## SchedulingShard labels and annotations
 
 | Key | Values | R/W | Meaning |
 | --- | --- | --- | --- |
 | `kai/ignore-shard-for-krm` | `true` | Read | Leave this shard's partition to the scheduler serving it today. KRM never writes the shard and never touches nodes in its partition. Ignored on the `default` partition's shard and on a shard a node pool already owns. Set it when the shard is created: the SchedulingShard webhook refuses to add, change or remove it later, except on the `default` partition's shard |
+| `kai.resources/managed-shard-args` | comma-separated arg keys | Written | Annotation listing the `args` keys KRM wrote. KRM removes a listed key once its node pool stops setting it, and leaves every unlisted key — args you added by hand — alone. A shard without it gets it on its next update; until then KRM treats every arg as its own |
 
 See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
 

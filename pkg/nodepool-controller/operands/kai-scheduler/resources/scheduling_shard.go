@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -34,6 +36,8 @@ const (
 	defaultTimeBasedFairShareDecayHalfLife         = 0 * time.Second
 	defaultTimeBasedFairShareWindowDuration        = 7 * 24 * time.Hour
 	defaultTimeBasedFairShareWindowType            = usagedbapi.SlidingWindow
+
+	managedShardArgsAnnotation = "kai.resources/managed-shard-args"
 )
 
 func SchedulerBaseOperandName() string { return config.Get().SchedulerName }
@@ -57,18 +61,35 @@ func SchedulingShardForNodePool(
 	}
 	shard.Labels["app"] = SchedulerBaseOperandName()
 	cfg := nodePool.Spec.SchedulingShardConfig
-	shard.Spec = kaiv1.SchedulingShardSpec{
-		Args:                buildShardArgs(cfg, params),
-		PlacementStrategy:   getPlacementStrategy(cfg),
-		PartitionLabelValue: PartitionLabelValueForNodePool(nodePool.Name),
-		QueueDepthPerAction: getQueueDepthPerAction(cfg),
-		MinRuntime:          getMinRuntime(cfg),
-		KValue:              getKValue(nodePool),
-		UsageDBConfig:       getTimeBasedFairShareFields(nodePool),
-		Plugins:             getPlugins(cfg),
-		Actions:             getActions(cfg),
-	}
+	shard.Spec.Args = mergeShardArgs(shard, buildShardArgs(cfg, params))
+	shard.Spec.PlacementStrategy = getPlacementStrategy(cfg)
+	shard.Spec.PartitionLabelValue = PartitionLabelValueForNodePool(nodePool.Name)
+	shard.Spec.QueueDepthPerAction = getQueueDepthPerAction(cfg)
+	shard.Spec.MinRuntime = getMinRuntime(cfg)
+	shard.Spec.KValue = getKValue(nodePool)
+	shard.Spec.UsageDBConfig = getTimeBasedFairShareFields(nodePool)
+	shard.Spec.Plugins = getPlugins(cfg)
+	shard.Spec.Actions = getActions(cfg)
 	return shard, nil
+}
+
+func mergeShardArgs(shard *kaiv1.SchedulingShard, desired map[string]string) map[string]string {
+	args := map[string]string{}
+	if managed, isTracked := shard.Annotations[managedShardArgsAnnotation]; isTracked {
+		previouslyManaged := sets.New(strings.Split(managed, ",")...)
+		for key, value := range shard.Spec.Args {
+			if !previouslyManaged.Has(key) {
+				args[key] = value
+			}
+		}
+	}
+	maps.Copy(args, desired)
+
+	if shard.Annotations == nil {
+		shard.Annotations = map[string]string{}
+	}
+	shard.Annotations[managedShardArgsAnnotation] = strings.Join(slices.Sorted(maps.Keys(desired)), ",")
+	return args
 }
 
 func ResolveShardForNodePool(

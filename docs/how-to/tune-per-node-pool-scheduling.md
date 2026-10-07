@@ -13,9 +13,10 @@ after the node pool. That is what makes these settings a per-pool choice rather 
 cluster-wide one: an inference pool can spread for latency while a training pool packs for
 throughput, in the same cluster.
 
-You configure the shard through the node pool's `schedulingShardConfig`. You never edit
-the `SchedulingShard` itself — it is derived, and your edits are overwritten on the next
-reconcile.
+You configure the shard through the node pool's `schedulingShardConfig`. Every field the
+node pool sets is rewritten on each reconcile, so editing those on the `SchedulingShard`
+itself does not last. Fields the node pool does not model, such as `scenarioSearchBudgets`,
+and args you add to the shard by hand are kept.
 
 ```yaml
 apiVersion: kai.resources/v1alpha1
