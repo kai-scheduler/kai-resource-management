@@ -501,6 +501,23 @@ kubectl get validatingwebhookconfiguration,mutatingwebhookconfiguration | grep k
 failure. Turn the webhook off through its chart value instead, which removes the
 configuration and tells the controller to stop serving it, in step.
 
+### A queue is rejected as a child of a KRM queue
+
+```text
+queue "team-x" cannot use "research" as its parent queue: "research" is managed by
+KAI Resource Management (Department "research") ...
+```
+
+With `commonArgs.allowExternalQueues` on, a queue that no project or department owns
+cannot be placed under one that does, because KRM manages only its own two-level tree. See
+[keeping the two kinds of tree apart](../concepts/queues-and-quota.md#keeping-the-two-kinds-of-tree-apart).
+Either pick a parent KRM does not manage, or model the workload as a project under that
+department instead of a hand-made queue. To see who owns the parent:
+
+```bash
+kubectl get queue research -o jsonpath='{.metadata.ownerReferences}' | jq
+```
+
 ### A SchedulingShard or node pool is rejected
 
 The `krm-schedulingshard-validation` and `kai-nodepool-validation` webhooks keep every

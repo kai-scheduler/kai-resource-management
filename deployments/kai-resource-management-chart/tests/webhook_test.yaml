@@ -241,6 +241,91 @@ tests:
           value: false
         template: templates/krm-config.yaml
 
+  # Without allowExternalQueues KRM takes every Queue to be its own, so there is no foreign
+  # tree to keep apart, and Queue writes must not depend on project-controller being up.
+  - it: leaves Queues alone unless external queues are allowed
+    asserts:
+      - hasDocuments: {count: 2}
+        template: templates/project-controller/webhook.yaml
+      - equal: {path: metadata.name, value: kai-project-validation}
+        template: templates/project-controller/webhook.yaml
+        documentIndex: 1
+
+  - it: validates Queues once external queues are allowed
+    set:
+      commonArgs.allowExternalQueues: true
+    asserts:
+      - hasDocuments: {count: 3}
+        template: templates/project-controller/webhook.yaml
+      - equal: {path: "webhooks[0].clientConfig.service.path", value: /validate-queue}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      - equal: {path: "webhooks[0].clientConfig.service.name", value: project-controller}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      # Same Secret as the project and department webhooks, so the same helper invocation.
+      - matchRegex:
+          path: webhooks[0].clientConfig.caBundle
+          pattern: ^LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      - equal: {path: "webhooks[0].failurePolicy", value: Fail}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      - equal:
+          path: webhooks[0].rules
+          value:
+            - operations: ["CREATE", "UPDATE"]
+              apiGroups: ["scheduling.run.ai"]
+              apiVersions: ["v2"]
+              resources: ["queues"]
+              scope: Cluster
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      # Losing a condition sends every Queue write in the cluster through project-controller.
+      - lengthEqual: {path: "webhooks[0].matchConditions", count: 3}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      - equal: {path: "webhooks[0].matchConditions[2].name", value: parent-changed}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+
+  - it: serves the Queue webhook and its cert with both toggled webhooks off
+    # The operator mounts the Secret when external queues are allowed, reading the same
+    # value from the KRMConfig, so the chart must still mint it.
+    set:
+      commonArgs.allowExternalQueues: true
+      projectController.webhook.project: false
+      projectController.webhook.department: false
+    asserts:
+      - hasDocuments: {count: 2}
+        template: templates/project-controller/webhook.yaml
+      - isKind: {of: Secret}
+        template: templates/project-controller/webhook.yaml
+        documentIndex: 0
+      # No kai-project-validation with an empty webhooks list.
+      - equal: {path: metadata.name, value: kai-queue-tree-validation}
+        template: templates/project-controller/webhook.yaml
+        documentIndex: 1
+      - equal: {path: spec.global.allowExternalQueues, value: true}
+        template: templates/krm-config.yaml
+
+  - it: defers the Queue webhook's CA to OpenShift too
+    set:
+      openshift: true
+      commonArgs.allowExternalQueues: true
+    asserts:
+      - hasDocuments: {count: 2}
+        template: templates/project-controller/webhook.yaml
+      - equal:
+          path: metadata.annotations["service.beta.openshift.io/inject-cabundle"]
+          value: "true"
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+      - notExists: {path: "webhooks[0].clientConfig.caBundle"}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+
   - it: defers to the OpenShift service-CA instead of minting its own cert
     set:
       openshift: true

@@ -16,6 +16,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -187,6 +188,21 @@ func IsProjectOwner(project *kaiv1alpha1.Project, obj client.Object) int {
 		}
 	}
 	return -1
+}
+
+// ProjectOrDepartmentOwner returns the Project or Department that owns obj. The kind alone is
+// not enough: another API group may define a Project of its own.
+func ProjectOrDepartmentOwner(obj metav1.Object) (metav1.OwnerReference, bool) {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.Kind != ProjectKind && ref.Kind != DepartmentKind {
+			continue
+		}
+		groupVersion, err := schema.ParseGroupVersion(ref.APIVersion)
+		if err == nil && groupVersion.Group == kaiv1alpha1.GroupVersion.Group {
+			return ref, true
+		}
+	}
+	return metav1.OwnerReference{}, false
 }
 
 // IsForceDelete reports whether the object requests force deletion via the

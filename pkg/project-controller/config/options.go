@@ -68,7 +68,8 @@ func parseCommandLineArgs(flagSet *flag.FlagSet, options []string, opts *Options
 	flagSet.StringVar(&config.ResourceManualOverrideLabelKey, "resource-manual-override-label-key", defaultResourceManualOverrideLabelKey,
 		"Label key that, when set to 'true' on a managed resource, marks it as manually overridden so project-controller will not create, update, or delete it")
 	flagSet.BoolVar(&config.AllowExternalQueues, "allow-external-queues", false,
-		"Allow Queues that no Project or Department owns; project-controller never adopts, updates, or deletes them")
+		"Allow Queues that no Project or Department owns; project-controller never adopts, updates, or deletes them,"+
+			" and serves a validating webhook that keeps them from being parented under its own Queues")
 	flagSet.BoolVar(&config.EnableProjectValidationWebhook, "enable-project-validation-webhook", defaultEnableProjectValidationWebhook,
 		"Register the validating admission webhook handler for Project resources")
 	flagSet.BoolVar(&config.EnableDepartmentValidationWebhook, "enable-department-validation-webhook", defaultEnableDepartmentValidationWebhook,

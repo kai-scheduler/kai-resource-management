@@ -47,9 +47,9 @@ func (p *ProjectController) deploymentForKRMConfig(
 
 	container := &deployment.Spec.Template.Spec.Containers[0]
 	container.Args = buildArgsList(krmConfig)
-	container.Ports = containerPorts(config)
+	container.Ports = containerPorts(krmConfig)
 
-	if webhooksEnabled(config.Webhooks) {
+	if webhooksEnabled(krmConfig) {
 		container.VolumeMounts = []corev1.VolumeMount{
 			{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true},
 		}
@@ -78,7 +78,7 @@ func (p *ProjectController) serviceForKRMConfig(
 	config := krmConfig.Spec.ProjectController
 
 	service, err := common.ServiceForKRMConfig(
-		ctx, runtimeClient, krmConfig, p.BaseResourceName, servicePorts(config))
+		ctx, runtimeClient, krmConfig, p.BaseResourceName, servicePorts(krmConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (p *ProjectController) serviceForKRMConfig(
 	// On OpenShift the platform mints the serving certificate, and this annotation
 	// is the only thing that asks it to. Without it the Secret the Deployment mounts
 	// is never created and the pod never starts.
-	if webhooksEnabled(config.Webhooks) && ptr.Deref(krmConfig.Spec.Global.Openshift, false) {
+	if webhooksEnabled(krmConfig) && ptr.Deref(krmConfig.Spec.Global.Openshift, false) {
 		annotations := service.GetAnnotations()
 		if annotations == nil {
 			annotations = map[string]string{}
@@ -116,7 +116,8 @@ func (p *ProjectController) serviceMonitorForKRMConfig(
 }
 
 // The container listens on the target ports; the Service publishes the others.
-func containerPorts(config *krmv1alpha1.ProjectController) []corev1.ContainerPort {
+func containerPorts(krmConfig *krmv1alpha1.KRMConfig) []corev1.ContainerPort {
+	config := krmConfig.Spec.ProjectController
 	ports := []corev1.ContainerPort{
 		{
 			Name:          *config.ControllerService.Metrics.Name,
@@ -124,7 +125,7 @@ func containerPorts(config *krmv1alpha1.ProjectController) []corev1.ContainerPor
 		},
 	}
 
-	if webhooksEnabled(config.Webhooks) {
+	if webhooksEnabled(krmConfig) {
 		ports = append(ports, corev1.ContainerPort{
 			Name:          *config.ControllerService.Webhook.Name,
 			ContainerPort: *config.ControllerService.Webhook.TargetPort,
@@ -134,7 +135,8 @@ func containerPorts(config *krmv1alpha1.ProjectController) []corev1.ContainerPor
 	return ports
 }
 
-func servicePorts(config *krmv1alpha1.ProjectController) []corev1.ServicePort {
+func servicePorts(krmConfig *krmv1alpha1.KRMConfig) []corev1.ServicePort {
+	config := krmConfig.Spec.ProjectController
 	metrics := config.ControllerService.Metrics
 	ports := []corev1.ServicePort{
 		{
@@ -145,7 +147,7 @@ func servicePorts(config *krmv1alpha1.ProjectController) []corev1.ServicePort {
 		},
 	}
 
-	if webhooksEnabled(config.Webhooks) {
+	if webhooksEnabled(krmConfig) {
 		webhook := config.ControllerService.Webhook
 		ports = append(ports, corev1.ServicePort{
 			Name:       *webhook.Name,
@@ -158,11 +160,15 @@ func servicePorts(config *krmv1alpha1.ProjectController) []corev1.ServicePort {
 	return ports
 }
 
-// The certificate covers both webhooks, so it is wanted whenever either is on,
-// matching the binary, which starts no TLS server when both are off.
-func webhooksEnabled(webhooks *krmv1alpha1.ProjectControllerWebhooks) bool {
+// The certificate covers every webhook, so it is wanted whenever any is on,
+// matching the binary, which starts no TLS server when all are off. The Queue
+// webhook has no toggle of its own here: the binary serves it whenever external
+// queues are allowed.
+func webhooksEnabled(krmConfig *krmv1alpha1.KRMConfig) bool {
+	webhooks := krmConfig.Spec.ProjectController.Webhooks
 	return ptr.Deref(webhooks.EnableProjectValidation, true) ||
-		ptr.Deref(webhooks.EnableDepartmentValidation, true)
+		ptr.Deref(webhooks.EnableDepartmentValidation, true) ||
+		ptr.Deref(krmConfig.Spec.Global.AllowExternalQueues, false)
 }
 
 // A flag left out entirely is what lets the binary's own default apply, so an
@@ -188,7 +194,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 			strconv.FormatBool(ptr.Deref(config.Webhooks.EnableDepartmentValidation, true)),
 	}
 
-	if webhooksEnabled(config.Webhooks) {
+	if webhooksEnabled(krmConfig) {
 		args = append(args, "--webhook-port", strconv.Itoa(int(*config.ControllerService.Webhook.TargetPort)))
 	}
 
