@@ -205,7 +205,7 @@ The node pool recovers on its own, within about 30 seconds, once the conflict is
 | Message contains | Fix |
 | --- | --- |
 | `which KRM did not create` | Re-run the KRM upgrade so it takes the shard over, or delete the shard so the node pool creates its own |
-| `owned by node pool q` | Node pool `q` owns the shard. If `q` is being deleted, wait for that to finish; otherwise delete it |
+| `owned by node pool` | The node pool the message names owns the shard. If it is being deleted, wait for that to finish; otherwise delete it |
 | `more than one scheduling shard` | Delete the extra shards so one remains |
 | `labelled kai/ignore-shard-for-krm` | That partition belongs to another scheduler; delete this node pool |
 
