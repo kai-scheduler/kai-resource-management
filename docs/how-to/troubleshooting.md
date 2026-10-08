@@ -197,6 +197,18 @@ kubectl get nodes -l kai.scheduler/unschedulable
 A node carrying `kai.scheduler/unschedulable` was cordoned by KRM to drain it before a
 move. It clears itself once the old node pool's workloads finish.
 
+If the message starts `Scheduler is not ready, reason:` and names a scheduling shard, the
+node pool's partition is served by a shard it does not own, and KRM leaves that shard alone.
+See [Each node pool gets its own scheduler](../concepts/node-pools.md#each-node-pool-gets-its-own-scheduler).
+The node pool recovers on its own, within about 30 seconds, once the conflict is resolved:
+
+| Message contains | Fix |
+| --- | --- |
+| `which KRM did not create` | Re-run the KRM upgrade so it takes the shard over, or delete the shard so the node pool creates its own |
+| `owned by node pool` | The node pool the message names owns the shard. If it is being deleted, wait for that to finish; otherwise delete it |
+| `more than one scheduling shard` | Delete the extra shards so one remains |
+| `labelled kai/ignore-shard-for-krm` | That partition belongs to another scheduler; delete this node pool |
+
 ### Node pool is `MissingPrerequisites`
 
 A scheduling feature you enabled cannot be honoured on some nodes — in practice, NUMA. The

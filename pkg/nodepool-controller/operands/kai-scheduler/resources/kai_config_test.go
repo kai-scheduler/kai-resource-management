@@ -183,7 +183,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
 
 			params := &common.NodePoolControllerParams{}
-			nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-existing"}}
+			nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "np-existing", UID: types.UID("nodepool-uid")}}
 
 			expectedObject, err := SchedulingShardForNodePool(
 				context.Background(), fakeIndexersClient(scheme), nodePool, params, nodePool.Name)
@@ -197,12 +197,9 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 					Labels:          map[string]string{"app": "stale-scheduler", "external-label": "preserve"},
 					Annotations:     map[string]string{"external-annotation": "preserve"},
 					Finalizers:      []string{"external.example/finalizer"},
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: "run.ai/v1alpha1",
-						Kind:       "NodePool",
-						Name:       nodePool.Name,
-						UID:        types.UID("nodepool-uid"),
-					}},
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(nodePool, v1alpha1.GroupVersion.WithKind("NodePool")),
+					},
 				},
 				Spec: kaiv1.SchedulingShardSpec{
 					PartitionLabelValue: nodePool.Name,

@@ -38,11 +38,23 @@ const (
 
 func SchedulerBaseOperandName() string { return config.Get().SchedulerName }
 
+// UnresolvableShardError means the partition's shard is not one this NodePool may write. Unlike
+// a failed read, retrying does not help until an admin resolves the conflict.
+type UnresolvableShardError struct {
+	message string
+}
+
+func (e *UnresolvableShardError) Error() string { return e.message }
+
+func unresolvableShardErrorf(format string, args ...any) error {
+	return &UnresolvableShardError{message: fmt.Sprintf(format, args...)}
+}
+
 func SchedulingShardForNodePool(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 	params *common.NodePoolControllerParams, _ string,
 ) (client.Object, error) {
-	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := resolveOwnedShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +98,7 @@ func ResolveShardForNodePool(
 	case 1:
 		shard := &shards[0]
 		if unmanaged_shards.IsUnmanaged(shard) {
-			return nil, fmt.Errorf("partitionLabelValue %q of node pool %s is served by scheduling shard %s, labelled %s",
+			return nil, unresolvableShardErrorf("partitionLabelValue %q of node pool %s is served by scheduling shard %s, labelled %s",
 				partitionLabelValue, nodePool.Name, shard.Name, unmanaged_shards.IgnoreShardLabelKey)
 		}
 		return shard, nil
@@ -96,9 +108,32 @@ func ResolveShardForNodePool(
 			names = append(names, shard.Name)
 		}
 		slices.Sort(names)
-		return nil, fmt.Errorf("partitionLabelValue %q of node pool %s is served by more than one scheduling shard %v",
+		return nil, unresolvableShardErrorf("partitionLabelValue %q of node pool %s is served by more than one scheduling shard %v",
 			partitionLabelValue, nodePool.Name, names)
 	}
+}
+
+// resolveOwnedShardForNodePool narrows ResolveShardForNodePool to the shard this NodePool controls.
+// The NodePool webhook admits an un-owned shard so the migration hook can adopt it; the
+// controller never does, since a second adoption path would race the hook for the same shard.
+func resolveOwnedShardForNodePool(
+	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
+) (*kaiv1.SchedulingShard, error) {
+	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
+	if err != nil || shard == nil || metav1.IsControlledBy(shard, nodePool) {
+		return shard, err
+	}
+	partitionLabelValue := PartitionLabelValueForNodePool(nodePool.Name)
+	if owner := unmanaged_shards.OwningNodePoolName(shard); owner != "" {
+		return nil, unresolvableShardErrorf(
+			"partitionLabelValue %q of node pool %s is served by scheduling shard %s, owned by node pool %s; "+
+				"wait for node pool %s to be deleted, or delete it",
+			partitionLabelValue, nodePool.Name, shard.Name, owner, owner)
+	}
+	return nil, unresolvableShardErrorf(
+		"partitionLabelValue %q of node pool %s is served by scheduling shard %s, which KRM did not create; "+
+			"re-run the KRM upgrade so it takes the shard over, or delete the shard",
+		partitionLabelValue, nodePool.Name, shard.Name)
 }
 
 func ListShardsWithPartitionLabelValue(
@@ -126,7 +161,7 @@ func GetOrInitShardNamedAfterNodePool(
 		return nil, err
 	}
 	if !metav1.IsControlledBy(shard, nodePool) {
-		return nil, fmt.Errorf(
+		return nil, unresolvableShardErrorf(
 			"scheduling shard %s serves partitionLabelValue %q and is not owned by node pool %s, "+
 				"which needs its name for partitionLabelValue %q",
 			shard.Name, shard.Spec.PartitionLabelValue, nodePool.Name, PartitionLabelValueForNodePool(nodePool.Name))
@@ -135,7 +170,7 @@ func GetOrInitShardNamedAfterNodePool(
 }
 
 func shardNameForNodePool(ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool) (string, error) {
-	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := resolveOwnedShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return "", err
 	}
@@ -196,7 +231,7 @@ func SchedulingShardStatus(
 	ctx context.Context, k8sReader client.Reader, nodePool *v1alpha1.NodePool,
 	_ *common.NodePoolControllerParams, _ string,
 ) (operands.Status, error) {
-	shard, err := ResolveShardForNodePool(ctx, k8sReader, nodePool)
+	shard, err := resolveOwnedShardForNodePool(ctx, k8sReader, nodePool)
 	if err != nil {
 		return operands.NotReadyStatus("scheduling shard is not deployed"), err
 	}

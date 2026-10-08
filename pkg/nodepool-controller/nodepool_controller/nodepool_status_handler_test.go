@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"time"
 
+	kaiv1 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/kai/v1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/common"
@@ -238,5 +241,53 @@ var _ = Describe("NodePool NRT health status", func() {
 			Expect(condition.Message).To(BeEmpty())
 			Expect(condition.LastTransitionTime.Time).To(BeTemporally(">", previousTransition.Time))
 		})
+	})
+})
+
+var _ = Describe("NodePool status when its partition's SchedulingShard is not its own", func() {
+	It("leaves the shard alone, names it in the status message, and recovers once it is gone", func() {
+		restoreConfig := config.SetForTest(&config.NodePoolControllerConfig{DefaultNodepoolName: "default"})
+		DeferCleanup(restoreConfig)
+
+		ctx := context.Background()
+		scheme := runtime.NewScheme()
+		Expect(kaiv1.AddToScheme(scheme)).To(Succeed())
+		Expect(v1alpha1.AddToScheme(scheme)).To(Succeed())
+
+		nodePool := &v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "pool-a", UID: "pool-a-uid"}}
+		foreignShard := &kaiv1.SchedulingShard{
+			ObjectMeta: metav1.ObjectMeta{Name: "admin-shard"},
+			Spec: kaiv1.SchedulingShardSpec{
+				PartitionLabelValue: "pool-a",
+				Args:                map[string]string{"admin": "setting"},
+			},
+		}
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(nodePool, foreignShard).
+			WithIndex(&kaiv1.SchedulingShard{}, common.SchedulingShardPartitionField, SchedulingShardPartitionIndexer).
+			Build()
+		npc := NewNodePoolController(k8sClient, scheme, &common.NodePoolControllerParams{})
+
+		Expect(npc.reconcileScheduler(ctx, nodePool)).To(MatchError(ContainSubstring("admin-shard")))
+		unchanged := &kaiv1.SchedulingShard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "admin-shard"}, unchanged)).To(Succeed())
+		Expect(unchanged.OwnerReferences).To(BeEmpty())
+		Expect(unchanged.Spec).To(Equal(foreignShard.Spec))
+
+		Expect(npc.calculateNodePoolStatus(ctx, nodePool, nil)).To(Succeed())
+		Expect(nodePool.Status.Phase).To(Equal(v1alpha1.NodePoolUnschedulable))
+		Expect(nodePool.Status.Message).To(And(
+			HavePrefix(common.SchedulerNotReadyMessage+", reason: "),
+			ContainSubstring("scheduling shard admin-shard"),
+			ContainSubstring("re-run the KRM upgrade"),
+		))
+
+		Expect(k8sClient.Delete(ctx, unchanged)).To(Succeed())
+		Expect(npc.reconcileScheduler(ctx, nodePool)).To(Succeed())
+		ownShard := &kaiv1.SchedulingShard{}
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(nodePool), ownShard)).To(Succeed())
+		Expect(metav1.IsControlledBy(ownShard, nodePool)).To(BeTrue())
+
+		Expect(npc.calculateNodePoolStatus(ctx, nodePool, nil)).To(Succeed())
+		Expect(nodePool.Status.Message).NotTo(ContainSubstring("admin-shard"))
 	})
 })

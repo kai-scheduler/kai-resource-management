@@ -253,6 +253,9 @@ func getSchedulerOperands(nodePools []TestNodePool) []client.Object {
 		schedulingShard := &kaiv1.SchedulingShard{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: np.Name,
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(
+					&v1alpha1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: np.Name}},
+					v1alpha1.GroupVersion.WithKind("NodePool"))},
 			},
 			Spec: kaiv1.SchedulingShardSpec{
 				PartitionLabelValue: partition,

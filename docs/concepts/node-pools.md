@@ -161,6 +161,11 @@ You do not create or edit the shard. You configure it through the node pool's
 `schedulingShardConfig` — see
 [tuning per-node-pool scheduling](../how-to/tune-per-node-pool-scheduling.md).
 
+KRM writes only the shard the node pool owns. If the node pool's partition is served by a
+shard it does not own — one KRM did not create, or one another node pool owns — KRM never
+takes it over. The node pool stays `Unschedulable`, and its status message names the shard
+and the fix.
+
 If Prometheus is installed, each node pool also gets a `ServiceMonitor` for its shard.
 
 ## Deleting a node pool
