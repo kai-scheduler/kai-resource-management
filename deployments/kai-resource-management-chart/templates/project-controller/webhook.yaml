@@ -103,17 +103,18 @@ webhooks:
     admissionReviewVersions: ["v1"]
     sideEffects: None
     failurePolicy: Fail
-    # Only a queue KRM does not own, gaining a parent, can end up under a KRM queue, so only
-    # those writes are sent here; an outage blocks nothing else. The handler applies the same rules.
-    # Every field is guarded with has(): an evaluation error rejects the write.
+    # Called only if all conditions are true. has() guards fields: an error rejects the write.
     matchConditions:
+      # Skip a queue with no parent: it cannot sit under a KRM queue.
       - name: has-parent
         expression: "has(object.spec) && has(object.spec.parentQueue) && object.spec.parentQueue != ''"
+      # Skip a queue a Project or Department owns: KRM's own queues belong under KRM queues.
       - name: not-owned-by-krm
         expression: >-
           !has(object.metadata.ownerReferences) ||
           !object.metadata.ownerReferences.exists(r,
           r.apiVersion.startsWith('kai.resources/') && r.kind in ['Project', 'Department'])
+      # Skip only an update that keeps the same parentQueue; creates always pass.
       - name: parent-changed
         expression: >-
           request.operation != 'UPDATE' ||
