@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- /*
-The cert covers both webhooks, so it is rendered when either is on - matching the binary,
-whose registerValidationWebhooks starts no TLS server at all when both flags are false.
+The cert covers every webhook, so it is rendered when any is served - matching the binary,
+whose registerValidationWebhooks starts no TLS server at all when the project and department
+flags are false and external queues are not allowed. Allowing external queues is what makes
+the binary serve /validate-queue, so it gates the cert even though queue has no flag of its own.
 */ -}}
 {{- $pcWebhook := .Values.projectController.webhook | default dict }}
-{{- if and .Values.projectController.enabled (or $pcWebhook.project $pcWebhook.department) }}
+{{- $externalQueues := (.Values.commonArgs | default dict).allowExternalQueues }}
+{{- if and .Values.projectController.enabled (or $pcWebhook.project $pcWebhook.department $externalQueues) }}
 {{- $webhook := $pcWebhook }}
 {{- $secretName := $webhook.certSecretName | default "project-controller-tls-secret" }}
 {{- $webhookPort := int ($webhook.port | default 443) }}
@@ -16,6 +19,7 @@ whose registerValidationWebhooks starts no TLS server at all when both flags are
 {{- $certs = fromYaml (include "kai-resource-management.webhookCerts" (dict "root" $ "service" "project-controller" "secretName" $secretName)) }}
 {{ include "kai-resource-management.webhookSecret" (dict "root" $ "service" "project-controller" "secretName" $secretName "certs" $certs) }}
 {{- end }}
+{{- if or $webhook.project $webhook.department }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -78,4 +82,59 @@ webhooks:
         resources: ["departments"]
         scope: Cluster
   {{- end }}
+{{- end }}
+{{- if $externalQueues }}
+---
+# Its own configuration, not a third entry above: it validates KAI's Queues and follows
+# allowExternalQueues, not the project and department toggles. It sits beside KAI's own Queue
+# webhook; both are called and either can reject.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kai-queue-tree-validation
+  labels:
+    {{- include "kai-resource-management.labels" . | nindent 4 }}
+  {{- if $openshift }}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+  {{- end }}
+webhooks:
+  - name: project-controller-queue.{{ .Release.Namespace }}.svc
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    # Called only if all conditions are true. has() guards fields: an error rejects the write.
+    matchConditions:
+      # Skip a queue with no parent: it cannot sit under a KRM queue.
+      - name: has-parent
+        expression: "has(object.spec) && has(object.spec.parentQueue) && object.spec.parentQueue != ''"
+      # Skip a queue a Project or Department owns: KRM's own queues belong under KRM queues.
+      - name: not-owned-by-krm
+        expression: >-
+          !has(object.metadata.ownerReferences) ||
+          !object.metadata.ownerReferences.exists(r,
+          r.apiVersion.startsWith('kai.resources/') && r.kind in ['Project', 'Department'])
+      # Skip only an update that keeps the same parentQueue; creates always pass.
+      - name: parent-changed
+        expression: >-
+          request.operation != 'UPDATE' ||
+          !has(oldObject.spec) || !has(oldObject.spec.parentQueue) ||
+          oldObject.spec.parentQueue != object.spec.parentQueue
+    clientConfig:
+      {{- if not $openshift }}
+      caBundle: {{ $certs.ca }}
+      {{- end }}
+      service:
+        name: project-controller
+        namespace: {{ .Release.Namespace }}
+        path: /validate-queue
+        port: {{ $webhookPort }}
+    rules:
+      # No DELETE, as for Projects: removing a queue cannot place one under a KRM queue.
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["scheduling.run.ai"]
+        apiVersions: ["v2"]
+        resources: ["queues"]
+        scope: Cluster
+{{- end }}
 {{- end }}

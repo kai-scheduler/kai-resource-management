@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	multierror "github.com/hashicorp/go-multierror"
+	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	admissionv1 "k8s.io/api/admission/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -27,19 +29,26 @@ const (
 	// Department resources.
 	DepartmentWebhookPath = "/validate-department"
 
+	// QueueWebhookPath is the path the validating handler is served on for KAI
+	// Queues. Served only when queues outside KRM are allowed, since only then can
+	// one be placed under a KRM queue.
+	QueueWebhookPath = "/validate-queue"
+
 	projectKind    = "Project"
 	departmentKind = "Department"
+	queueKind      = "Queue"
 )
 
-// Validator is a validating admission handler for Project and Department
-// resources. The same instance is registered on both webhook paths; Handle
+// Validator is a validating admission handler for Project, Department and Queue
+// resources. The same instance is registered on every webhook path; Handle
 // branches on the incoming resource kind.
 type Validator struct {
 	client client.Client
 }
 
 // NewValidator builds a Validator backed by the given client, used to look up
-// referenced resources (parent departments, node pools) during validation.
+// referenced resources (parent departments, node pools, parent queues) during
+// validation.
 func NewValidator(client client.Client) *Validator {
 	return &Validator{client: client}
 }
@@ -69,6 +78,24 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 		}
 		if err := v.validateDepartment(ctx, department); err != nil {
 			logger.Error(err, "department validation failed", "name", department.Name)
+			return toAdmissionResponse(err)
+		}
+	case queueKind:
+		queue := &kaiv2.Queue{}
+		if err := json.Unmarshal(req.Object.Raw, queue); err != nil {
+			logger.Error(err, "failed to unmarshal queue")
+			return admission.Errored(http.StatusBadRequest, fmt.Errorf("failed to unmarshal queue: %w", err))
+		}
+		var oldQueue *kaiv2.Queue
+		if req.Operation == admissionv1.Update {
+			oldQueue = &kaiv2.Queue{}
+			if err := json.Unmarshal(req.OldObject.Raw, oldQueue); err != nil {
+				logger.Error(err, "failed to unmarshal old queue")
+				return admission.Errored(http.StatusBadRequest, fmt.Errorf("failed to unmarshal old queue: %w", err))
+			}
+		}
+		if err := v.validateQueue(ctx, queue, oldQueue); err != nil {
+			logger.Error(err, "queue validation failed", "name", queue.Name)
 			return toAdmissionResponse(err)
 		}
 	default:

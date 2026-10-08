@@ -270,6 +270,22 @@ var _ = Describe("webhook wiring", func() {
 		Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(1))
 	})
 
+	// Allowing external queues is what turns the Queue webhook on, and the chart
+	// renders the Secret on the same condition.
+	It("mounts the certificate and publishes the port when only external queues are allowed", func() {
+		krmConfig := newKRMConfig()
+		krmConfig.Spec.ProjectController.Webhooks.EnableProjectValidation = ptr.To(false)
+		krmConfig.Spec.ProjectController.Webhooks.EnableDepartmentValidation = ptr.To(false)
+		krmConfig.Spec.Global.AllowExternalQueues = ptr.To(true)
+
+		objects := desiredState(krmConfig)
+
+		deployment := findType[*appsv1.Deployment](objects)
+		Expect(deployment.Spec.Template.Spec.Volumes).To(HaveLen(1))
+		Expect(deployment.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(1))
+		Expect(findType[*corev1.Service](objects).Spec.Ports).To(HaveLen(2))
+	})
+
 	// Without this annotation the service-CA operator never mints the Secret, the
 	// volume never resolves and the pod never starts.
 	It("asks OpenShift to mint the serving certificate", func() {

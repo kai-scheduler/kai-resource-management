@@ -252,6 +252,7 @@ configurations and provisions their serving certificates.
 | `kai-pod-mutation` | Mutating | `pods` on create | `podGroupAssigner.webhook.pod` |
 | `kai-nodepool-validation` | Validating | `nodepools` on create and delete | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
+| `kai-queue-tree-validation` | Validating | `queues` on create and update | `commonArgs.allowExternalQueues` |
 
 Every value defaults to `true`. Setting one to `false` removes that webhook
 configuration and passes the matching controller `--enable-…-webhook=false`, so
@@ -261,6 +262,12 @@ name.
 
 Project and department validation runs on create and update but never on delete.
 Deletion ordering is enforced by the controllers' finalizers instead.
+
+Queue validation is the exception: it exists only with `commonArgs.allowExternalQueues`,
+which defaults to `false` and is also what makes project-controller serve it. It rejects a
+queue no Project or Department owns whose `parentQueue` is one they do, and its
+`matchConditions`, GA in Kubernetes 1.30, send the API server's call only for such a queue
+gaining a parent, so other Queue writes never depend on project-controller being up.
 
 NodePool validation does run on delete, to refuse one deletion: the pool named by
 `defaultNodePool.name`. It is the catch-all for nodes no other nodepool selects,
