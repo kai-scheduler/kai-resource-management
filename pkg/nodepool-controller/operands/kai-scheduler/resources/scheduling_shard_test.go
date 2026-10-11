@@ -726,9 +726,14 @@ var _ = Describe("Merging a NodePool into its existing SchedulingShard", func() 
 		}
 	})
 
+	controllerRef := func() []metav1.OwnerReference {
+		return []metav1.OwnerReference{*metav1.NewControllerRef(nodePool, v1alpha1.GroupVersion.WithKind("NodePool"))}
+	}
+
 	reconcile := func() *kaiv1.SchedulingShard {
 		obj, err := SchedulingShardForNodePool(ctx, c, nodePool, params, nodePool.Name)
 		Expect(err).NotTo(HaveOccurred())
+		obj.SetOwnerReferences(controllerRef())
 		Expect(utils.CreateOrUpdateIfNeeded(c, ctx, logr.Discard(), obj)).To(Succeed())
 
 		shard := &kaiv1.SchedulingShard{}
@@ -802,7 +807,7 @@ var _ = Describe("Merging a NodePool into its existing SchedulingShard", func() 
 
 	It("treats every arg on a shard it has not annotated yet as its own", func() {
 		Expect(c.Create(ctx, &kaiv1.SchedulingShard{
-			ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name},
+			ObjectMeta: metav1.ObjectMeta{Name: nodePool.Name, OwnerReferences: controllerRef()},
 			Spec: kaiv1.SchedulingShardSpec{
 				PartitionLabelValue: nodePool.Name,
 				Args:                map[string]string{"v": "4", "stale": "true"},
