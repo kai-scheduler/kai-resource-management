@@ -207,9 +207,9 @@ for `main` and one for each `v<major>.<minor>` release branch that is behind:
 
 A branch whose chart declares a version range, such as `~0.18.0`, has nothing to
 bump: the range resolves to the newest matching release when the chart is built,
-and the bot touches neither its chart pin nor its Go module pin. See
+and the bot leaves it alone. See
 [Scheduled patch releases](#scheduled-patch-releases) for how a newer version
-there starts a release. The Go module pin on such a branch is moved by hand.
+there starts a release.
 
 Each pull request is labeled `dependencies` and merges itself once its checks
 pass. Only the bot's own commit merges this way, and only when it changes
