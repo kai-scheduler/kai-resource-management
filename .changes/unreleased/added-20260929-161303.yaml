@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Add commonArgs.allowExternalQueues, which leaves Queues no Project or Department owns untouched

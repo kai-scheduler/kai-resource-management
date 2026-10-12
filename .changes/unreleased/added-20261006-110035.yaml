@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  With allowExternalQueues, reject a Queue that KRM does not own when its parent is a KRM queue

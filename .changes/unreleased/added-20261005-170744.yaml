@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Reject SchedulingShards and NodePools that would put two schedulers on one partitionLabelValue

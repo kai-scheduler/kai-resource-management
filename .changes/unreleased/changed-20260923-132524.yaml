@@ -1,3 +1,0 @@
-kind: Changed
-body: |-
-  Helm hook Jobs honour global.fipsMode at run time, like the services
