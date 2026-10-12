@@ -7,8 +7,9 @@
 # "## [VERSION]" section, clears the fragments, and opens a PR against the branch this workflow
 # was dispatched on, which is always the v*.* release branch for that version.
 #
-# A maintainer reviews and merges that PR. Merging it triggers release-publish.yaml (step 2),
-# which tags the version and creates the GitHub Release.
+# The PR approves and merges itself once its checks pass, when it changes nothing but the
+# changelog; anything else waits for a maintainer. Merging it triggers release-publish.yaml
+# (step 2), which tags the version and creates the GitHub Release.
 
 name: Release — Prepare Changelog
 
@@ -29,6 +30,16 @@ jobs:
     name: Fold changelog & open PR
     runs-on: ubuntu-latest
     steps:
+      - name: Require a release branch
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" != branch ] || ! [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Run this workflow on a v<major>.<minor> release branch, not on '$REF_NAME'."
+            exit 1
+          fi
+
       - name: Checkout ${{ github.ref_name }}
         uses: actions/checkout@v7
         with:
@@ -40,6 +51,24 @@ jobs:
         with:
           go-version: '1.26.8'
 
+      - name: Add the changelog entries a release needs
+        env:
+          GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' || true)"
+          if [ -n "$previous" ]; then
+            bundled="$(hack/subchart-versions.sh changes "$previous" | sed -n 's/^kai-scheduler: //p')"
+            if [ -n "$bundled" ]; then
+              make changelog KIND=Changed BODY="Bundle KAI Scheduler v$bundled"
+            fi
+          fi
+          # Without a fragment the fold succeeds but leaves an empty section, and the
+          # GitHub Release would have blank notes.
+          if ! compgen -G ".changes/unreleased/*.yaml" >/dev/null; then
+            make changelog KIND=Changed BODY="Maintenance release"
+          fi
+
       - name: Fold fragments into CHANGELOG.md
         env:
           VERSION: ${{ inputs.version }}
@@ -48,6 +77,7 @@ jobs:
       - name: Open release PR
         env:
           GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
+          APPROVER_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
           BASE: ${{ github.ref_name }}
         run: |
@@ -80,3 +110,31 @@ jobs:
             --title "chore(release): prepare changelog for $VERSION" \
             --label skip-changelog \
             --body-file "$BODY"
+
+          # Merges without a person, so only the commit pushed above, and only
+          # if it changes nothing but the changelog: anything else needs a
+          # maintainer.
+          sha="$(git rev-parse HEAD)"
+          pr="$(gh pr view "$BRANCH" --json number,headRefOid,files)"
+          if [ "$(jq -r .headRefOid <<<"$pr")" != "$sha" ]; then
+            echo "::warning::The pull request head is no longer $sha; leaving it for a maintainer."
+            exit 0
+          fi
+          for file in $(jq -r '.files[].path' <<<"$pr"); do
+            case "$file" in
+              CHANGELOG.md | .changes/unreleased/*.yaml) ;;
+              *)
+                echo "::warning::$file is not a changelog file; leaving the pull request for a maintainer."
+                exit 0
+                ;;
+            esac
+          done
+
+          # Approved by github-actions and merged by KaiPilotBot: the author
+          # cannot approve their own pull request, and a merge made with
+          # GITHUB_TOKEN would not trigger release-publish.yaml.
+          number="$(jq -r .number <<<"$pr")"
+          GH_TOKEN="$APPROVER_TOKEN" gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/pulls/$number/reviews" \
+            -f event=APPROVE -f commit_id="$sha" >/dev/null
+          gh pr merge "$number" --auto --squash --match-head-commit "$sha"

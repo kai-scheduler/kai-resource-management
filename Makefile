@@ -35,6 +35,7 @@ LICENSE_IGNORES := \
 	-ignore '.vscode/**' \
 	-ignore 'bin/**' \
 	-ignore 'images.yaml' \
+	-ignore 'subcharts.yaml' \
 	-ignore '.gocache/**' \
 	-ignore '.gotmp/**' \
 	-ignore 'coverage/**' \
@@ -181,3 +182,7 @@ changelog-preview: changie ## Preview a release changelog; requires VERSION.
 images-manifest: ## Generate images.yaml for a release; requires VERSION.
 	@test -n "$(VERSION)" || { echo "VERSION is required, for example VERSION=v0.1.0"; exit 1; }
 	bash hack/generate-images-manifest.sh "$(VERSION)" "$(DOCKER_REPO_BASE)" "$(SERVICE_NAMES)" > images.yaml
+
+.PHONY: subcharts-manifest
+subcharts-manifest: ## Generate subcharts.yaml, the sub-chart versions in the chart just built.
+	bash hack/subchart-versions.sh locked > subcharts.yaml

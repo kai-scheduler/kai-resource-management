@@ -20,6 +20,11 @@ the chart `appVersion`, and the tag of every controller image. The chart
 resolves component image tags from `appVersion`, so the chart and the images it
 references cannot drift apart.
 
+The chart is also tagged in the registry without the `v`, for example `0.18.5`
+next to `v0.18.5`. Both tags point at the same chart. The un-prefixed one exists
+because Helm cannot resolve a version range such as `~0.18.0` against tags that
+start with `v`. Git tags keep the `v`, which Go modules require.
+
 ## What a release publishes
 
 A version tag publishes to GitHub Container Registry under
@@ -34,7 +39,9 @@ A version tag publishes to GitHub Container Registry under
 - The `kai-resource-management` Helm chart, pushed as an OCI artifact. One chart
   serves both image variants.
 
-The packaged chart is also attached to the GitHub Release as an asset.
+The packaged chart is also attached to the GitHub Release as an asset, together
+with `subcharts.yaml`, which lists the sub-chart versions that chart was built
+with, for example `kai-scheduler: 0.18.5`.
 
 GHCR is the authoritative registry for this project. No other registry mirrors
 these artifacts.
@@ -44,9 +51,11 @@ these artifacts.
 These are configured; they are listed so the requirements are not lost.
 
 - A repository secret named `KAIBOT_TOKEN` holding a token for the shared
-  `KaiPilotBot` account, with `contents: write` and `pull-requests: write`. The
-  default `GITHUB_TOKEN` cannot be used: tags it pushes do not trigger other
-  workflows, so artifact publishing would never run.
+  `KaiPilotBot` account, with `contents: write`, `pull-requests: write` and
+  `actions: write`; the last lets the scheduled release workflow start
+  **Release — Prepare Changelog**. The default `GITHUB_TOKEN` cannot be used:
+  tags it pushes do not trigger other workflows, so artifact publishing would
+  never run.
 - `KaiPilotBot` must have write access to this repository, because the release
   pull request is pushed and opened as that account. The account is authorized
   to edit `CHANGELOG.md` by name in `validate-changelog.yaml`, so it is
@@ -55,6 +64,9 @@ These are configured; they are listed so the requirements are not lost.
 - The `skip-changelog` and `dependencies` labels. The release pull request
   applies `skip-changelog`, and creating the pull request fails if the label
   does not exist.
+- Auto-merge enabled on the repository, and GitHub Actions allowed to approve
+  pull requests. Every release changelog pull request is approved by
+  `github-actions` and merges itself once its checks pass.
 
 ## Releasing
 
@@ -73,11 +85,16 @@ Everything below happens on that branch, not on `main`.
 
 In the Actions tab, run the **Release — Prepare Changelog** workflow. Select the
 `v<major>.<minor>` release branch and enter the full version, for example
-`v0.1.0`.
+`v0.1.0`. On any other ref, `main` included, the workflow stops with an error.
 
 The workflow folds the pending fragments in `.changes/unreleased/` into
 `CHANGELOG.md` as a new `## [v0.1.0]` section, clears the fragments, and opens a
 `release/prepare-v0.1.0` pull request against the selected branch.
+
+When the chart declares KAI Scheduler as a version range and it now resolves to
+a newer version than the previous release bundled, the workflow adds a
+`Bundle KAI Scheduler <version>` fragment itself. A release with no fragments at
+all gets a `Maintenance release` one, so its notes are never empty.
 
 Preview the section beforehand without changing anything:
 
@@ -87,9 +104,22 @@ make changelog-preview VERSION=v0.1.0
 
 ### 3. Review and merge
 
-Review the new changelog section for accuracy. `CHANGELOG.md` is the source of
-truth for the release notes, so correct it in this pull request rather than
-after the release.
+The pull request is approved by `github-actions` and merged by `KaiPilotBot`
+once its checks pass, as long as it changes nothing but `CHANGELOG.md` and the
+changelog fragments. Anything pushed on top of the bot's commit, or any other
+file in the pull request, leaves it for a maintainer.
+
+`CHANGELOG.md` is the source of truth for the release notes, so check the new
+section for accuracy while the checks run, and correct it in the pull request
+rather than after the release.
+
+Two limits of the automatic merge are accepted. The approval is not dismissed by
+a later push, so someone with write access could add a change while the checks
+run. And a version range is
+resolved twice, when the changelog is prepared and when the chart is built after
+the merge. If KAI Scheduler publishes another patch in between, the
+`Bundle KAI Scheduler` entry names the earlier one while the chart and
+`subcharts.yaml` carry the later one.
 
 Merging the pull request runs **Release — Tag & Publish**, which verifies that
 the top changelog version matches the branch version and that the tag does not
@@ -98,8 +128,31 @@ already exist, then creates the tag and the GitHub Release.
 ### 4. Artifacts publish automatically
 
 Pushing the tag runs **Upload artifacts to GitHub Container Registry**, which
-builds and pushes the controller images and the chart, and attaches the chart to
-the GitHub Release.
+builds and pushes the controller images and the chart, adds the chart tag
+without the `v`, and attaches the chart and `subcharts.yaml` to the GitHub
+Release.
+
+## Scheduled patch releases
+
+**Release — Scheduled Patch Releases** runs on Sunday and Wednesday at 23:00 UTC
+and can be started from the Actions tab, with **dry-run** to see what it would
+do. For each `v<major>.<minor>` branch it starts the next patch release, for
+example `v0.18.4` after `v0.18.3`, when either:
+
+- the branch has commits since its latest tag, or
+- the KAI Scheduler version range in the chart now resolves to a newer version
+  than the latest release bundled.
+
+It does nothing when neither holds, when the next tag or a `release/prepare-*`
+pull request for it already exists, or when the branch has no release tag yet.
+
+A branch takes part only while its chart declares KAI Scheduler as a version
+range, for example `version: "~0.18.0"` in `Chart.yaml`. A branch that pins an
+exact version is left to manual releases, and `main` is never released this way.
+
+The workflow runs **Release — Prepare Changelog** on the branch, so the release
+continues exactly as a manual one does in steps 2 to 4. The release notes come
+from fragments that were already reviewed in their own pull requests.
 
 ## Releasing without the automation
 
@@ -149,3 +202,7 @@ or a `v*.*` branch, and is skipped unless the pull request was merged and came
 from a `release/prepare-*` branch. GitHub can only filter this trigger on the
 target branch, so the remaining condition is evaluated in the job itself. A
 skipped entry is expected and consumes no runner time.
+
+**Release — Scheduled Patch Releases** has one entry per `v*.*` branch. Most
+runs end within seconds with a message that the branch is up to date or pins an
+exact version.

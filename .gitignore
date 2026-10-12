@@ -1,6 +1,7 @@
 # Build and tool output
 /bin/
 /images.yaml
+/subcharts.yaml
 /.gocache/
 /.gotmp/
 /coverage/
