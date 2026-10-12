@@ -118,6 +118,14 @@ file in the pull request, leaves it for a maintainer.
 section for accuracy while the checks run, and correct it in the pull request
 rather than after the release.
 
+Two limits of the automatic merge are accepted. The approval is not dismissed by
+a later push, so someone with write access could add a change while the checks
+run, as with the **Bump KAI Scheduler** pull requests. And a version range is
+resolved twice, when the changelog is prepared and when the chart is built after
+the merge. If KAI Scheduler publishes another patch in between, the
+`Bundle KAI Scheduler` entry names the earlier one while the chart and
+`subcharts.yaml` carry the later one.
+
 Merging the pull request runs **Release — Tag & Publish**, which verifies that
 the top changelog version matches the branch version and that the tag does not
 already exist, then creates the tag and the GitHub Release.

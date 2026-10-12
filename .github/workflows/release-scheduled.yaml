@@ -90,7 +90,7 @@ jobs:
             exit 0
           fi
 
-          latest="$(git describe --tags --abbrev=0 --match 'v[0-9]*' || true)"
+          latest="$(git tag --list "$BRANCH.*" --merged HEAD | sort -V | tail -n1)"
           if ! [[ "$latest" =~ ^(v[0-9]+\.[0-9]+)\.([0-9]+)$ ]]; then
             echo "$BRANCH has no release tag to count from (found '$latest')."
             exit 0
