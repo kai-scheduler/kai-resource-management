@@ -80,6 +80,14 @@ jobs:
       - name: Push Helm chart
         run: helm push ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz oci://${DOCKER_REGISTRY}
 
+      - name: Set up ORAS
+        if: startsWith(env.PACKAGE_VERSION, 'v')
+        uses: oras-project/setup-oras@v2
+
+      - name: Tag Helm chart without v prefix
+        if: startsWith(env.PACKAGE_VERSION, 'v')
+        run: oras tag ${DOCKER_REGISTRY}/kai-resource-management:$PACKAGE_VERSION ${PACKAGE_VERSION#v}
+
       - name: Attach Helm chart to the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
