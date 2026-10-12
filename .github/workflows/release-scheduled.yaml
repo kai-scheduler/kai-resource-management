@@ -1,0 +1,130 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Starts the next patch release of each v*.* branch that bundles KAI Scheduler through a version
+# range, when the range now resolves to a newer KAI Scheduler or the branch has commits since its
+# latest tag. The release itself is Release — Prepare Changelog, run with auto-merge so its pull
+# request merges itself when it changes nothing but the changelog. A branch that is already up to
+# date is left alone, and so is one that still pins KAI Scheduler exactly.
+
+name: Release — Scheduled Patch Releases
+
+on:
+  schedule:
+    # Sunday and Wednesday at 23:00 UTC.
+    - cron: '0 23 * * 0,3'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Report the planned releases without starting them'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-scheduled
+  cancel-in-progress: false
+
+jobs:
+  branches:
+    name: List release branches
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.list.outputs.branches }}
+    steps:
+      - name: List the release branches
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branches="$(gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[].name' \
+            | { grep -E '^v[0-9]+\.[0-9]+$' || true; } \
+            | jq -Rnc '[inputs]')"
+          echo "branches=$branches" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release ${{ matrix.branch }}
+    needs: branches
+    if: needs.branches.outputs.branches != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.branches.outputs.branches) }}
+    env:
+      BRANCH: ${{ matrix.branch }}
+      DRY_RUN: ${{ inputs.dry-run || false }}
+      # The tooling comes from the revision this workflow runs from, so a release
+      # branch cut before it existed is judged the same way as the newest one.
+      SUBCHARTS: ${{ github.workspace }}/tooling/hack/subchart-versions.sh
+      CHART_DIR: ${{ github.workspace }}/target/deployments/kai-resource-management-chart
+    defaults:
+      run:
+        working-directory: target
+    steps:
+      - name: Checkout tooling
+        uses: actions/checkout@v7
+        with:
+          path: tooling
+          persist-credentials: false
+
+      - name: Checkout ${{ matrix.branch }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.branch }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Start the next release if one is due
+        env:
+          GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$("$SUBCHARTS" ranged)" ]; then
+            echo "$BRANCH pins its sub-charts exactly; nothing to do."
+            exit 0
+          fi
+
+          latest="$(git describe --tags --abbrev=0 --match 'v[0-9]*' || true)"
+          if ! [[ "$latest" =~ ^(v[0-9]+\.[0-9]+)\.([0-9]+)$ ]]; then
+            echo "$BRANCH has no release tag to count from (found '$latest')."
+            exit 0
+          fi
+          next="${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1))"
+
+          why=""
+          commits="$(git rev-list --count "$latest..HEAD")"
+          if [ "$commits" -gt 0 ]; then
+            why="$commits commits since $latest"
+          fi
+          bundled="$("$SUBCHARTS" changes "$latest")"
+          if [ -n "$bundled" ]; then
+            why="${why:+$why, }now bundles ${bundled//$'\n'/, }"
+          fi
+          if [ -z "$why" ]; then
+            echo "$BRANCH is up to date at $latest."
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            echo "$next already exists."
+            exit 0
+          fi
+          open="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "release/prepare-$next" --base "$BRANCH" \
+            --state open --json number --jq '.[0].number // ""')"
+          if [ -n "$open" ]; then
+            echo "Pull request #$open already prepares $next."
+            exit 0
+          fi
+
+          echo "$BRANCH: releasing $next ($why)."
+          if [ "$DRY_RUN" = true ]; then
+            exit 0
+          fi
+          gh workflow run release-prepare.yaml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" \
+            -f version="$next" -f auto-merge=true

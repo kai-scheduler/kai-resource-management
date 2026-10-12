@@ -10,6 +10,7 @@
 #   hack/subchart-versions.sh resolve          # re-resolve the ranges in Chart.yaml, then as `locked`
 #   hack/subchart-versions.sh previous <tag>   # versions bundled in an earlier release
 #   hack/subchart-versions.sh changes <tag>    # resolve, then print the ranged sub-charts that differ from <tag>
+#   hack/subchart-versions.sh ranged           # sub-charts Chart.yaml declares by a range rather than a version
 #
 # `locked` reads the lock `helm dependency build` leaves behind. The version
 # inside a downloaded sub-chart still carries the v of its release tag, so it is
@@ -23,7 +24,7 @@ CHART_DIR="${CHART_DIR:-deployments/kai-resource-management-chart}"
 ASSET=subcharts.yaml
 
 usage() {
-  echo "usage: $0 locked | resolve | previous <tag> | changes <tag>" >&2
+  echo "usage: $0 locked | resolve | previous <tag> | changes <tag> | ranged" >&2
   exit 1
 }
 
@@ -119,5 +120,6 @@ case "$1" in
     [ $# -eq 2 ] || usage
     changes "$2"
     ;;
+  ranged) ranged ;;
   *) usage ;;
 esac

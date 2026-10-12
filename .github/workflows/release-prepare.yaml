@@ -45,19 +45,22 @@ jobs:
         with:
           go-version: '1.26.8'
 
-      - name: Record a newly bundled KAI Scheduler
+      - name: Add the changelog entries a release needs
         env:
           GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
         run: |
           set -euo pipefail
           previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' || true)"
-          if [ -z "$previous" ]; then
-            echo "No earlier release on this branch to compare with."
-            exit 0
+          if [ -n "$previous" ]; then
+            bundled="$(hack/subchart-versions.sh changes "$previous" | sed -n 's/^kai-scheduler: //p')"
+            if [ -n "$bundled" ]; then
+              make changelog KIND=Changed BODY="Bundle KAI Scheduler v$bundled"
+            fi
           fi
-          bundled="$(hack/subchart-versions.sh changes "$previous" | sed -n 's/^kai-scheduler: //p')"
-          if [ -n "$bundled" ]; then
-            make changelog KIND=Changed BODY="Bundle KAI Scheduler v$bundled"
+          # Without a fragment the fold succeeds but leaves an empty section, and the
+          # GitHub Release would have blank notes.
+          if ! compgen -G ".changes/unreleased/*.yaml" >/dev/null; then
+            make changelog KIND=Changed BODY="Maintenance release"
           fi
 
       - name: Fold fragments into CHANGELOG.md
