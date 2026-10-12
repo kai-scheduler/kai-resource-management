@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.4] - 2026-10-12
+
+### Changed
+- Bundle KAI Scheduler v0.18.4
+- Bundle KAI Scheduler v0.18.5
+
+### Fixed
+- Update go.mongodb.org/mongo-driver/v2 to v2.9.1 to fix CVE-2026-88031
+
 ## [v0.18.3] - 2026-10-06
 
 ### Changed
