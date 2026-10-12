@@ -115,7 +115,7 @@ rather than after the release.
 
 Two limits of the automatic merge are accepted. The approval is not dismissed by
 a later push, so someone with write access could add a change while the checks
-run, as with the **Bump KAI Scheduler** pull requests. And a version range is
+run. And a version range is
 resolved twice, when the changelog is prepared and when the chart is built after
 the merge. If KAI Scheduler publishes another patch in between, the
 `Bundle KAI Scheduler` entry names the earlier one while the chart and
@@ -148,8 +148,7 @@ pull request for it already exists, or when the branch has no release tag yet.
 
 A branch takes part only while its chart declares KAI Scheduler as a version
 range, for example `version: "~0.18.0"` in `Chart.yaml`. A branch that pins an
-exact version is left to **Bump KAI Scheduler** and to manual releases, and
-`main` is never released this way.
+exact version is left to manual releases, and `main` is never released this way.
 
 The workflow runs **Release — Prepare Changelog** on the branch, so the release
 continues exactly as a manual one does in steps 2 to 4. The release notes come
