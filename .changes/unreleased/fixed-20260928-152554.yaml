@@ -1,3 +1,0 @@
-kind: Fixed
-body: |-
-  Keep a placed PodGroup on its node pool after KAI Scheduler clears its scheduling conditions

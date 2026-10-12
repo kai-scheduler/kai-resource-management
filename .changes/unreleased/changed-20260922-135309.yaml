@@ -1,3 +1,0 @@
-kind: Changed
-body: |-
-  Helm hook Jobs run a Go binary on scratch instead of an Alpine image with kubectl

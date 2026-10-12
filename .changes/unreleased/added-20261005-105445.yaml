@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Leave SchedulingShards labelled kai/ignore-shard-for-krm, and their nodes, to the scheduler already serving them

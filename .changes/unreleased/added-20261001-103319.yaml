@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Accept KAI Scheduler main branch builds instead of reporting them as older than the minimum supported version
