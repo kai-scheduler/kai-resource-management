@@ -7,8 +7,8 @@
 # "## [VERSION]" section, clears the fragments, and opens a PR against the branch this workflow
 # was dispatched on, which is always the v*.* release branch for that version.
 #
-# A maintainer reviews and merges that PR, unless the run set auto-merge: the PR then approves and
-# merges itself when it changes nothing but the changelog. Merging it triggers release-publish.yaml
+# The PR approves and merges itself once its checks pass, when it changes nothing but the
+# changelog; anything else waits for a maintainer. Merging it triggers release-publish.yaml
 # (step 2), which tags the version and creates the GitHub Release.
 
 name: Release — Prepare Changelog
@@ -20,10 +20,6 @@ on:
         description: 'Version to release, e.g. v0.1.0 (run on the v*.* release branch, not on main)'
         required: true
         type: string
-      auto-merge:
-        description: 'Approve and merge the PR itself, when it changes nothing but the changelog'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -34,6 +30,16 @@ jobs:
     name: Fold changelog & open PR
     runs-on: ubuntu-latest
     steps:
+      - name: Require a release branch
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" != branch ] || ! [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Run this workflow on a v<major>.<minor> release branch, not on '$REF_NAME'."
+            exit 1
+          fi
+
       - name: Checkout ${{ github.ref_name }}
         uses: actions/checkout@v7
         with:
@@ -72,7 +78,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KAIBOT_TOKEN }}
           APPROVER_TOKEN: ${{ github.token }}
-          AUTO_MERGE: ${{ inputs.auto-merge }}
           VERSION: ${{ inputs.version }}
           BASE: ${{ github.ref_name }}
         run: |
@@ -105,10 +110,6 @@ jobs:
             --title "chore(release): prepare changelog for $VERSION" \
             --label skip-changelog \
             --body-file "$BODY"
-
-          if [ "$AUTO_MERGE" != true ]; then
-            exit 0
-          fi
 
           # Merges without a person, so only the commit pushed above, and only
           # if it changes nothing but the changelog: anything else needs a

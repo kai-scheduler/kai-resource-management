@@ -3,9 +3,9 @@
 
 # Starts the next patch release of each v*.* branch that bundles KAI Scheduler through a version
 # range, when the range now resolves to a newer KAI Scheduler or the branch has commits since its
-# latest tag. The release itself is Release — Prepare Changelog, run with auto-merge so its pull
-# request merges itself when it changes nothing but the changelog. A branch that is already up to
-# date is left alone, and so is one that still pins KAI Scheduler exactly.
+# latest tag. The release itself is Release — Prepare Changelog, whose pull request merges itself
+# when it changes nothing but the changelog. A branch that is already up to date is left alone,
+# and so is one that still pins KAI Scheduler exactly.
 
 name: Release — Scheduled Patch Releases
 
@@ -127,4 +127,4 @@ jobs:
             exit 0
           fi
           gh workflow run release-prepare.yaml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" \
-            -f version="$next" -f auto-merge=true
+            -f version="$next"
