@@ -77,6 +77,9 @@ jobs:
           mkdir -p ./bin/charts
           helm package ./deployments/kai-resource-management-chart -d ./bin/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
 
+      - name: Generate subcharts.yaml
+        run: make subcharts-manifest
+
       - name: Push Helm chart
         run: helm push ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz oci://${DOCKER_REGISTRY}
 
@@ -94,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$PACKAGE_VERSION" >/dev/null 2>&1; then
-            gh release upload "$PACKAGE_VERSION" ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz --clobber
+            gh release upload "$PACKAGE_VERSION" ./bin/charts/kai-resource-management-$PACKAGE_VERSION.tgz subcharts.yaml --clobber
           else
             echo "No GitHub Release for $PACKAGE_VERSION; skipping chart asset upload."
           fi
