@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	. "github.com/onsi/ginkgo/v2" // nolint:staticcheck // dot import for test framework is intentional
 	. "github.com/onsi/gomega"    // nolint:staticcheck // dot import for test framework is intentional
 

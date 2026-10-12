@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"

@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	"github.com/rs/zerolog/log"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/controllers/common"

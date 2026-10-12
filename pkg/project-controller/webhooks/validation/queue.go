@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 

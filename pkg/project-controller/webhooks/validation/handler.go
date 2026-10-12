@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	multierror "github.com/hashicorp/go-multierror"
-	kaiv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	admissionv1 "k8s.io/api/admission/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"

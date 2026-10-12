@@ -7,26 +7,22 @@
 # Usage:
 #   hack/bump-kai-scheduler.sh set <vX.Y.Z | 0.0.0-<sha>>
 #   hack/bump-kai-scheduler.sh set-chart <vX.Y.Z | 0.0.0-<sha>>
-#   hack/bump-kai-scheduler.sh set-go <vX.Y.Z>
 #   hack/bump-kai-scheduler.sh plan [vX.Y]
 #   hack/bump-kai-scheduler.sh pinned
 #
-# `set` pins the chart dependency, and the Go module too for a release; a main
-# build has no module version to pin. `plan` prints chart=<version> and
-# go=<version> for the pins the checkout is behind on, each empty when it is up
-# to date; `pinned` prints the current pins the same way. Without a line, plan
-# follows KAI's main builds for the chart and its newest release for the module;
-# with one, the newest release of that line for both.
+# `set` pins the chart dependency (a release, or a main build). `plan` prints
+# chart=<version> when the checkout is behind, empty when it is up to date;
+# `pinned` prints the current pin the same way. Without a line, plan follows
+# KAI's main builds; with one, the newest release of that line. The Go types
+# come from github.com/kai-scheduler/api, which is bumped independently.
 set -euo pipefail
 
 KAI_REPO=kai-scheduler/KAI-Scheduler
 KAI_CHART=oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler
-KAI_MODULE=github.com/kai-scheduler/KAI-scheduler
 CHART_FILE=deployments/kai-resource-management-chart/Chart.yaml
-GO="${GO:-go}"
 
 usage() {
-  echo "usage: $0 set|set-chart|set-go <version> | plan [vX.Y] | pinned" >&2
+  echo "usage: $0 set|set-chart <version> | plan [vX.Y] | pinned" >&2
   exit 1
 }
 
@@ -41,10 +37,6 @@ is_newer() {
 pinned_chart() {
   awk '/^ *- name: kai-scheduler$/ {found = 1; next}
        found && /^ *version:/ {gsub(/["'\'' ]/, "", $2); print $2; exit}' "$CHART_FILE"
-}
-
-pinned_go() {
-  awk -v module="$KAI_MODULE" '$1 == module {print $2; exit}' go.mod
 }
 
 # A tag or commit exists before its chart does: KAI publishes it from a
@@ -98,43 +90,27 @@ set_chart() {
   mv "$CHART_FILE.tmp" "$CHART_FILE"
 }
 
-set_go() {
-  local version="$1"
-  is_release "$version" || {
-    echo "Not a KAI Scheduler release: $version" >&2
-    exit 1
-  }
-  "$GO" get "$KAI_MODULE@$version"
-  "$GO" mod tidy
-  python3 hack/gen-notice.py
-}
-
 plan() {
-  local line="${1:-}" chart_pin go_pin release chart="" go=""
+  local line="${1:-}" chart_pin chart=""
   chart_pin="$(pinned_chart)"
-  go_pin="$(pinned_go)"
 
   if [ -z "$line" ]; then
     local build
     build="$(latest_main_build)"
     [ "$build" = "$chart_pin" ] || chart="$build"
-    release="$(latest_release "")"
   else
     [[ "$line" =~ ^v[0-9]+\.[0-9]+$ ]] || {
       echo "Not a release line: $line" >&2
       exit 1
     }
+    local release
     release="$(latest_release "$line")"
     if [ -n "$release" ] && is_newer "$release" "$chart_pin"; then
       chart="$release"
     fi
   fi
 
-  if [ -n "$release" ] && is_newer "$release" "$go_pin"; then
-    go="$release"
-  fi
   echo "chart=$chart"
-  echo "go=$go"
 }
 
 [ $# -ge 1 ] || usage
@@ -144,17 +120,10 @@ case "$command" in
   set)
     [ $# -eq 1 ] || usage
     set_chart "$1"
-    if is_release "$1"; then
-      set_go "$1"
-    fi
     ;;
   set-chart)
     [ $# -eq 1 ] || usage
     set_chart "$1"
-    ;;
-  set-go)
-    [ $# -eq 1 ] || usage
-    set_go "$1"
     ;;
   plan)
     [ $# -le 1 ] || usage
@@ -163,7 +132,6 @@ case "$command" in
   pinned)
     [ $# -eq 0 ] || usage
     echo "chart=$(pinned_chart)"
-    echo "go=$(pinned_go)"
     ;;
   *)
     usage
