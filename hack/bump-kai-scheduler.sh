@@ -29,6 +29,9 @@ usage() {
 is_release() { [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; }
 is_main_build() { [[ "$1" =~ ^0\.0\.0-[0-9a-f]{7,}$ ]]; }
 
+# A range such as ~0.18.0 resolves itself at build time, so there is no pin to move.
+is_exact_pin() { is_release "$1" || is_main_build "$1"; }
+
 # True when $1 is a strictly higher release than $2.
 is_newer() {
   [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "${1#v}" "${2#v}" | sort -V | tail -n1)" = "${1#v}" ]
@@ -96,8 +99,10 @@ plan() {
 
   if [ -z "$line" ]; then
     local build
-    build="$(latest_main_build)"
-    [ "$build" = "$chart_pin" ] || chart="$build"
+    if is_exact_pin "$chart_pin"; then
+      build="$(latest_main_build)"
+      [ "$build" = "$chart_pin" ] || chart="$build"
+    fi
   else
     [[ "$line" =~ ^v[0-9]+\.[0-9]+$ ]] || {
       echo "Not a release line: $line" >&2
@@ -105,7 +110,7 @@ plan() {
     }
     local release
     release="$(latest_release "$line")"
-    if [ -n "$release" ] && is_newer "$release" "$chart_pin"; then
+    if is_exact_pin "$chart_pin" && [ -n "$release" ] && is_newer "$release" "$chart_pin"; then
       chart="$release"
     fi
   fi
