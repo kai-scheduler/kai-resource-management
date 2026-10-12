@@ -99,6 +99,7 @@ ranged() {
 
 changes() {
   local tag="$1" before after name
+  [ -n "$(ranged)" ] || return 0
   before="$(previous "$tag")"
   after="$(resolve)"
   for name in $(ranged); do
