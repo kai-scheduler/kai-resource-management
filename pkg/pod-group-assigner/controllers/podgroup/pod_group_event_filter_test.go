@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	kaiv2alpha2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2alpha2"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	nodepoolutils "github.com/kai-scheduler/kai-resource-management/pkg/common/node-pool-utils/utils"
 	"github.com/kai-scheduler/kai-resource-management/pkg/pod-group-assigner/config"

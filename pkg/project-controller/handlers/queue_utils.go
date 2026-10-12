@@ -13,7 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
 
-	schedv2 "github.com/kai-scheduler/KAI-scheduler/pkg/apis/scheduling/v2"
+	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
