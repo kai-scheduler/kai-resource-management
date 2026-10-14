@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.5] - 2026-10-14
+
+### Added
+- Helm chart OCI tags without v prefix, enabling semver ranges like ~0.18.0
+
+### Changed
+- KAI Scheduler is bundled by version range ~0.18.0, so patch releases pick up its newest patch
+
 ## [v0.18.4] - 2026-10-12
 
 ### Changed

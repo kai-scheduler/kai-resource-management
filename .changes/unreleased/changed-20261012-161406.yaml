@@ -1,3 +1,0 @@
-kind: Changed
-body: |-
-  KAI Scheduler is bundled by version range ~0.18.0, so patch releases pick up its newest patch
