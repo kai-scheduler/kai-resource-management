@@ -130,6 +130,10 @@ Merging the pull request runs **Release — Tag & Publish**, which verifies that
 the top changelog version matches the branch version and that the tag does not
 already exist, then creates the tag and the GitHub Release.
 
+The release is marked **Latest** only when its version is the highest release
+tag. A patch to an older minor, for example `v0.18.6` after `v0.19.0` exists,
+is published without taking **Latest** from the newer minor.
+
 ### 4. Artifacts publish automatically
 
 Pushing the tag runs **Upload artifacts to GitHub Container Registry**, which
