@@ -142,14 +142,15 @@ Release.
 **Release — Scheduled Patch Releases** runs on Sunday and Wednesday at 23:00 UTC
 and can be started from the Actions tab, with **dry-run** to see what it would
 do. For each `v<major>.<minor>` branch it starts the next patch release, for
-example `v0.18.4` after `v0.18.3`, when either:
+example `v0.18.4` after `v0.18.3`, when the KAI Scheduler version range in the
+chart now resolves to a newer version than the `subcharts.yaml` of the latest
+release records.
 
-- the branch has commits since its latest tag, or
-- the KAI Scheduler version range in the chart now resolves to a newer version
-  than the latest release bundled.
+Commits on the branch do not start a release by themselves. They ship with the
+next KAI Scheduler patch, or sooner if a maintainer releases the branch by hand.
 
-It does nothing when neither holds, when the next tag or a `release/prepare-*`
-pull request for it already exists, or when the branch has no release tag yet.
+It also does nothing when the next tag or a `release/prepare-*` pull request for
+it already exists, or when the branch has no release tag yet.
 
 A branch takes part only while its chart declares KAI Scheduler as a version
 range, for example `version: "~0.18.0"` in `Chart.yaml`. A branch that pins an
