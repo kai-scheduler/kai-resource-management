@@ -154,11 +154,22 @@ spec:
                       TimeBasedFairShare configures usage-aware fairness for the nodepool.
                       The controller compiles this into the shard's kValue + usageDBConfig.
                     properties:
+                      connectionString:
+                        description: ConnectionString is the usage db address. Maps
+                          to shard usageDBConfig.connectionString.
+                        type: string
                       enabled:
                         description: |-
                           Enabled activates usage-aware fairness. When false, scheduling uses current
                           queue state only.
                         type: boolean
+                      extraParams:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          ExtraParams are extra parameters for the usage db client, which are client specific.
+                          Maps to shard usageDBConfig.usageParams.extraParams.
+                        type: object
                       halfLifePeriod:
                         description: |-
                           HalfLifePeriod is the half-life of past usage. 0 = no decay (all history weighted equally).

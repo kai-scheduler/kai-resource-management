@@ -71,6 +71,8 @@ Requires Prometheus — usage is read from the metrics backend.
 | `sampling.fetchInterval` | duration | `1m` | How often usage is fetched |
 | `sampling.stalenessPeriod` | duration | `5m` | When fetched usage is considered stale |
 | `sampling.waitTimeout` | duration | `1m` | Fetch wait timeout |
+| `connectionString` | string | — | Prometheus address for this node pool. Unset uses the scheduler's cluster-wide Prometheus |
+| `extraParams` | map of string | — | Parameters passed unchanged to the usage-DB client, such as `gpuCapacityMetric` or `usageQueryTimeout`. Keys left unset get the controller's defaults |
 
 ### `status`
 

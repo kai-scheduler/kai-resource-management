@@ -503,6 +503,84 @@ var _ = Describe("SchedulingShardForNodePool SchedulingShardConfig pass-through"
 			Expect(spec.UsageDBConfig).NotTo(BeNil())
 		})
 	})
+
+	Context("usage-DB connection string and extra params", func() {
+		const customCapacityQuery = `sum(kube_node_status_capacity{resource="nvidia_com_gpu"})`
+
+		fairShare := func(tbfs v1alpha1.TimeBasedFairShare) *v1alpha1.SchedulingShardConfig {
+			tbfs.Enabled = ptr.To(true)
+			return &v1alpha1.SchedulingShardConfig{TimeBasedFairShare: &tbfs}
+		}
+		defaultExtraParams := func() map[string]string {
+			params := &usagedbapi.UsageParams{}
+			overrideCapacityMetricsIfNeeded(params, "np-passthrough")
+			return params.ExtraParams
+		}
+
+		It("leaves the shard's address empty when unset, so KAI resolves its cluster-wide Prometheus", func() {
+			spec := buildShardSpec(fairShare(v1alpha1.TimeBasedFairShare{}))
+
+			Expect(spec.UsageDBConfig.ConnectionString).To(BeEmpty())
+			Expect(spec.UsageDBConfig.ConnectionStringEnvVar).To(BeEmpty())
+		})
+
+		It("writes the node pool's address to the shard", func() {
+			spec := buildShardSpec(fairShare(v1alpha1.TimeBasedFairShare{
+				ConnectionString: ptr.To("http://team-a-prometheus:9090"),
+			}))
+
+			Expect(spec.UsageDBConfig.ConnectionString).To(Equal("http://team-a-prometheus:9090"))
+		})
+
+		It("writes only the controller's default queries when extra params are unset", func() {
+			spec := buildShardSpec(fairShare(v1alpha1.TimeBasedFairShare{}))
+
+			Expect(spec.UsageDBConfig.UsageParams.ExtraParams).To(Equal(defaultExtraParams()))
+		})
+
+		It("keeps a node pool value over the controller's default for the same key", func() {
+			spec := buildShardSpec(fairShare(v1alpha1.TimeBasedFairShare{
+				ExtraParams: map[string]string{"gpuCapacityMetric": customCapacityQuery},
+			}))
+
+			expected := defaultExtraParams()
+			expected["gpuCapacityMetric"] = customCapacityQuery
+			Expect(spec.UsageDBConfig.UsageParams.ExtraParams).To(Equal(expected))
+		})
+
+		It("passes keys the controller has no default for through to the shard", func() {
+			spec := buildShardSpec(fairShare(v1alpha1.TimeBasedFairShare{
+				ExtraParams: map[string]string{"usageQueryTimeout": "30s"},
+			}))
+
+			expected := defaultExtraParams()
+			expected["usageQueryTimeout"] = "30s"
+			Expect(spec.UsageDBConfig.UsageParams.ExtraParams).To(Equal(expected))
+		})
+
+		It("does not write the controller's defaults back into the node pool", func() {
+			cfg := fairShare(v1alpha1.TimeBasedFairShare{
+				ExtraParams: map[string]string{"usageQueryTimeout": "30s"},
+			})
+
+			buildShardSpec(cfg)
+
+			Expect(cfg.TimeBasedFairShare.ExtraParams).To(Equal(map[string]string{"usageQueryTimeout": "30s"}))
+		})
+
+		It("writes no usage DB to the shard while fair share is disabled", func() {
+			cfg := fairShare(v1alpha1.TimeBasedFairShare{
+				ConnectionString: ptr.To("http://team-a-prometheus:9090"),
+				ExtraParams:      map[string]string{"usageQueryTimeout": "30s"},
+			})
+			cfg.TimeBasedFairShare.Enabled = ptr.To(false)
+
+			spec := buildShardSpec(cfg)
+
+			Expect(spec.UsageDBConfig).To(BeNil())
+			Expect(spec.KValue).To(BeNil())
+		})
+	})
 })
 
 var _ = Describe("Resolving a NodePool's SchedulingShard by partition value", func() {
