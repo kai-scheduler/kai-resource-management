@@ -114,6 +114,27 @@ the defaults are sensible and most people should leave it unset.
 > **This needs Prometheus.** Usage is read from the metrics backend. Without one, enabling
 > it changes nothing observable, and the shard has no data to weigh.
 
+### Reading usage from a different Prometheus
+
+By default every node pool reads usage from the scheduler's cluster-wide Prometheus,
+with queries the controller fills in. Override either per node pool:
+
+```yaml
+schedulingShardConfig:
+  timeBasedFairShare:
+    enabled: true
+    connectionString: http://team-a-prometheus.monitoring:9090
+    extraParams:
+      gpuCapacityMetric: sum(kube_node_status_capacity{resource="nvidia_com_gpu"})
+      usageQueryTimeout: 30s
+```
+
+`extraParams` is passed unchanged to the scheduler's usage-DB client. The controller fills
+in its own queries only for keys you leave unset: `gpuAllocationMetric`,
+`cpuAllocationMetric` and `memoryAllocationMetric` (usage per queue), and
+`gpuCapacityMetric`, `cpuCapacityMetric` and `memoryCapacityMetric` (capacity of this
+node pool, read from `resources_per_nodepool`). Unknown keys are ignored by the scheduler.
+
 ## NUMA-aware scheduling
 
 Align a workload's CPUs, memory and devices on the same NUMA node, which matters for

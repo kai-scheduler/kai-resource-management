@@ -337,6 +337,7 @@ func getTimeBasedFairShareFields(nodePool *v1alpha1.NodePool) *usagedbapi.UsageD
 		WindowSize:     parseMonitoringDurationParam(windowSize, defaultTimeBasedFairShareWindowDuration, "Window.Size", nodePool.Name),
 		WindowType:     ptr.To(defaultTimeBasedFairShareWindowType),
 		CronString:     cronString,
+		ExtraParams:    maps.Clone(tbfs.ExtraParams),
 	}
 	if windowType != nil {
 		if wt := usagedbapi.WindowType(*windowType); wt.IsValid() {
@@ -352,7 +353,11 @@ func getTimeBasedFairShareFields(nodePool *v1alpha1.NodePool) *usagedbapi.UsageD
 		usageParams.WaitTimeout = parseOptionalDurationParam(sampling.WaitTimeout, "Sampling.WaitTimeout", nodePool.Name)
 	}
 
-	result := &usagedbapi.UsageDBConfig{ClientType: "prometheus", UsageParams: usageParams}
+	result := &usagedbapi.UsageDBConfig{
+		ClientType:       "prometheus",
+		ConnectionString: ptr.Deref(tbfs.ConnectionString, ""),
+		UsageParams:      usageParams,
+	}
 	overrideCapacityMetricsIfNeeded(result.UsageParams, nodePool.Name)
 	return result
 }
