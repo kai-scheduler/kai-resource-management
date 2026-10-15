@@ -21,7 +21,9 @@ jobs:
     name: Check if build and test are required
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      # A release pull request changes only the changelog, yet it is the last run before
+      # the release ships the KAI Scheduler its version range now resolves to.
+      code: ${{ steps.filter.outputs.code == 'true' || startsWith(github.head_ref, 'release/prepare-') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7

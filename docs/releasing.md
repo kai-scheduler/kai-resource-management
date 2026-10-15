@@ -109,6 +109,10 @@ once its checks pass, as long as it changes nothing but `CHANGELOG.md` and the
 changelog fragments. Anything pushed on top of the bot's commit, or any other
 file in the pull request, leaves it for a maintainer.
 
+Its checks are the full pull request CI, e2e and upgrade e2e included, even
+though it changes only the changelog. They build the chart the same way the
+release does, so they test the KAI Scheduler version the release will bundle.
+
 `CHANGELOG.md` is the source of truth for the release notes, so check the new
 section for accuracy while the checks run, and correct it in the pull request
 rather than after the release.
@@ -116,14 +120,19 @@ rather than after the release.
 Two limits of the automatic merge are accepted. The approval is not dismissed by
 a later push, so someone with write access could add a change while the checks
 run. And a version range is
-resolved twice, when the changelog is prepared and when the chart is built after
-the merge. If KAI Scheduler publishes another patch in between, the
-`Bundle KAI Scheduler` entry names the earlier one while the chart and
-`subcharts.yaml` carry the later one.
+resolved more than once: when the changelog is prepared, when the pull request
+checks build the chart, and when the chart is built after the merge. If KAI
+Scheduler publishes another patch in between, the release bundles a version the
+e2e tests did not run against, and the `Bundle KAI Scheduler` entry may name an
+earlier one. `subcharts.yaml` always records the version the chart carries.
 
 Merging the pull request runs **Release — Tag & Publish**, which verifies that
 the top changelog version matches the branch version and that the tag does not
 already exist, then creates the tag and the GitHub Release.
+
+The release is marked **Latest** only when its version is the highest release
+tag. A patch to an older minor, for example `v0.18.6` after `v0.19.0` exists,
+is published without taking **Latest** from the newer minor.
 
 ### 4. Artifacts publish automatically
 
@@ -137,14 +146,15 @@ Release.
 **Release — Scheduled Patch Releases** runs on Sunday and Wednesday at 23:00 UTC
 and can be started from the Actions tab, with **dry-run** to see what it would
 do. For each `v<major>.<minor>` branch it starts the next patch release, for
-example `v0.18.4` after `v0.18.3`, when either:
+example `v0.18.4` after `v0.18.3`, when the KAI Scheduler version range in the
+chart now resolves to a newer version than the `subcharts.yaml` of the latest
+release records.
 
-- the branch has commits since its latest tag, or
-- the KAI Scheduler version range in the chart now resolves to a newer version
-  than the latest release bundled.
+Commits on the branch do not start a release by themselves. They ship with the
+next KAI Scheduler patch, or sooner if a maintainer releases the branch by hand.
 
-It does nothing when neither holds, when the next tag or a `release/prepare-*`
-pull request for it already exists, or when the branch has no release tag yet.
+It also does nothing when the next tag or a `release/prepare-*` pull request for
+it already exists, or when the branch has no release tag yet.
 
 A branch takes part only while its chart declares KAI Scheduler as a version
 range, for example `version: "~0.18.0"` in `Chart.yaml`. A branch that pins an
