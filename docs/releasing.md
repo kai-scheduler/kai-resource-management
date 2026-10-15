@@ -109,6 +109,10 @@ once its checks pass, as long as it changes nothing but `CHANGELOG.md` and the
 changelog fragments. Anything pushed on top of the bot's commit, or any other
 file in the pull request, leaves it for a maintainer.
 
+Its checks are the full pull request CI, e2e and upgrade e2e included, even
+though it changes only the changelog. They build the chart the same way the
+release does, so they test the KAI Scheduler version the release will bundle.
+
 `CHANGELOG.md` is the source of truth for the release notes, so check the new
 section for accuracy while the checks run, and correct it in the pull request
 rather than after the release.
@@ -116,14 +120,19 @@ rather than after the release.
 Two limits of the automatic merge are accepted. The approval is not dismissed by
 a later push, so someone with write access could add a change while the checks
 run. And a version range is
-resolved twice, when the changelog is prepared and when the chart is built after
-the merge. If KAI Scheduler publishes another patch in between, the
-`Bundle KAI Scheduler` entry names the earlier one while the chart and
-`subcharts.yaml` carry the later one.
+resolved more than once: when the changelog is prepared, when the pull request
+checks build the chart, and when the chart is built after the merge. If KAI
+Scheduler publishes another patch in between, the release bundles a version the
+e2e tests did not run against, and the `Bundle KAI Scheduler` entry may name an
+earlier one. `subcharts.yaml` always records the version the chart carries.
 
 Merging the pull request runs **Release — Tag & Publish**, which verifies that
 the top changelog version matches the branch version and that the tag does not
 already exist, then creates the tag and the GitHub Release.
+
+The release is marked **Latest** only when its version is the highest release
+tag. A patch to an older minor, for example `v0.18.6` after `v0.19.0` exists,
+is published without taking **Latest** from the newer minor.
 
 ### 4. Artifacts publish automatically
 
