@@ -113,8 +113,6 @@ var _ = Describe("SchedulingShardConfigFromShard", func() {
 		Expect(err).To(MatchError(ContainSubstring(`"soon"`)))
 	})
 
-	// The two directions must stay inverse: a shard migrated into a node pool has to come
-	// back from SchedulingShardForNodePool scheduling the same way.
 	It("is turned back into the shard's scheduling settings by SchedulingShardForNodePool", func() {
 		start := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 		shard := shardWithSpec(kaiv1.SchedulingShardSpec{

@@ -36,9 +36,8 @@ const (
 
 // MigrateShardsOptions are the controller settings a migrated shard must agree with.
 type MigrateShardsOptions struct {
-	// PartitionLabelKey is the node label KAI reads a node's partition from, which the
-	// controller writes as <key>=<NodePool name> (its --nodepool-label-key). Unlike a
-	// NodePool's spec.labelKey, which selects the NodePool's nodes, it is the same for all.
+	// PartitionLabelKey is the node label KAI reads partitions from and the controller writes as
+	// <key>=<NodePool name>; not a NodePool's own spec.labelKey.
 	PartitionLabelKey   string
 	DefaultNodePoolName string
 	// SchedulingShardArgs are the cluster-wide args the controller writes into every shard.
@@ -202,8 +201,7 @@ func planMigrations(ctx context.Context, k8sClient client.Client, all []kaiv1.Sc
 	return migrations, nil
 }
 
-// checkPartitionLabelKey makes sure KAI and the controller agree on the partition label:
-// the controller writes it on every node, and KAI reads it to pick the node's shard.
+// checkPartitionLabelKey fails when KAI reads partitions from another label than the controller writes.
 func checkPartitionLabelKey(ctx context.Context, reader client.Reader, partitionLabelKey string) error {
 	kaiConfig := &kaiv1.Config{}
 	err := reader.Get(ctx, types.NamespacedName{Name: kaiconstants.DefaultKAIConfigSingeltonInstanceName}, kaiConfig)
@@ -278,10 +276,8 @@ func getNodePool(ctx context.Context, reader client.Reader, name string) (*kaire
 	return nodePool, nil
 }
 
-// checkNodePoolSelectsPartition keeps migration from moving nodes between schedulers. The
-// controller relabels every node a NodePool selects with the NodePool's name as its
-// partition, so an existing NodePool selecting by another label would hand its shard
-// whichever nodes carry that label, not the nodes the shard serves today.
+// checkNodePoolSelectsPartition refuses a NodePool that selects other nodes than the shard serves:
+// the controller relabels them into its partition, moving nodes between schedulers.
 func checkNodePoolSelectsPartition(nodePool *kaires.NodePool, shard *kaiv1.SchedulingShard,
 	partitionLabelKey string,
 ) error {
@@ -322,8 +318,7 @@ func migrate(ctx context.Context, k8sClient client.Client, migration shardMigrat
 	return nil
 }
 
-// nodePoolForShard creates the shard's NodePool, or updates the existing one to the shard's
-// settings, so the shard keeps scheduling the same way once the controller aligns it.
+// nodePoolForShard creates the shard's NodePool, or updates an existing one to the shard's settings.
 func nodePoolForShard(ctx context.Context, k8sClient client.Client, migration shardMigration,
 	opts MigrateShardsOptions,
 ) (*kaires.NodePool, error) {

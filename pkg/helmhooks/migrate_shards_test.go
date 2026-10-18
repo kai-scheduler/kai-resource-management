@@ -402,8 +402,6 @@ var _ = Describe("MigrateShards", func() {
 			expectNothingChanged(k8sClient, "team-a")
 		})
 
-		// The controller would relabel the gpu-type=a100 nodes into partition team-a, moving
-		// them, and the nodes labelled team-a today, between schedulers.
 		It("fails when a NodePool of that name selects its nodes by another label", func() {
 			other := &kaires.NodePool{
 				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},

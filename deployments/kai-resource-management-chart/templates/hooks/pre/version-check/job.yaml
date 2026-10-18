@@ -1,8 +1,7 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Only beside an existing KAI Scheduler; unset means bundled, whose version is this chart's own.
-{{- if not (dig "enabled" true (index .Values "kai-scheduler")) }}
+{{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
 apiVersion: batch/v1
 kind: Job
 metadata:

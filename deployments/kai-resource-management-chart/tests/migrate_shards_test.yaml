@@ -9,7 +9,6 @@ release:
   name: rm
   namespace: kai
 tests:
-  # Unset is today's default, and means the subchart is bundled.
   - it: renders nothing while kai-scheduler.enabled is unset
     asserts:
       - hasDocuments:

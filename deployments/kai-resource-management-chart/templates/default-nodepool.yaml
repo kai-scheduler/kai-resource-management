@@ -1,12 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-{{- /*
-Beside an existing KAI Scheduler the migrate-shards hook creates it instead, from the default
-shard when there is one: Helm picks what to create before any hook runs, so only one of them
-may create it. kai-scheduler.enabled unset means bundled.
-*/}}
-{{- if and .Values.defaultNodePool.enabled (dig "enabled" true (index .Values "kai-scheduler")) }}
+{{- /* Next to an existing KAI Scheduler the migrate-shards hook creates it instead. */}}
+{{- if and .Values.defaultNodePool.enabled (not (include "kai-resource-management.usesExistingKaiScheduler" .)) }}
 # Default catch-all NodePool
 apiVersion: kai.resources/v1alpha1
 kind: NodePool

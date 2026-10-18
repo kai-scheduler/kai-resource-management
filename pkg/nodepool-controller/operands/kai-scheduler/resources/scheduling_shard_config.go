@@ -16,9 +16,8 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// kaiDefaultUsageQueries are the queries KAI Scheduler's Prometheus usage client falls back
-// to. SchedulingShardForNodePool fills in per-node-pool queries for keys a node pool leaves
-// unset, so a shard that relied on these needs them written out to keep reading the same data.
+// kaiDefaultUsageQueries are KAI's own usage queries, written out so a migrated shard keeps them
+// instead of the per-node-pool defaults SchedulingShardForNodePool fills in.
 var kaiDefaultUsageQueries = map[string]string{
 	"gpuAllocationMetric":    "kai_queue_allocated_gpus",
 	"cpuAllocationMetric":    "kai_queue_allocated_cpu_cores",
@@ -28,8 +27,7 @@ var kaiDefaultUsageQueries = map[string]string{
 	"memoryCapacityMetric":   `sum(kube_node_status_capacity{resource="memory"})`,
 }
 
-// SchedulingShardConfigFromShard is the reverse of SchedulingShardForNodePool: the node pool
-// configuration that SchedulingShardForNodePool turns back into the shard's scheduling settings.
+// SchedulingShardConfigFromShard is the reverse of SchedulingShardForNodePool.
 func SchedulingShardConfigFromShard(shard *kaiv1.SchedulingShard) (*v1alpha1.SchedulingShardConfig, error) {
 	spec := shard.Spec.DeepCopy()
 	timeBasedFairShare, err := timeBasedFairShareFromShard(shard.Name, spec)
@@ -47,11 +45,8 @@ func SchedulingShardConfigFromShard(shard *kaiv1.SchedulingShard) (*v1alpha1.Sch
 	}, nil
 }
 
-// timeBasedFairShareFromShard maps a shard's usage DB back to the node pool field it is
-// compiled from. A kValue without a usage DB is dropped: with no usage to weigh, KAI's share
-// weight w+k*(w-0) scales every queue alike and normalising cancels k out. The client type
-// and the connection-string env var are not carried over: prometheus is the only production
-// client, and nothing on a shard can set the scheduler's env.
+// timeBasedFairShareFromShard drops a kValue without a usage DB, which has no effect, and the client
+// type and env-var connection string, which a node pool cannot express.
 func timeBasedFairShareFromShard(shardName string, spec *kaiv1.SchedulingShardSpec) (*v1alpha1.TimeBasedFairShare, error) {
 	usageDB := spec.UsageDBConfig
 	if usageDB == nil {
@@ -114,8 +109,7 @@ func withKAIDefaultUsageQueries(extraParams map[string]string) map[string]string
 	return params
 }
 
-// nodePoolDuration formats a duration in the units the node pool's half-life and window size
-// accept: days, hours and minutes.
+// nodePoolDuration uses days, hours or minutes, the only units a node pool's durations accept.
 func nodePoolDuration(duration time.Duration) string {
 	switch {
 	case duration <= 0:

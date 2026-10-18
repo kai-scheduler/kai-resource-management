@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- $kai := index .Values "kai-scheduler" | default dict }}
-# Only beside an existing KAI Scheduler, whose shards predate KRM; unset means bundled.
-{{- if not (dig "enabled" true $kai) }}
+{{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
 apiVersion: batch/v1
 kind: Job
 metadata:

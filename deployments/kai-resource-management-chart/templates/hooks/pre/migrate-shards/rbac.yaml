@@ -1,8 +1,7 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Only beside an existing KAI Scheduler, whose shards predate KRM; unset means bundled.
-{{- if not (dig "enabled" true (index .Values "kai-scheduler")) }}
+{{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -30,8 +29,7 @@ rules:
 - apiGroups: ["kai.resources"]
   resources: ["nodepools"]
   verbs: ["get", "create", "patch"]
-# Owning a shard with blockOwnerDeletion needs this where OwnerReferencesPermissionEnforcement
-# is enabled, as on OpenShift.
+# Setting a blockOwnerDeletion owner reference needs this under OwnerReferencesPermissionEnforcement.
 - apiGroups: ["kai.resources"]
   resources: ["nodepools/finalizers"]
   verbs: ["update"]
