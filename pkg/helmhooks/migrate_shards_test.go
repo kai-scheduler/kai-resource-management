@@ -335,6 +335,49 @@ var _ = Describe("MigrateShards", func() {
 		})
 	})
 
+	Context("a custom partition label key", func() {
+		const customKey = "kai/nodepool"
+
+		BeforeEach(func() {
+			opts.PartitionLabelKey = customKey
+		})
+
+		It("gets a NodePool selecting its partition by that key", func() {
+			k8sClient := newClient(shard("team-a", "team-a"), kaiConfig(customKey))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			nodePool := getNodePool(k8sClient, "team-a")
+			Expect(nodePool.Spec.LabelKey).To(Equal(customKey))
+			Expect(nodePool.Spec.LabelValue).To(Equal("team-a"))
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
+		})
+
+		It("takes over a NodePool that already selects the partition by that key", func() {
+			existing := &kaires.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
+				Spec:       kaires.NodePoolSpec{LabelKey: customKey, LabelValue: "team-a"},
+			}
+			k8sClient := newClient(shard("team-a", "team-a"), existing, kaiConfig(customKey))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
+		})
+
+		It("refuses a NodePool selecting the partition by the default key instead", func() {
+			existing := &kaires.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
+				Spec:       kaires.NodePoolSpec{LabelKey: "kai.scheduler/node-pool", LabelValue: "team-a"},
+			}
+			k8sClient := newClient(shard("team-a", "team-a"), existing, kaiConfig(customKey))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(
+				ContainSubstring("select kai/nodepool=team-a in the NodePool")))
+			Expect(metav1.GetControllerOf(getShard(k8sClient, "team-a"))).To(BeNil())
+		})
+	})
+
 	Context("failures, which change nothing", func() {
 		expectNothingChanged := func(k8sClient client.Client, shardNames ...string) {
 			for _, name := range shardNames {
