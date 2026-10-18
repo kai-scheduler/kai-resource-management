@@ -35,8 +35,6 @@ import (
 )
 
 const (
-	// AdoptionLabelKey marks a SchedulingShard that existed before KRM and was taken over
-	// by a NodePool, as opposed to one the controller created.
 	AdoptionLabelKey   = "kai.resources/adoption"
 	AdoptionLabelValue = "adopted"
 )
@@ -76,10 +74,7 @@ type shardMigration struct {
 	existing     *kaires.NodePool
 }
 
-// MigrateShards gives every pre-existing SchedulingShard a NodePool that owns it, carrying
-// the shard's settings over so the scheduler behaves the same once the controller takes
-// over. It checks every shard before changing any, and changes nothing if one cannot be
-// migrated exactly. Shards a NodePool already owns are skipped, so a rerun is a no-op.
+// MigrateShards hands every pre-existing SchedulingShard to a NodePool built from its settings.
 func MigrateShards(ctx context.Context, k8sClient client.Client, opts MigrateShardsOptions) error {
 	logger := logf.FromContext(ctx)
 	k8sClient = retryingClient{Client: k8sClient}

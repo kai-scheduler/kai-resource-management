@@ -9,13 +9,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
-    # After the CRD upgrader (2), so the NodePool CRD it writes is current.
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
-  # A shard that cannot be migrated fails the same way every time; retries would outlast
-  # Helm's timeout and hide the message behind "timed out". The hook itself retries
-  # passing API errors.
   backoffLimit: 0
   template:
     metadata:
