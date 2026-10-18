@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.18.6] - 2026-10-18
+
+### Changed
+- Bundle KAI Scheduler v0.18.6
+
 ## [v0.18.5] - 2026-10-14
 
 ### Added
