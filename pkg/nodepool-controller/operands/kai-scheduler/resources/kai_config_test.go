@@ -223,7 +223,7 @@ var _ = Describe("nodepool-controller under KAI (non-runai) config", func() {
 			Expect(shard.Labels).To(HaveKeyWithValue("app", kaiSchedulerName))
 			Expect(shard.Labels).To(HaveKeyWithValue("external-label", "preserve"))
 			Expect(shard.Annotations).To(HaveKeyWithValue("external-annotation", "preserve"))
-			Expect(shard.Annotations).To(HaveKey(ManagedShardArgsAnnotation))
+			Expect(shard.Annotations).To(HaveKey(managedShardArgsAnnotation))
 			Expect(shard.Finalizers).To(Equal(existing.Finalizers))
 			Expect(shard.OwnerReferences).To(Equal(existing.OwnerReferences))
 			Expect(shard.Status).To(Equal(existing.Status))

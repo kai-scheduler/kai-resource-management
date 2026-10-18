@@ -159,14 +159,18 @@ func migrateShards(ctx context.Context, newClient clientFactory, flags []string)
 		"name of the NodePool that takes the default partition")
 	shardArgs := flagSet.String("scheduling-shard-args", "",
 		"JSON map of the args the nodepool-controller writes into every SchedulingShard")
-	releaseName := flagSet.String("release-name", "",
-		"Helm release that renders the default NodePool; empty when the chart does not render it")
-	releaseNamespace := flagSet.String("release-namespace", "", "namespace of that Helm release")
+	ensureDefault := flagSet.Bool("ensure-default-nodepool", false,
+		"create the default NodePool when nothing else does; set when the chart does not render it")
+	defaultSpec := flagSet.String("default-nodepool-spec", "",
+		"JSON NodePool spec for a default NodePool that no default shard builds")
 	if err := parseFlags(flagSet, flags); err != nil {
 		return err
 	}
-	if *releaseName != "" && *releaseNamespace == "" {
-		return fmt.Errorf("%s: --release-namespace is required with --release-name", migrateShardsCommand)
+	defaultNodePoolSpec := kaires.NodePoolSpec{}
+	if *defaultSpec != "" {
+		if err := json.Unmarshal([]byte(*defaultSpec), &defaultNodePoolSpec); err != nil {
+			return fmt.Errorf("%s: --default-nodepool-spec is not a NodePool spec: %w", migrateShardsCommand, err)
+		}
 	}
 	schedulingShardArgs := map[string]string{}
 	if *shardArgs != "" {
@@ -179,11 +183,11 @@ func migrateShards(ctx context.Context, newClient clientFactory, flags []string)
 		return err
 	}
 	return helmhooks.MigrateShards(ctx, k8sClient, helmhooks.MigrateShardsOptions{
-		NodePoolLabelKey:    *nodePoolLabelKey,
-		DefaultNodePoolName: *defaultNodePoolName,
-		SchedulingShardArgs: schedulingShardArgs,
-		ReleaseName:         *releaseName,
-		ReleaseNamespace:    *releaseNamespace,
+		NodePoolLabelKey:      *nodePoolLabelKey,
+		DefaultNodePoolName:   *defaultNodePoolName,
+		SchedulingShardArgs:   schedulingShardArgs,
+		EnsureDefaultNodePool: *ensureDefault,
+		DefaultNodePoolSpec:   defaultNodePoolSpec,
 	})
 }
 
@@ -216,7 +220,7 @@ Subcommands:
                                     supported; its version is read from the
                                     kai-operator image tag unless given
   %s [--nodepool-label-key=<key>] [--default-nodepool-name=<name>]
-      [--scheduling-shard-args=<json>] [--release-name=<name> --release-namespace=<ns>]
+      [--scheduling-shard-args=<json>] [--ensure-default-nodepool [--default-nodepool-spec=<json>]]
                                     give every pre-existing SchedulingShard a NodePool
                                     that owns it, carrying its settings over
 `, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand, migrateShardsCommand)

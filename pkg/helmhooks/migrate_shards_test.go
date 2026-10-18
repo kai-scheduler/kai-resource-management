@@ -13,15 +13,17 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
-	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
@@ -36,13 +38,20 @@ var _ = Describe("MigrateShards", func() {
 	BeforeEach(func() {
 		ctx = context.Background()
 		opts = MigrateShardsOptions{NodePoolLabelKey: labelKey, DefaultNodePoolName: "default"}
+
+		original := transientRetry
+		transientRetry = wait.Backoff{Steps: 3, Duration: time.Millisecond}
+		DeferCleanup(func() { transientRetry = original })
 	})
 
-	newClient := func(objects ...client.Object) client.Client {
+	newClientWith := func(funcs interceptor.Funcs, objects ...client.Object) client.Client {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(kaiv1.AddToScheme(scheme))
 		utilruntime.Must(kaires.AddToScheme(scheme))
-		return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+		return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).WithInterceptorFuncs(funcs).Build()
+	}
+	newClient := func(objects ...client.Object) client.Client {
+		return newClientWith(interceptor.Funcs{}, objects...)
 	}
 	shard := func(name, partition string) *kaiv1.SchedulingShard {
 		return &kaiv1.SchedulingShard{
@@ -95,17 +104,38 @@ var _ = Describe("MigrateShards", func() {
 			Expect(migrated.Labels).To(HaveKeyWithValue(AdoptionLabelKey, AdoptionLabelValue))
 		})
 
-		It("keeps the shard's args as the admin's", func() {
+		It("moves the shard's args into its NodePool", func() {
 			s := shard("team-a", "team-a")
 			s.Spec.Args = map[string]string{"verbosity": "5"}
 			k8sClient := newClient(s)
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
 
-			migrated := getShard(k8sClient, "team-a")
-			Expect(migrated.Spec.Args).To(Equal(map[string]string{"verbosity": "5"}))
-			Expect(migrated.Annotations).To(HaveKeyWithValue(resources.ManagedShardArgsAnnotation, ""))
-			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig).To(BeNil())
+			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig.Args).
+				To(Equal(map[string]string{"verbosity": "5"}))
+			Expect(getShard(k8sClient, "team-a").Spec.Args).To(Equal(map[string]string{"verbosity": "5"}))
+		})
+
+		It("updates a NodePool that already selects its partition to the shard's settings", func() {
+			s := shard("team-a", "team-a")
+			s.Spec.QueueDepthPerAction = map[string]int{"allocate": 50}
+			existing := &kaires.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
+				Spec: kaires.NodePoolSpec{
+					LabelKey:   labelKey,
+					LabelValue: "team-a",
+					SchedulingShardConfig: &kaires.SchedulingShardConfig{
+						QueueDepthPerAction: map[string]int{"allocate": 10},
+					},
+				},
+			}
+			k8sClient := newClient(s, existing)
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig).To(Equal(
+				&kaires.SchedulingShardConfig{QueueDepthPerAction: map[string]int{"allocate": 50}}))
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
 		})
 
 		It("is skipped when an admin excluded it from KRM", func() {
@@ -136,10 +166,19 @@ var _ = Describe("MigrateShards", func() {
 		})
 	})
 
-	Context("the default shard", func() {
-		It("gets the default NodePool, selecting no label, and loses its ignore label", func() {
+	Context("the default NodePool", func() {
+		// Beside an existing KAI Scheduler the chart leaves the default NodePool to the hook.
+		BeforeEach(func() {
+			opts.EnsureDefaultNodePool = true
+			opts.DefaultNodePoolSpec = kaires.NodePoolSpec{
+				SchedulingShardConfig: &kaires.SchedulingShardConfig{QueueDepthPerAction: map[string]int{"allocate": 10}},
+			}
+		})
+
+		It("is built from the default shard, which it owns, selecting no label", func() {
 			s := shard("default", "")
 			s.Labels = map[string]string{unmanaged_shards.IgnoreShardLabelKey: "true"}
+			s.Spec.PlacementStrategy = &kaiv1.PlacementStrategy{GPU: ptr.To("binpack")}
 			k8sClient := newClient(s)
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
@@ -147,34 +186,148 @@ var _ = Describe("MigrateShards", func() {
 			nodePool := getNodePool(k8sClient, "default")
 			Expect(nodePool.Spec.LabelKey).To(BeEmpty())
 			Expect(nodePool.Spec.LabelValue).To(BeEmpty())
+			Expect(nodePool.Spec.SchedulingShardConfig.PlacementStrategy).To(Equal(s.Spec.PlacementStrategy))
+			Expect(nodePool.Labels).NotTo(HaveKey("app.kubernetes.io/managed-by"))
 			migrated := getShard(k8sClient, "default")
 			Expect(unmanaged_shards.OwningNodePoolName(migrated)).To(Equal("default"))
 			Expect(migrated.Labels).NotTo(HaveKey(unmanaged_shards.IgnoreShardLabelKey))
 		})
 
-		It("marks a default NodePool it creates as the release's, so Helm adopts it", func() {
-			opts.ReleaseName = "krm"
-			opts.ReleaseNamespace = "kai-resource-management"
-			k8sClient := newClient(shard("default", ""))
+		It("is built from the chart's spec when there is no default shard", func() {
+			k8sClient := newClient(shard("team-a", "team-a"))
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
 
-			nodePool := getNodePool(k8sClient, "default")
-			Expect(nodePool.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", "Helm"))
-			Expect(nodePool.Annotations).To(And(
-				HaveKeyWithValue("meta.helm.sh/release-name", "krm"),
-				HaveKeyWithValue("meta.helm.sh/release-namespace", "kai-resource-management"),
-				HaveKeyWithValue("helm.sh/resource-policy", "keep"),
-			))
+			Expect(getNodePool(k8sClient, "default").Spec).To(Equal(opts.DefaultNodePoolSpec))
 		})
 
-		It("uses the configured default NodePool name", func() {
+		It("is created even when there are no shards at all", func() {
+			k8sClient := newClient()
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(getNodePool(k8sClient, "default").Spec).To(Equal(opts.DefaultNodePoolSpec))
+		})
+
+		It("is updated to the default shard's settings when it already exists", func() {
+			s := shard("default", "")
+			s.Spec.PlacementStrategy = &kaiv1.PlacementStrategy{GPU: ptr.To("binpack")}
+			existing := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			k8sClient := newClient(s, existing)
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(getNodePool(k8sClient, "default").Spec.SchedulingShardConfig.PlacementStrategy).
+				To(Equal(s.Spec.PlacementStrategy))
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "default"))).To(Equal("default"))
+		})
+
+		It("is left as it is when it already exists and there is no default shard", func() {
+			existing := &kaires.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "default"},
+				Spec: kaires.NodePoolSpec{
+					SchedulingShardConfig: &kaires.SchedulingShardConfig{QueueDepthPerAction: map[string]int{"allocate": 99}},
+				},
+			}
+			k8sClient := newClient(existing)
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(getNodePool(k8sClient, "default").Spec.SchedulingShardConfig.QueueDepthPerAction).
+				To(Equal(map[string]int{"allocate": 99}))
+		})
+
+		// On an upgrade the NodePool webhook refuses a duplicate before the API server can
+		// answer that it exists.
+		It("does not try to create a default NodePool that exists", func() {
+			existing := &kaires.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			k8sClient := newClientWith(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					return apierrors.NewBadRequest("admission webhook denied the request")
+				},
+			}, existing)
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+		})
+
+		It("uses the configured name", func() {
 			opts.DefaultNodePoolName = "catch-all"
 			k8sClient := newClient(shard("default", ""))
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
 
 			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "default"))).To(Equal("catch-all"))
+		})
+
+		It("is never created when the chart creates it", func() {
+			opts.EnsureDefaultNodePool = false
+			k8sClient := newClient(shard("team-a", "team-a"))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "default"}, &kaires.NodePool{})).
+				To(MatchError(ContainSubstring("not found")))
+		})
+
+		// The chart's own default NodePool would collide with one built for the shard.
+		It("fails on a default shard when the chart creates the default NodePool", func() {
+			opts.EnsureDefaultNodePool = false
+			k8sClient := newClient(shard("default", ""))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("kai-scheduler.enabled=false")))
+			Expect(nodePoolCount(k8sClient)).To(BeZero())
+		})
+	})
+
+	Context("passing API errors", func() {
+		It("retries a call the API server failed to serve", func() {
+			failures := 1
+			k8sClient := newClientWith(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					if failures > 0 {
+						failures--
+						return apierrors.NewServiceUnavailable("webhook restarting")
+					}
+					return c.Create(ctx, obj, opts...)
+				},
+			}, shard("team-a", "team-a"))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
+		})
+
+		It("accepts the NodePool a create made before its response was lost", func() {
+			lost := true
+			k8sClient := newClientWith(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					if err := c.Create(ctx, obj, opts...); err != nil {
+						return err
+					}
+					if lost {
+						lost = false
+						return apierrors.NewServerTimeout(kaires.GroupVersion.WithResource("nodepools").GroupResource(), "create", 1)
+					}
+					return nil
+				},
+			}, shard("team-a", "team-a"))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
+
+			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
+		})
+
+		It("does not retry a refusal", func() {
+			calls := 0
+			k8sClient := newClientWith(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					calls++
+					return apierrors.NewForbidden(kaires.GroupVersion.WithResource("nodepools").GroupResource(), "team-a", nil)
+				},
+			}, shard("team-a", "team-a"))
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("forbidden")))
+			Expect(calls).To(Equal(1))
 		})
 	})
 
@@ -371,27 +524,6 @@ var _ = Describe("MigrateShards", func() {
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("already exists")))
 			expectNothingChanged(k8sClient, "team-a")
-		})
-
-		It("fails, never overwriting the shard's settings, when the NodePool exists with other settings", func() {
-			s := shard("team-a", "team-a")
-			s.Spec.QueueDepthPerAction = map[string]int{"allocate": 50}
-			existing := &kaires.NodePool{
-				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
-				Spec: kaires.NodePoolSpec{
-					LabelKey:   labelKey,
-					LabelValue: "team-a",
-					SchedulingShardConfig: &kaires.SchedulingShardConfig{
-						QueueDepthPerAction: map[string]int{"allocate": 10},
-					},
-				},
-			}
-			k8sClient := newClient(s, existing)
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("different settings")))
-			expectNothingChanged(k8sClient, "team-a")
-			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig.QueueDepthPerAction).
-				To(Equal(map[string]int{"allocate": 10}))
 		})
 
 		It("fails when two shards serve the same partition", func() {

@@ -24,9 +24,10 @@ rules:
 - apiGroups: ["kai.scheduler"]
   resources: ["schedulingshards"]
   verbs: ["get", "list", "patch"]
+# A NodePool that already selects a shard's partition is updated to the shard's settings.
 - apiGroups: ["kai.resources"]
   resources: ["nodepools"]
-  verbs: ["get", "create"]
+  verbs: ["get", "create", "patch"]
 # kai-config names the node label KAI reads partitions from.
 - apiGroups: ["kai.scheduler"]
   resources: ["configs"]

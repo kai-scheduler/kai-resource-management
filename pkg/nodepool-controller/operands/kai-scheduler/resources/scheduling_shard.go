@@ -37,9 +37,7 @@ const (
 	defaultTimeBasedFairShareWindowDuration        = 7 * 24 * time.Hour
 	defaultTimeBasedFairShareWindowType            = usagedbapi.SlidingWindow
 
-	// ManagedShardArgsAnnotation lists the shard args the controller wrote, so it can
-	// remove them when they leave the node pool while keeping args an admin set by hand.
-	ManagedShardArgsAnnotation = "kai.resources/managed-shard-args"
+	managedShardArgsAnnotation = "kai.resources/managed-shard-args"
 )
 
 func SchedulerBaseOperandName() string { return config.Get().SchedulerName }
@@ -89,7 +87,7 @@ func SchedulingShardForNodePool(
 
 func mergeShardArgs(shard *kaiv1.SchedulingShard, desired map[string]string) map[string]string {
 	args := map[string]string{}
-	if managed, isTracked := shard.Annotations[ManagedShardArgsAnnotation]; isTracked {
+	if managed, isTracked := shard.Annotations[managedShardArgsAnnotation]; isTracked {
 		previouslyManaged := sets.New(strings.Split(managed, ",")...)
 		for key, value := range shard.Spec.Args {
 			if !previouslyManaged.Has(key) {
@@ -102,7 +100,7 @@ func mergeShardArgs(shard *kaiv1.SchedulingShard, desired map[string]string) map
 	if shard.Annotations == nil {
 		shard.Annotations = map[string]string{}
 	}
-	shard.Annotations[ManagedShardArgsAnnotation] = strings.Join(slices.Sorted(maps.Keys(desired)), ",")
+	shard.Annotations[managedShardArgsAnnotation] = strings.Join(slices.Sorted(maps.Keys(desired)), ",")
 	return args
 }
 

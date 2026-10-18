@@ -9,13 +9,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
-    # After the CRD upgrader (2), so the NodePool CRD it writes is current. Before the
-    # main install, so the chart's default NodePool can adopt the one it creates.
+    # After the CRD upgrader (2), so the NodePool CRD it writes is current.
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   # A shard that cannot be migrated fails the same way every time; retries would outlast
-  # Helm's timeout and hide the message behind "timed out".
+  # Helm's timeout and hide the message behind "timed out". The hook itself retries
+  # passing API errors.
   backoffLimit: 0
   template:
     metadata:
@@ -40,9 +40,10 @@ spec:
           {{- with dig "args" "schedulingShardArgs" "" .Values.nodePoolController }}
           - --scheduling-shard-args={{ . }}
           {{- end }}
-          {{- if .Values.defaultNodePool.enabled }}
-          - --release-name={{ .Release.Name }}
-          - --release-namespace={{ .Release.Namespace }}
+          {{- /* Beside an existing KAI Scheduler the chart leaves the default NodePool to this hook. */}}
+          {{- if and .Values.defaultNodePool.enabled (not (dig "enabled" true $kai)) }}
+          - --ensure-default-nodepool
+          - --default-nodepool-spec={{ toJson (.Values.defaultNodePool.spec | default dict) }}
           {{- end }}
         env:
           {{- include "kai-resource-management.godebug" . | nindent 10 }}

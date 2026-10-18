@@ -31,6 +31,14 @@ tests:
       - hasDocuments:
           count: 0
 
+  # Helm picks what to create before hooks run, so the chart and the hook cannot both.
+  - it: is left to the migrate-shards hook beside an existing KAI Scheduler
+    set:
+      kai-scheduler.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: honors a custom name and spec passthrough
     set:
       defaultNodePool.name: all-nodes

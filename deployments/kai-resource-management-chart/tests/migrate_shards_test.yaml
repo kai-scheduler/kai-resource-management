@@ -9,7 +9,7 @@ release:
   name: rm
   namespace: kai
 tests:
-  - it: runs after the CRD upgrader, marking the default NodePool as this release's
+  - it: runs after the CRD upgrader, leaving the default NodePool to the chart when bundled
     template: templates/hooks/pre/migrate-shards/job.yaml
     asserts:
       - equal:
@@ -23,8 +23,6 @@ tests:
           value:
             - migrate-shards
             - --default-nodepool-name=default
-            - --release-name=rm
-            - --release-namespace=kai
       - equal:
           path: spec.template.spec.containers[0].image
           value: registry/local/kai-resource-management/helm-hooks:0.0.0
@@ -50,18 +48,33 @@ tests:
             - --nodepool-label-key=example.com/pool
             - --default-nodepool-name=catch-all
             - --scheduling-shard-args={"verbosity":"4"}
-            - --release-name=rm
-            - --release-namespace=kai
 
-  # Nothing in the release renders a default NodePool for Helm to adopt.
-  - it: leaves the default NodePool unmarked when the chart does not render it
+  - it: creates the default NodePool beside an existing KAI Scheduler, from the chart's spec
     template: templates/hooks/pre/migrate-shards/job.yaml
     set:
+      kai-scheduler.enabled: false
+      defaultNodePool.spec:
+        schedulingShardConfig:
+          queueDepthPerAction:
+            allocate: 10
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - migrate-shards
+            - --default-nodepool-name=default
+            - --ensure-default-nodepool
+            - '--default-nodepool-spec={"schedulingShardConfig":{"queueDepthPerAction":{"allocate":10}}}'
+
+  - it: creates no default NodePool when it is disabled
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    set:
+      kai-scheduler.enabled: false
       defaultNodePool.enabled: false
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].args
-          content: --release-name=rm
+          content: --ensure-default-nodepool
 
   - it: grants its ServiceAccount only what the migration reads and writes, before the Job
     template: templates/hooks/pre/migrate-shards/rbac.yaml
@@ -79,7 +92,7 @@ tests:
               verbs: ["get", "list", "patch"]
             - apiGroups: ["kai.resources"]
               resources: ["nodepools"]
-              verbs: ["get", "create"]
+              verbs: ["get", "create", "patch"]
             - apiGroups: ["kai.scheduler"]
               resources: ["configs"]
               resourceNames: ["kai-config"]

@@ -54,9 +54,10 @@ var _ = Describe("Subcommand arguments", func() {
 			[]string{"--minimum-version=0.0.0", "--kai-scheduler-version=v0.1.0"})).To(Succeed())
 	})
 
-	It("requires --release-namespace with --release-name for migrate-shards", func() {
-		Expect(migrateShards(ctx, unreachableClient, []string{"--release-name=krm"})).
-			To(MatchError(ContainSubstring("--release-namespace is required")))
+	It("rejects --default-nodepool-spec that is not a NodePool spec", func() {
+		Expect(migrateShards(ctx, unreachableClient,
+			[]string{"--ensure-default-nodepool", `--default-nodepool-spec={"labelKey":1}`})).
+			To(MatchError(ContainSubstring("not a NodePool spec")))
 	})
 
 	It("rejects --scheduling-shard-args that is not a JSON map of strings", func() {
