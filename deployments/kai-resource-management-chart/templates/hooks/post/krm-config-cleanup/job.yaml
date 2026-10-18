@@ -1,6 +1,10 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+{{- $coInstall := not (dig "enabled" true (index .Values "kai-scheduler")) }}
+{{- if and $coInstall (not .Values.postCleanup.enabled) }}
+{{- fail "postCleanup.enabled=false is not supported with kai-scheduler.enabled=false: uninstall must release the SchedulingShards KRM adopted, or deleting a NodePool later deletes them" }}
+{{- end }}
 {{- if .Values.postCleanup.enabled }}
 apiVersion: batch/v1
 kind: Job
@@ -32,6 +36,16 @@ spec:
             # resource Helm deletes before this hook runs; when both modes are off
             # the CR belongs to somebody else.
             - --delete-config=krm-config
+            {{- end }}
+            {{- if $coInstall }}
+            # Helm deletes no NodePool, so an adopted shard still owned by one would be
+            # deleted with it later, and the NodePool itself would hang on a finalizer
+            # no controller is left to remove.
+            - --release-adopted-scheduling-shards
+            - --strip-nodepool-finalizers
+            {{- with (.Values.commonArgs | default dict).finalizerDomain }}
+            - --finalizer-domain={{ . }}
+            {{- end }}
             {{- end }}
           env:
             {{- include "kai-resource-management.godebug" . | nindent 12 }}

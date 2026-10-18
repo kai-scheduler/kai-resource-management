@@ -138,7 +138,8 @@ krmConfigDeployer:
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
 # Post-delete hook: removes the operator-managed deployments and, when this chart
-# created it, the KRMConfig.
+# created it, the KRMConfig. With kai-scheduler.enabled=false it also releases the
+# SchedulingShards KRM adopted and strips NodePool finalizers, and must stay enabled.
 postCleanup:
   enabled: true
   image:
