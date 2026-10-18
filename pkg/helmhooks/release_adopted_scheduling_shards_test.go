@@ -31,7 +31,7 @@ func adoptedShard(name string) *kaiv1.SchedulingShard {
 	return &kaiv1.SchedulingShard{ObjectMeta: metav1.ObjectMeta{
 		Name: name,
 		Labels: map[string]string{
-			unmanaged_shards.AdoptionLabelKey: unmanaged_shards.AdoptionAdopted,
+			unmanaged_shards.AdoptionLabelKey: unmanaged_shards.AdoptionLabelValue,
 			"app":                             "kai-scheduler",
 		},
 		Annotations:     map[string]string{"kai.resources/managed-shard-args": "a,b"},

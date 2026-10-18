@@ -21,8 +21,8 @@ const IgnoreShardLabelKey = "kai/ignore-shard-for-krm"
 // AdoptionLabelKey marks a shard that predates KRM, so uninstall releases it rather than
 // letting it go with its NodePool.
 const (
-	AdoptionLabelKey = "kai.resources/adoption"
-	AdoptionAdopted  = "adopted"
+	AdoptionLabelKey   = "kai.resources/adoption"
+	AdoptionLabelValue = "adopted"
 )
 
 // IsUnmanaged ignores the label on a shard a NodePool already owns, since releasing an

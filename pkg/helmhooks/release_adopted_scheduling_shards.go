@@ -28,7 +28,7 @@ func releaseAdoptedSchedulingShards(ctx context.Context, k8sClient client.Client
 
 	shards := &kaiv1.SchedulingShardList{}
 	if err := k8sClient.List(ctx, shards, client.MatchingLabels{
-		unmanaged_shards.AdoptionLabelKey: unmanaged_shards.AdoptionAdopted}); err != nil {
+		unmanaged_shards.AdoptionLabelKey: unmanaged_shards.AdoptionLabelValue}); err != nil {
 		if meta.IsNoMatchError(err) {
 			logger.Info("SchedulingShard CRD not found, no shards to release")
 			return nil
