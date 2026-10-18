@@ -1,0 +1,51 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kai-resource-management-migrate-shards
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kai-resource-management-migrate-shards
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+rules:
+# Every shard is read, and the migrated ones handed to their NodePool.
+- apiGroups: ["kai.scheduler"]
+  resources: ["schedulingshards"]
+  verbs: ["get", "list", "patch"]
+- apiGroups: ["kai.resources"]
+  resources: ["nodepools"]
+  verbs: ["get", "create"]
+# kai-config names the node label KAI reads partitions from.
+- apiGroups: ["kai.scheduler"]
+  resources: ["configs"]
+  resourceNames: ["kai-config"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kai-resource-management-migrate-shards
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kai-resource-management-migrate-shards
+subjects:
+  - kind: ServiceAccount
+    name: kai-resource-management-migrate-shards
+    namespace: {{ .Release.Namespace }}

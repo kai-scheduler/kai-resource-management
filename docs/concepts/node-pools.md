@@ -198,6 +198,36 @@ serves.
 
 See [excluding nodes from management](../how-to/exclude-nodes-from-management.md).
 
+## Installing on a cluster that already has shards
+
+On a cluster that already runs KAI Scheduler, every existing `SchedulingShard` becomes a
+node pool when KRM is installed or upgraded, before any KRM controller starts:
+
+- A shard serving partition `P` gets a node pool named `P` that selects nodes labelled
+  with the node-pool label key and value `P`. The shard with an empty
+  `partitionLabelValue` goes to the `default` node pool.
+- The node pool takes the shard's settings: placement strategy, queue depth, minimum
+  runtime, plugins, actions and time-based fair share, including the usage-DB address and
+  queries. Settings a node pool does not have, such as `goMemLimit`, stay on the shard.
+- The shard keeps its name and its `args`, which KRM treats as yours. It is labelled
+  `kai.resources/adoption=adopted` and owned by its node pool from then on.
+
+The scheduler sees the same shard settings before and after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that already
+have an owning controller, such as a node pool.
+
+The install fails, and changes no shard, when a shard cannot be carried over exactly. The
+error names the shard and what to change:
+
+- Its partition is not a valid node pool name, for example `Team_A`, or is the `default`
+  node pool's name.
+- Two shards serve the same partition.
+- A node pool of that name already exists and selects other nodes or has other settings.
+  The install never overwrites a shard's settings or deletes a node pool to make room.
+- It sets a worker-node label key arg, or an arg in
+  `nodePoolController.args.schedulingShardArgs`, to a different value than KRM does.
+- KAI Scheduler reads node pools from a different label than KRM. Set
+  `kai-scheduler.global.nodePoolLabelKey` to KAI's key.
+
 ## Leaving a partition to another scheduler
 
 On a cluster that already runs KAI Scheduler, a partition can stay with the scheduler that

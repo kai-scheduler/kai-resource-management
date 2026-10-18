@@ -160,6 +160,15 @@ versionCheck:
     name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
+# Pre-install/pre-upgrade hook: gives every SchedulingShard that existed before this chart a
+# NodePool that owns it, carrying its settings over, so the scheduler behaves the same once
+# KRM manages it. Shards labelled kai/ignore-shard-for-krm=true are left alone. Fails the
+# install, changing nothing, when a shard cannot be migrated exactly.
+migrateShards:
+  image:
+    name: helm-hooks
+    # registry / tag / pullPolicy fall back to the top-level image block and global.
+
 # The krm-operator installs this controller; these values reach it through the KRMConfig.
 # Its RBAC and admission webhook are still rendered by this chart.
 nodePoolController:

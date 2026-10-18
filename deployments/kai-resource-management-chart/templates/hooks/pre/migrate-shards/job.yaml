@@ -1,0 +1,54 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+{{- $kai := index .Values "kai-scheduler" | default dict }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kai-resource-management-migrate-shards
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    # After the CRD upgrader (2), so the NodePool CRD it writes is current. Before the
+    # main install, so the chart's default NodePool can adopt the one it creates.
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  # A shard that cannot be migrated fails the same way every time; retries would outlast
+  # Helm's timeout and hide the message behind "timed out".
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: kai-resource-management-migrate-shards
+    spec:
+      serviceAccountName: kai-resource-management-migrate-shards
+      containers:
+      - name: migrate-shards
+        image: {{ include "kai-resource-management.image" (dict "root" $ "image" .Values.migrateShards.image) }}
+        imagePullPolicy: {{ include "kai-resource-management.imagePullPolicy" (dict "root" $ "image" .Values.migrateShards.image) }}
+        # The same settings the nodepool-controller gets, so a migrated shard matches what
+        # it will write.
+        args:
+          - migrate-shards
+          {{- with ($kai.global | default dict).nodePoolLabelKey }}
+          - --nodepool-label-key={{ . }}
+          {{- end }}
+          {{- with (.Values.defaultNodePool | default dict).name }}
+          - --default-nodepool-name={{ . }}
+          {{- end }}
+          {{- with dig "args" "schedulingShardArgs" "" .Values.nodePoolController }}
+          - --scheduling-shard-args={{ . }}
+          {{- end }}
+          {{- if .Values.defaultNodePool.enabled }}
+          - --release-name={{ .Release.Name }}
+          - --release-namespace={{ .Release.Namespace }}
+          {{- end }}
+        env:
+          {{- include "kai-resource-management.godebug" . | nindent 10 }}
+        resources:
+          {{- toYaml (.Values.migrateShards.resources | default (dict "limits" (dict "cpu" "500m" "memory" "256Mi") "requests" (dict "cpu" "100m" "memory" "128Mi"))) | nindent 10 }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        {{- include "kai-resource-management.securityContext" . | nindent 8 }}
+      restartPolicy: Never
+      {{- include "kai-resource-management.podScheduling" . | nindent 6 }}

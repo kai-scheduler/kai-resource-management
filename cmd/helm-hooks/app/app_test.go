@@ -54,6 +54,16 @@ var _ = Describe("Subcommand arguments", func() {
 			[]string{"--minimum-version=0.0.0", "--kai-scheduler-version=v0.1.0"})).To(Succeed())
 	})
 
+	It("requires --release-namespace with --release-name for migrate-shards", func() {
+		Expect(migrateShards(ctx, unreachableClient, []string{"--release-name=krm"})).
+			To(MatchError(ContainSubstring("--release-namespace is required")))
+	})
+
+	It("rejects --scheduling-shard-args that is not a JSON map of strings", func() {
+		Expect(migrateShards(ctx, unreachableClient, []string{`--scheduling-shard-args={"a":1}`})).
+			To(MatchError(ContainSubstring("not a JSON map of strings")))
+	})
+
 	It("rejects an unknown flag", func() {
 		Expect(applyConfig(ctx, unreachableClient, []string{"--nonesuch=1"})).To(HaveOccurred())
 	})

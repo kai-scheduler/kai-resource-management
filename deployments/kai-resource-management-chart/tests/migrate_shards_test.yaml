@@ -1,0 +1,94 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+suite: SchedulingShard migration hook
+templates:
+  - templates/hooks/pre/migrate-shards/job.yaml
+  - templates/hooks/pre/migrate-shards/rbac.yaml
+release:
+  name: rm
+  namespace: kai
+tests:
+  - it: runs after the CRD upgrader, marking the default NodePool as this release's
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "3"
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - migrate-shards
+            - --default-nodepool-name=default
+            - --release-name=rm
+            - --release-namespace=kai
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry/local/kai-resource-management/helm-hooks:0.0.0
+      - equal:
+          path: spec.backoffLimit
+          value: 0
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+
+  # The same values the nodepool-controller reads, so a migrated shard matches what it writes.
+  - it: passes the nodepool-controller's label key, default name and shard args
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    set:
+      kai-scheduler.global.nodePoolLabelKey: example.com/pool
+      defaultNodePool.name: catch-all
+      nodePoolController.args.schedulingShardArgs: '{"verbosity":"4"}'
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - migrate-shards
+            - --nodepool-label-key=example.com/pool
+            - --default-nodepool-name=catch-all
+            - --scheduling-shard-args={"verbosity":"4"}
+            - --release-name=rm
+            - --release-namespace=kai
+
+  # Nothing in the release renders a default NodePool for Helm to adopt.
+  - it: leaves the default NodePool unmarked when the chart does not render it
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    set:
+      defaultNodePool.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --release-name=rm
+
+  - it: grants its ServiceAccount only what the migration reads and writes, before the Job
+    template: templates/hooks/pre/migrate-shards/rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-1"
+      - equal:
+          path: rules
+          value:
+            - apiGroups: ["kai.scheduler"]
+              resources: ["schedulingshards"]
+              verbs: ["get", "list", "patch"]
+            - apiGroups: ["kai.resources"]
+              resources: ["nodepools"]
+              verbs: ["get", "create"]
+            - apiGroups: ["kai.scheduler"]
+              resources: ["configs"]
+              resourceNames: ["kai-config"]
+              verbs: ["get"]
+        documentIndex: 1
+      - equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: kai-resource-management-migrate-shards
+              namespace: kai
+        documentIndex: 2

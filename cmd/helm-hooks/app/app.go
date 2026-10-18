@@ -5,11 +5,13 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 
+	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaiv1 "github.com/kai-scheduler/api/kai/v1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"go.uber.org/zap/zapcore"
@@ -30,6 +32,7 @@ const (
 	applyConfigCommand              = "apply-config"
 	cleanupCommand                  = "cleanup"
 	checkKAISchedulerVersionCommand = "check-kai-scheduler-version"
+	migrateShardsCommand            = "migrate-shards"
 )
 
 // clientFactory defers connecting to the cluster until the subcommand arguments are valid.
@@ -64,6 +67,8 @@ func Run(args []string) error {
 		return cleanup(ctx, newClusterClient, flags)
 	case checkKAISchedulerVersionCommand:
 		return checkKAISchedulerVersion(ctx, newClusterClient, flags)
+	case migrateShardsCommand:
+		return migrateShards(ctx, newClusterClient, flags)
 	default:
 		printUsage()
 		return fmt.Errorf("unknown subcommand %q", command)
@@ -146,6 +151,42 @@ func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flag
 	return helmhooks.CheckKAISchedulerVersion(ctx, detected, source, *minimum)
 }
 
+func migrateShards(ctx context.Context, newClient clientFactory, flags []string) error {
+	flagSet := flag.NewFlagSet(migrateShardsCommand, flag.ContinueOnError)
+	nodePoolLabelKey := flagSet.String("nodepool-label-key", kaiconstants.DefaultNodePoolLabelKey,
+		"node label the nodepool-controller writes a node's NodePool to")
+	defaultNodePoolName := flagSet.String("default-nodepool-name", kaiconstants.DefaultNodePoolName,
+		"name of the NodePool that takes the default partition")
+	shardArgs := flagSet.String("scheduling-shard-args", "",
+		"JSON map of the args the nodepool-controller writes into every SchedulingShard")
+	releaseName := flagSet.String("release-name", "",
+		"Helm release that renders the default NodePool; empty when the chart does not render it")
+	releaseNamespace := flagSet.String("release-namespace", "", "namespace of that Helm release")
+	if err := parseFlags(flagSet, flags); err != nil {
+		return err
+	}
+	if *releaseName != "" && *releaseNamespace == "" {
+		return fmt.Errorf("%s: --release-namespace is required with --release-name", migrateShardsCommand)
+	}
+	schedulingShardArgs := map[string]string{}
+	if *shardArgs != "" {
+		if err := json.Unmarshal([]byte(*shardArgs), &schedulingShardArgs); err != nil {
+			return fmt.Errorf("%s: --scheduling-shard-args is not a JSON map of strings: %w", migrateShardsCommand, err)
+		}
+	}
+	k8sClient, err := newClient()
+	if err != nil {
+		return err
+	}
+	return helmhooks.MigrateShards(ctx, k8sClient, helmhooks.MigrateShardsOptions{
+		NodePoolLabelKey:    *nodePoolLabelKey,
+		DefaultNodePoolName: *defaultNodePoolName,
+		SchedulingShardArgs: schedulingShardArgs,
+		ReleaseName:         *releaseName,
+		ReleaseNamespace:    *releaseNamespace,
+	})
+}
+
 // parseFlags also rejects leftover positional arguments, which the flag package otherwise ignores.
 func parseFlags(flagSet *flag.FlagSet, flags []string) error {
 	if err := flagSet.Parse(flags); err != nil {
@@ -174,5 +215,9 @@ Subcommands:
                                     fail when KAI Scheduler is older than the minimum
                                     supported; its version is read from the
                                     kai-operator image tag unless given
-`, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand)
+  %s [--nodepool-label-key=<key>] [--default-nodepool-name=<name>]
+      [--scheduling-shard-args=<json>] [--release-name=<name> --release-namespace=<ns>]
+                                    give every pre-existing SchedulingShard a NodePool
+                                    that owns it, carrying its settings over
+`, applyCRDsCommand, applyConfigCommand, cleanupCommand, checkKAISchedulerVersionCommand, migrateShardsCommand)
 }

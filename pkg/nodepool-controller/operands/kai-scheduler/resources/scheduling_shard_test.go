@@ -895,7 +895,7 @@ var _ = Describe("Merging a NodePool into its existing SchedulingShard", func() 
 		shard := reconcile()
 
 		Expect(shard.Spec.Args).To(Equal(buildShardArgs(nodePool.Spec.SchedulingShardConfig, params)))
-		Expect(shard.Annotations).To(HaveKey(managedShardArgsAnnotation))
+		Expect(shard.Annotations).To(HaveKey(ManagedShardArgsAnnotation))
 	})
 
 	It("writes every field the NodePool models, clearing those it no longer sets", func() {
@@ -916,7 +916,7 @@ var _ = Describe("Merging a NodePool into its existing SchedulingShard", func() 
 	})
 
 	It("records the args it manages on a new shard", func() {
-		Expect(reconcile().Annotations).To(HaveKeyWithValue(managedShardArgsAnnotation,
+		Expect(reconcile().Annotations).To(HaveKeyWithValue(ManagedShardArgsAnnotation,
 			"cpu-worker-node-label-key,gpu-worker-node-label-key,mig-worker-node-label-key,v"))
 	})
 })
