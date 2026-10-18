@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/helmhooks"
+	npcconfig "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/operator/dependencies"
 )
 
@@ -109,17 +110,31 @@ func cleanup(ctx context.Context, newClient clientFactory, flags []string) error
 	flagSet := flag.NewFlagSet(cleanupCommand, flag.ContinueOnError)
 	namespace := flagSet.String("namespace", "", "namespace holding the operator-managed deployments")
 	deleteConfig := flagSet.String("delete-config", "", "name of the KRMConfig to delete; skipped when empty")
+	releaseAdoptedShards := flagSet.Bool("release-adopted-scheduling-shards", false,
+		"drop KRM's ownership and metadata from the scheduling shards KRM adopted")
+	stripFinalizers := flagSet.Bool("strip-nodepool-finalizers", false,
+		"remove nodepool-controller's finalizer from every NodePool")
+	finalizerDomain := flagSet.String("finalizer-domain", npcconfig.DefaultFinalizerDomain,
+		"domain nodepool-controller composes its NodePool finalizer from")
 	if err := parseFlags(flagSet, flags); err != nil {
 		return err
 	}
 	if *namespace == "" {
 		return missingFlagError(cleanupCommand, "namespace")
 	}
+	opts := helmhooks.CleanupOptions{
+		Namespace:                      *namespace,
+		ConfigName:                     *deleteConfig,
+		ReleaseAdoptedSchedulingShards: *releaseAdoptedShards,
+	}
+	if *stripFinalizers {
+		opts.NodePoolFinalizer = npcconfig.FinalizerNameForDomain(*finalizerDomain)
+	}
 	k8sClient, err := newClient()
 	if err != nil {
 		return err
 	}
-	return helmhooks.Cleanup(ctx, k8sClient, *namespace, *deleteConfig)
+	return helmhooks.Cleanup(ctx, k8sClient, opts)
 }
 
 func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flags []string) error {
@@ -168,8 +183,12 @@ Subcommands:
   %s                        server-side apply the CRDs bundled in this binary
   %s --file=<path>       server-side apply the KRMConfig manifest at <path>
   %s --namespace=<ns> [--delete-config=<name>]
-                                    delete the operator-managed deployments, and
-                                    optionally the named KRMConfig
+          [--release-adopted-scheduling-shards]
+          [--strip-nodepool-finalizers [--finalizer-domain=<domain>]]
+                                    delete the operator-managed deployments, then
+                                    optionally release adopted scheduling shards,
+                                    strip NodePool finalizers and delete the named
+                                    KRMConfig
   %s [--minimum-version=<v>] [--kai-scheduler-version=<v>]
                                     fail when KAI Scheduler is older than the minimum
                                     supported; its version is read from the
