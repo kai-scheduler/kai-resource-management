@@ -85,7 +85,7 @@ The main configuration groups are:
 | `versionCheck` | The [KAI Scheduler version check](#kai-scheduler-version-check) hook, and the version to check when it cannot be detected. |
 | `krmOperator` | KRM operator deployment and arguments. |
 | `krmConfig`, `krmConfigDeployer` | How the `KRMConfig` CR is created, and the toggle to manage it yourself. |
-| `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. |
+| `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. With `kai-scheduler.enabled=false` it also releases adopted SchedulingShards, and must stay enabled. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodePoolController` | Node-pool controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhook this chart still renders. |
@@ -452,6 +452,21 @@ The `krm-config` CR is the one exception: when this chart created it, the
 post-delete hook deletes it, so a reinstall starts from the chart's values
 rather than from a CR the previous release left behind. Its CRD is retained
 like every other.
+
+With `kai-scheduler.enabled=false`, the same hook also hands shards back to the
+KAI Scheduler that was there first. After the operator's controllers and their pods
+are gone, it:
+
+1. Removes the node pool owner reference and the `kai.resources/` labels and
+   annotations from every SchedulingShard labelled `kai.resources/adoption=adopted`.
+   The shard stays in place, in its current state rather than the one it had before
+   KRM.
+2. Removes nodepool-controller's finalizer from every node pool, since Helm deletes
+   none of them and no controller is left to process it.
+
+A shard without the label still belongs to its node pool and is deleted with it.
+Setting `postCleanup.enabled=false` fails the render in this mode. If the hook fails,
+see [`helm uninstall` fails on the cleanup hook](../../docs/how-to/troubleshooting.md#helm-uninstall-fails-on-the-cleanup-hook).
 
 Helm does not track hook resources in the release manifest, so on OpenShift the
 SecurityContextConstraints and its grant also survive uninstallation. Remove them

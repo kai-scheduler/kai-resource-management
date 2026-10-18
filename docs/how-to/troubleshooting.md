@@ -169,6 +169,35 @@ kubectl -n kai-resource-management logs job/kai-resource-management-version-chec
 
 See [KAI Scheduler version check](../../deployments/kai-resource-management-chart/README.md#kai-scheduler-version-check).
 
+### `helm uninstall` fails on the cleanup hook
+
+The hook runs after Helm has deleted the release's resources. Its log names the step
+that failed:
+
+```bash
+kubectl -n kai-resource-management logs job/krm-config-cleanup
+```
+
+With `kai-scheduler.enabled=false`, check for shards the hook did not release:
+
+```bash
+kubectl get schedulingshard -l kai.resources/adoption=adopted
+```
+
+A shard listed here still belongs to its node pool. **Do not delete that node pool**,
+or the shard and its scheduler are deleted with it. Fix what the log names, then
+release each shard by hand. This removes every owner reference on the shard, so
+first check that `.metadata.ownerReferences` holds only its node pool:
+
+```bash
+kubectl patch schedulingshard <name> --type=json -p '[
+  {"op": "remove", "path": "/metadata/ownerReferences"},
+  {"op": "remove", "path": "/metadata/labels/kai.resources~1adoption"}
+]'
+```
+
+See [Uninstall](../../deployments/kai-resource-management-chart/README.md#uninstall).
+
 ## Node pools
 
 ### Node pool is `Empty` but the nodes look right
