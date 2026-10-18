@@ -5,20 +5,16 @@ package helmhooks
 
 import (
 	"context"
-	"time"
 
 	kaiv1 "github.com/kai-scheduler/api/kai/v1"
-	usagedbapi "github.com/kai-scheduler/api/usagedb"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -28,7 +24,7 @@ import (
 )
 
 var _ = Describe("MigrateShards", func() {
-	const labelKey = "kai.scheduler/node-pool"
+	const partitionLabelKey = "kai.scheduler/node-pool"
 
 	var (
 		ctx  context.Context
@@ -37,11 +33,7 @@ var _ = Describe("MigrateShards", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		opts = MigrateShardsOptions{NodePoolLabelKey: labelKey, DefaultNodePoolName: "default"}
-
-		original := transientRetry
-		transientRetry = wait.Backoff{Steps: 3, Duration: time.Millisecond}
-		DeferCleanup(func() { transientRetry = original })
+		opts = MigrateShardsOptions{PartitionLabelKey: partitionLabelKey, DefaultNodePoolName: "default"}
 	})
 
 	newClientWith := func(funcs interceptor.Funcs, objects ...client.Object) client.Client {
@@ -95,7 +87,7 @@ var _ = Describe("MigrateShards", func() {
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
 
 			nodePool := getNodePool(k8sClient, "team-a")
-			Expect(nodePool.Spec.LabelKey).To(Equal(labelKey))
+			Expect(nodePool.Spec.LabelKey).To(Equal(partitionLabelKey))
 			Expect(nodePool.Spec.LabelValue).To(Equal("team-a"))
 			Expect(nodePool.Labels).NotTo(HaveKey("app.kubernetes.io/managed-by"))
 
@@ -122,7 +114,7 @@ var _ = Describe("MigrateShards", func() {
 			existing := &kaires.NodePool{
 				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
 				Spec: kaires.NodePoolSpec{
-					LabelKey:   labelKey,
+					LabelKey:   partitionLabelKey,
 					LabelValue: "team-a",
 					SchedulingShardConfig: &kaires.SchedulingShardConfig{
 						QueueDepthPerAction: map[string]int{"allocate": 10},
@@ -259,7 +251,7 @@ var _ = Describe("MigrateShards", func() {
 			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "default"))).To(Equal("catch-all"))
 		})
 
-		It("is never created when the chart creates it", func() {
+		It("is not created when defaultNodePool is disabled", func() {
 			opts.EnsureDefaultNodePool = false
 			k8sClient := newClient(shard("team-a", "team-a"))
 
@@ -269,65 +261,12 @@ var _ = Describe("MigrateShards", func() {
 				To(MatchError(ContainSubstring("not found")))
 		})
 
-		// The chart's own default NodePool would collide with one built for the shard.
-		It("fails on a default shard when the chart creates the default NodePool", func() {
+		It("fails on a default shard when defaultNodePool is disabled", func() {
 			opts.EnsureDefaultNodePool = false
 			k8sClient := newClient(shard("default", ""))
 
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("kai-scheduler.enabled=false")))
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("defaultNodePool.enabled=false")))
 			Expect(nodePoolCount(k8sClient)).To(BeZero())
-		})
-	})
-
-	Context("passing API errors", func() {
-		It("retries a call the API server failed to serve", func() {
-			failures := 1
-			k8sClient := newClientWith(interceptor.Funcs{
-				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-					if failures > 0 {
-						failures--
-						return apierrors.NewServiceUnavailable("webhook restarting")
-					}
-					return c.Create(ctx, obj, opts...)
-				},
-			}, shard("team-a", "team-a"))
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
-
-			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
-		})
-
-		It("accepts the NodePool a create made before its response was lost", func() {
-			lost := true
-			k8sClient := newClientWith(interceptor.Funcs{
-				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-					if err := c.Create(ctx, obj, opts...); err != nil {
-						return err
-					}
-					if lost {
-						lost = false
-						return apierrors.NewServerTimeout(kaires.GroupVersion.WithResource("nodepools").GroupResource(), "create", 1)
-					}
-					return nil
-				},
-			}, shard("team-a", "team-a"))
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
-
-			Expect(unmanaged_shards.OwningNodePoolName(getShard(k8sClient, "team-a"))).To(Equal("team-a"))
-		})
-
-		It("does not retry a refusal", func() {
-			calls := 0
-			k8sClient := newClientWith(interceptor.Funcs{
-				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-					calls++
-					return apierrors.NewForbidden(kaires.GroupVersion.WithResource("nodepools").GroupResource(), "team-a", nil)
-				},
-			}, shard("team-a", "team-a"))
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("forbidden")))
-			Expect(calls).To(Equal(1))
 		})
 	})
 
@@ -361,69 +300,6 @@ var _ = Describe("MigrateShards", func() {
 
 			Expect(getShard(k8sClient, "team-a").Spec.GoMemLimitRatio).To(Equal(ptr.To(0.8)))
 		})
-
-		It("maps the usage DB back to time-based fair share", func() {
-			start := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-			s := shard("team-a", "team-a")
-			s.Spec.KValue = ptr.To(0.5)
-			s.Spec.UsageDBConfig = &usagedbapi.UsageDBConfig{
-				ClientType:       "prometheus",
-				ConnectionString: "http://team-a-prometheus:9090",
-				UsageParams: &usagedbapi.UsageParams{
-					HalfLifePeriod:          &metav1.Duration{Duration: 90 * time.Minute},
-					WindowSize:              ptr.To(monitoringv1.Duration("1w")),
-					WindowType:              ptr.To(usagedbapi.TumblingWindow),
-					TumblingWindowStartTime: &start,
-					FetchInterval:           &metav1.Duration{Duration: 30 * time.Second},
-					ExtraParams:             map[string]string{"usageQueryTimeout": "30s"},
-				},
-			}
-			k8sClient := newClient(s)
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
-
-			fairShare := getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig.TimeBasedFairShare
-			Expect(fairShare.Enabled).To(Equal(ptr.To(true)))
-			Expect(fairShare.HistoricalUsageWeight).To(Equal(ptr.To(float32(0.5))))
-			Expect(fairShare.ConnectionString).To(Equal(ptr.To("http://team-a-prometheus:9090")))
-			Expect(fairShare.HalfLifePeriod).To(Equal(ptr.To("90m")))
-			Expect(fairShare.Window.Size).To(Equal(ptr.To("7d")))
-			Expect(fairShare.Window.Type).To(Equal(ptr.To("tumbling")))
-			Expect(fairShare.Window.TumblingStartTime.Time).To(BeTemporally("==", start.Time))
-			Expect(fairShare.Sampling.FetchInterval).To(Equal(ptr.To("30s")))
-			Expect(fairShare.ExtraParams).To(HaveKeyWithValue("usageQueryTimeout", "30s"))
-		})
-
-		It("writes KAI's default usage queries for keys the shard left unset", func() {
-			s := shard("team-a", "team-a")
-			s.Spec.UsageDBConfig = &usagedbapi.UsageDBConfig{
-				ClientType: "prometheus",
-				UsageParams: &usagedbapi.UsageParams{
-					ExtraParams: map[string]string{"gpuCapacityMetric": "my_gpu_capacity"},
-				},
-			}
-			k8sClient := newClient(s)
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
-
-			expected := map[string]string{}
-			for key, query := range kaiDefaultUsageQueries {
-				expected[key] = query
-			}
-			expected["gpuCapacityMetric"] = "my_gpu_capacity"
-			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig.TimeBasedFairShare.ExtraParams).
-				To(Equal(expected))
-		})
-
-		It("drops a kValue that has no usage DB to weigh", func() {
-			s := shard("team-a", "team-a")
-			s.Spec.KValue = ptr.To(0.8)
-			k8sClient := newClient(s)
-
-			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
-
-			Expect(getNodePool(k8sClient, "team-a").Spec.SchedulingShardConfig).To(BeNil())
-		})
 	})
 
 	Context("reruns", func() {
@@ -444,7 +320,7 @@ var _ = Describe("MigrateShards", func() {
 			created := &kaires.NodePool{
 				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
 				Spec: kaires.NodePoolSpec{
-					LabelKey:   labelKey,
+					LabelKey:   partitionLabelKey,
 					LabelValue: "team-a",
 					SchedulingShardConfig: &kaires.SchedulingShardConfig{
 						QueueDepthPerAction: map[string]int{"allocate": 50},
@@ -476,7 +352,7 @@ var _ = Describe("MigrateShards", func() {
 		})
 
 		It("accepts KAI's label when it matches", func() {
-			k8sClient := newClient(shard("team-a", "team-a"), kaiConfig(labelKey))
+			k8sClient := newClient(shard("team-a", "team-a"), kaiConfig(partitionLabelKey))
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(Succeed())
 		})
@@ -518,11 +394,26 @@ var _ = Describe("MigrateShards", func() {
 		It("fails when a NodePool of that name selects other nodes", func() {
 			other := &kaires.NodePool{
 				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
-				Spec:       kaires.NodePoolSpec{LabelKey: labelKey, LabelValue: "team-b"},
+				Spec:       kaires.NodePoolSpec{LabelKey: partitionLabelKey, LabelValue: "team-b"},
 			}
 			k8sClient := newClient(shard("team-a", "team-a"), other)
 
 			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(ContainSubstring("already exists")))
+			expectNothingChanged(k8sClient, "team-a")
+		})
+
+		// The controller would relabel the gpu-type=a100 nodes into partition team-a, moving
+		// them, and the nodes labelled team-a today, between schedulers.
+		It("fails when a NodePool of that name selects its nodes by another label", func() {
+			other := &kaires.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
+				Spec:       kaires.NodePoolSpec{LabelKey: "gpu-type", LabelValue: "a100"},
+			}
+			k8sClient := newClient(shard("team-a", "team-a"), other)
+
+			Expect(MigrateShards(ctx, k8sClient, opts)).To(MatchError(And(
+				ContainSubstring("selects nodes labelled gpu-type=a100"),
+				ContainSubstring("select kai.scheduler/node-pool=team-a in the NodePool"))))
 			expectNothingChanged(k8sClient, "team-a")
 		})
 

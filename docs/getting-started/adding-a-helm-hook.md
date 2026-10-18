@@ -8,7 +8,7 @@ subcommand with its `args`. A new lifecycle task is a new subcommand, not a new 
 | --- | --- | --- |
 | `check-kai-scheduler-version` | `pre-install`, `pre-upgrade`, only with `kai-scheduler.enabled=false` | `1` |
 | `apply-crds` | `pre-install`, `pre-upgrade` | `2` |
-| `migrate-shards` | `pre-install`, `pre-upgrade` | `3` |
+| `migrate-shards` | `pre-install`, `pre-upgrade`, only with `kai-scheduler.enabled=false` | `3` |
 | `apply-config` | `post-install`, `post-upgrade` | `1` |
 | `cleanup` | `post-delete` | none |
 

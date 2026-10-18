@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- $kai := index .Values "kai-scheduler" | default dict }}
+# Only beside an existing KAI Scheduler, whose shards predate KRM; unset means bundled.
+{{- if not (dig "enabled" true $kai) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -37,7 +39,7 @@ spec:
           - --scheduling-shard-args={{ . }}
           {{- end }}
           {{- /* Beside an existing KAI Scheduler the chart leaves the default NodePool to this hook. */}}
-          {{- if and .Values.defaultNodePool.enabled (not (dig "enabled" true $kai)) }}
+          {{- if .Values.defaultNodePool.enabled }}
           - --ensure-default-nodepool
           - --default-nodepool-spec={{ toJson (.Values.defaultNodePool.spec | default dict) }}
           {{- end }}
@@ -49,3 +51,4 @@ spec:
         {{- include "kai-resource-management.securityContext" . | nindent 8 }}
       restartPolicy: Never
       {{- include "kai-resource-management.podScheduling" . | nindent 6 }}
+{{- end }}

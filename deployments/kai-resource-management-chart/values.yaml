@@ -163,12 +163,13 @@ versionCheck:
     name: helm-hooks
     # registry / tag / pullPolicy fall back to the top-level image block and global.
 
-# Pre-install/pre-upgrade hook: gives every SchedulingShard that existed before this chart a
+# Pre-install/pre-upgrade hook, rendered only beside an existing KAI Scheduler
+# (kai-scheduler.enabled=false): gives every SchedulingShard that existed before this chart a
 # NodePool that owns it, carrying its settings over, so the scheduler behaves the same once
 # KRM manages it. Shards labelled kai/ignore-shard-for-krm=true are left alone. Fails the
-# install, changing nothing, when a shard cannot be migrated exactly. Beside an existing KAI
-# Scheduler (kai-scheduler.enabled=false) it also creates the default NodePool, so installs
-# that skip hooks (helm --no-hooks, helm template | kubectl apply) get none there.
+# install, changing nothing, when a shard cannot be migrated exactly. It also creates the
+# default NodePool, so installs that skip hooks (helm --no-hooks, helm template | kubectl
+# apply) get none.
 migrateShards:
   image:
     name: helm-hooks

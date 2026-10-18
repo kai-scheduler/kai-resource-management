@@ -153,8 +153,8 @@ func checkKAISchedulerVersion(ctx context.Context, newClient clientFactory, flag
 
 func migrateShards(ctx context.Context, newClient clientFactory, flags []string) error {
 	flagSet := flag.NewFlagSet(migrateShardsCommand, flag.ContinueOnError)
-	nodePoolLabelKey := flagSet.String("nodepool-label-key", kaiconstants.DefaultNodePoolLabelKey,
-		"node label the nodepool-controller writes a node's NodePool to")
+	partitionLabelKey := flagSet.String("nodepool-label-key", kaiconstants.DefaultNodePoolLabelKey,
+		"node label the nodepool-controller writes a node's NodePool to, and KAI reads its partition from")
 	defaultNodePoolName := flagSet.String("default-nodepool-name", kaiconstants.DefaultNodePoolName,
 		"name of the NodePool that takes the default partition")
 	shardArgs := flagSet.String("scheduling-shard-args", "",
@@ -183,7 +183,7 @@ func migrateShards(ctx context.Context, newClient clientFactory, flags []string)
 		return err
 	}
 	return helmhooks.MigrateShards(ctx, k8sClient, helmhooks.MigrateShardsOptions{
-		NodePoolLabelKey:      *nodePoolLabelKey,
+		PartitionLabelKey:     *partitionLabelKey,
 		DefaultNodePoolName:   *defaultNodePoolName,
 		SchedulingShardArgs:   schedulingShardArgs,
 		EnsureDefaultNodePool: *ensureDefault,

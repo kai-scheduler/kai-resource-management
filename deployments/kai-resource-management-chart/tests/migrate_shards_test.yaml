@@ -9,8 +9,23 @@ release:
   name: rm
   namespace: kai
 tests:
-  - it: runs after the CRD upgrader, leaving the default NodePool to the chart when bundled
+  # Unset is today's default, and means the subchart is bundled.
+  - it: renders nothing while kai-scheduler.enabled is unset
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders nothing while kai-scheduler.enabled is true
+    set:
+      kai-scheduler.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: runs after the CRD upgrader beside an existing KAI Scheduler
     template: templates/hooks/pre/migrate-shards/job.yaml
+    set:
+      kai-scheduler.enabled: false
     asserts:
       - equal:
           path: metadata.annotations["helm.sh/hook"]
@@ -23,6 +38,8 @@ tests:
           value:
             - migrate-shards
             - --default-nodepool-name=default
+            - --ensure-default-nodepool
+            - --default-nodepool-spec={}
       - equal:
           path: spec.template.spec.containers[0].image
           value: registry/local/kai-resource-management/helm-hooks:0.0.0
@@ -37,6 +54,7 @@ tests:
   - it: passes the nodepool-controller's label key, default name and shard args
     template: templates/hooks/pre/migrate-shards/job.yaml
     set:
+      kai-scheduler.enabled: false
       kai-scheduler.global.nodePoolLabelKey: example.com/pool
       defaultNodePool.name: catch-all
       nodePoolController.args.schedulingShardArgs: '{"verbosity":"4"}'
@@ -48,6 +66,8 @@ tests:
             - --nodepool-label-key=example.com/pool
             - --default-nodepool-name=catch-all
             - --scheduling-shard-args={"verbosity":"4"}
+            - --ensure-default-nodepool
+            - --default-nodepool-spec={}
 
   - it: creates the default NodePool beside an existing KAI Scheduler, from the chart's spec
     template: templates/hooks/pre/migrate-shards/job.yaml
@@ -78,6 +98,8 @@ tests:
 
   - it: grants its ServiceAccount only what the migration reads and writes, before the Job
     template: templates/hooks/pre/migrate-shards/rbac.yaml
+    set:
+      kai-scheduler.enabled: false
     asserts:
       - hasDocuments:
           count: 3
@@ -93,6 +115,9 @@ tests:
             - apiGroups: ["kai.resources"]
               resources: ["nodepools"]
               verbs: ["get", "create", "patch"]
+            - apiGroups: ["kai.resources"]
+              resources: ["nodepools/finalizers"]
+              verbs: ["update"]
             - apiGroups: ["kai.scheduler"]
               resources: ["configs"]
               resourceNames: ["kai-config"]

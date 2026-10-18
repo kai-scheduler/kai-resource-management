@@ -200,8 +200,9 @@ See [excluding nodes from management](../how-to/exclude-nodes-from-management.md
 
 ## Installing on a cluster that already has shards
 
-On a cluster that already runs KAI Scheduler, every existing `SchedulingShard` becomes a
-node pool when KRM is installed or upgraded, before any KRM controller starts:
+When KRM is installed or upgraded beside an existing KAI Scheduler
+(`kai-scheduler.enabled=false`), every existing `SchedulingShard` becomes a node pool before
+any KRM controller starts:
 
 - A shard serving partition `P` gets a node pool named `P` that selects nodes labelled
   with the node-pool label key and value `P`. The shard with an empty
@@ -228,7 +229,9 @@ error names the shard and what to change:
 - Its partition is not a valid node pool name, for example `Team_A`, or is the `default`
   node pool's name.
 - Two shards serve the same partition.
-- A node pool of that name already exists and selects other nodes.
+- A node pool of that name already exists and selects its nodes by anything other than the
+  node-pool label and the partition's value. KRM relabels a node pool's nodes with its name,
+  so taking the shard over would move nodes between schedulers.
 - It sets a worker-node label key arg, or an arg in
   `nodePoolController.args.schedulingShardArgs`, to a different value than KRM does.
 - KAI Scheduler reads node pools from a different label than KRM. Set

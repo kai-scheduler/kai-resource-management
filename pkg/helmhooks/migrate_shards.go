@@ -8,29 +8,24 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
-	"time"
 
 	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaiv1 "github.com/kai-scheduler/api/kai/v1"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
-	"github.com/xhit/go-str2duration/v2"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/operands/kai-scheduler/resources"
 	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
@@ -39,22 +34,12 @@ const (
 	AdoptionLabelValue = "adopted"
 )
 
-// kaiDefaultUsageQueries are the queries KAI Scheduler's Prometheus usage client falls back
-// to. The controller writes per-node-pool queries for keys a node pool leaves unset, so a
-// migrated shard that relied on these gets them written out to keep reading the same data.
-var kaiDefaultUsageQueries = map[string]string{
-	"gpuAllocationMetric":    "kai_queue_allocated_gpus",
-	"cpuAllocationMetric":    "kai_queue_allocated_cpu_cores",
-	"memoryAllocationMetric": "kai_queue_allocated_memory_bytes",
-	"gpuCapacityMetric":      `sum(kube_node_status_capacity{resource="nvidia_com_gpu"})`,
-	"cpuCapacityMetric":      `sum(kube_node_status_capacity{resource="cpu"})`,
-	"memoryCapacityMetric":   `sum(kube_node_status_capacity{resource="memory"})`,
-}
-
 // MigrateShardsOptions are the controller settings a migrated shard must agree with.
 type MigrateShardsOptions struct {
-	// NodePoolLabelKey is the controller's --nodepool-label-key.
-	NodePoolLabelKey    string
+	// PartitionLabelKey is the node label KAI reads a node's partition from, which the
+	// controller writes as <key>=<NodePool name> (its --nodepool-label-key). Unlike a
+	// NodePool's spec.labelKey, which selects the NodePool's nodes, it is the same for all.
+	PartitionLabelKey   string
 	DefaultNodePoolName string
 	// SchedulingShardArgs are the cluster-wide args the controller writes into every shard.
 	SchedulingShardArgs map[string]string
@@ -68,16 +53,15 @@ type MigrateShardsOptions struct {
 }
 
 type shardMigration struct {
-	shard        *kaiv1.SchedulingShard
-	nodePoolName string
-	config       *kaires.SchedulingShardConfig
-	existing     *kaires.NodePool
+	shard            *kaiv1.SchedulingShard
+	nodePoolName     string
+	shardConfig      *kaires.SchedulingShardConfig
+	existingNodePool *kaires.NodePool
 }
 
 // MigrateShards hands every pre-existing SchedulingShard to a NodePool built from its settings.
 func MigrateShards(ctx context.Context, k8sClient client.Client, opts MigrateShardsOptions) error {
 	logger := logf.FromContext(ctx)
-	k8sClient = retryingClient{Client: k8sClient}
 
 	shards := &kaiv1.SchedulingShardList{}
 	if err := k8sClient.List(ctx, shards); err != nil {
@@ -117,23 +101,16 @@ func ensureDefaultNodePool(ctx context.Context, k8sClient client.Client, opts Mi
 	// Looked up first rather than created and left to fail: on an upgrade the NodePool
 	// webhook is running and refuses a duplicate for its own reasons before the API server
 	// would answer that it already exists.
-	err := k8sClient.Get(ctx, types.NamespacedName{Name: opts.DefaultNodePoolName}, &kaires.NodePool{})
-	if err == nil {
-		return nil
-	}
-	if !apierrors.IsNotFound(err) {
-		return fmt.Errorf("failed to read the default NodePool %s: %w", opts.DefaultNodePoolName, err)
+	existingNodePool, err := getNodePool(ctx, k8sClient, opts.DefaultNodePoolName)
+	if err != nil || existingNodePool != nil {
+		return err
 	}
 
 	nodePool := &kaires.NodePool{
 		ObjectMeta: metav1.ObjectMeta{Name: opts.DefaultNodePoolName},
 		Spec:       *opts.DefaultNodePoolSpec.DeepCopy(),
 	}
-	err = k8sClient.Create(ctx, nodePool)
-	if apierrors.IsAlreadyExists(err) {
-		return nil
-	}
-	if err != nil {
+	if err := k8sClient.Create(ctx, nodePool); err != nil {
 		return fmt.Errorf("failed to create the default NodePool %s: %w", opts.DefaultNodePoolName, err)
 	}
 	logf.FromContext(ctx).Info("created the default NodePool", "nodePool", opts.DefaultNodePoolName)
@@ -162,30 +139,32 @@ func planMigrations(ctx context.Context, k8sClient client.Client, all []kaiv1.Sc
 	if len(pending) == 0 {
 		return nil, nil
 	}
-	errs := []error{checkNodePoolLabelKey(ctx, k8sClient, opts.NodePoolLabelKey)}
+	errs := []error{checkPartitionLabelKey(ctx, k8sClient, opts.PartitionLabelKey)}
 
-	shardsPerPartition := map[string][]string{}
+	shardNamesPerPartitionValue := map[string][]string{}
 	for _, shard := range all {
-		partition := shard.Spec.PartitionLabelValue
-		shardsPerPartition[partition] = append(shardsPerPartition[partition], shard.Name)
+		partitionLabelValue := shard.Spec.PartitionLabelValue
+		shardNamesPerPartitionValue[partitionLabelValue] = append(
+			shardNamesPerPartitionValue[partitionLabelValue], shard.Name)
 	}
 
 	var migrations []shardMigration
 	for _, shard := range pending {
-		partition := shard.Spec.PartitionLabelValue
-		nodePoolName := partition
-		if partition == "" {
+		partitionLabelValue := shard.Spec.PartitionLabelValue
+		nodePoolName := partitionLabelValue
+		if partitionLabelValue == "" {
 			nodePoolName = opts.DefaultNodePoolName
 		}
 
-		if partition == "" && !opts.EnsureDefaultNodePool {
-			errs = append(errs, fmt.Errorf("SchedulingShard %s serves the default partition, so another KAI Scheduler "+
-				"is installed; install beside it with kai-scheduler.enabled=false", shard.Name))
+		if partitionLabelValue == "" && !opts.EnsureDefaultNodePool {
+			errs = append(errs, fmt.Errorf("SchedulingShard %s serves the default partition, but "+
+				"defaultNodePool.enabled=false leaves it no NodePool; enable defaultNodePool", shard.Name))
 			continue
 		}
-		if names := shardsPerPartition[partition]; len(names) > 1 {
+		if shardNames := shardNamesPerPartitionValue[partitionLabelValue]; len(shardNames) > 1 {
 			errs = append(errs, fmt.Errorf("SchedulingShards %v all serve partition %q; "+
-				"a partition can belong to only one NodePool, so delete or relabel all but one", names, partition))
+				"a partition can belong to only one NodePool, so delete or relabel all but one",
+				shardNames, partitionLabelValue))
 			continue
 		}
 		if err := checkNodePoolName(shard, nodePoolName, opts.DefaultNodePoolName); err != nil {
@@ -196,18 +175,24 @@ func planMigrations(ctx context.Context, k8sClient client.Client, all []kaiv1.Sc
 			errs = append(errs, err)
 			continue
 		}
-		config, err := schedulingShardConfig(shard)
+		shardConfig, err := resources.SchedulingShardConfigFromShard(shard)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		existing, err := existingNodePool(ctx, k8sClient, shard, nodePoolName, opts.NodePoolLabelKey)
+		existingNodePool, err := getNodePool(ctx, k8sClient, nodePoolName)
 		if err != nil {
 			errs = append(errs, err)
 			continue
+		}
+		if existingNodePool != nil {
+			if err := checkNodePoolSelectsPartition(existingNodePool, shard, opts.PartitionLabelKey); err != nil {
+				errs = append(errs, err)
+				continue
+			}
 		}
 		migrations = append(migrations, shardMigration{
-			shard: shard, nodePoolName: nodePoolName, config: config, existing: existing,
+			shard: shard, nodePoolName: nodePoolName, shardConfig: shardConfig, existingNodePool: existingNodePool,
 		})
 	}
 
@@ -217,10 +202,9 @@ func planMigrations(ctx context.Context, k8sClient client.Client, all []kaiv1.Sc
 	return migrations, nil
 }
 
-// checkNodePoolLabelKey makes sure a migrated NodePool selects the same nodes its shard
-// did: KAI reads a node's partition from its own label key, and the controller labels
-// nodes with the key it was given.
-func checkNodePoolLabelKey(ctx context.Context, reader client.Reader, nodePoolLabelKey string) error {
+// checkPartitionLabelKey makes sure KAI and the controller agree on the partition label:
+// the controller writes it on every node, and KAI reads it to pick the node's shard.
+func checkPartitionLabelKey(ctx context.Context, reader client.Reader, partitionLabelKey string) error {
 	kaiConfig := &kaiv1.Config{}
 	err := reader.Get(ctx, types.NamespacedName{Name: kaiconstants.DefaultKAIConfigSingeltonInstanceName}, kaiConfig)
 	if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
@@ -234,9 +218,9 @@ func checkNodePoolLabelKey(ctx context.Context, reader client.Reader, nodePoolLa
 	if kaiConfig.Spec.Global != nil && ptr.Deref(kaiConfig.Spec.Global.NodePoolLabelKey, "") != "" {
 		kaiLabelKey = *kaiConfig.Spec.Global.NodePoolLabelKey
 	}
-	if kaiLabelKey != nodePoolLabelKey {
+	if kaiLabelKey != partitionLabelKey {
 		return fmt.Errorf("KAI Scheduler reads node pools from label %q but KRM would use %q; "+
-			"set the chart value kai-scheduler.global.nodePoolLabelKey=%s", kaiLabelKey, nodePoolLabelKey, kaiLabelKey)
+			"set the chart value kai-scheduler.global.nodePoolLabelKey=%s", kaiLabelKey, partitionLabelKey, kaiLabelKey)
 	}
 	return nil
 }
@@ -281,45 +265,36 @@ func checkShardArgs(shard *kaiv1.SchedulingShard, clusterArgs map[string]string)
 		"set them in nodePoolController.args.schedulingShardArgs instead", shard.Name, strings.Join(conflicts, ", "))
 }
 
-// existingNodePool returns the NodePool the shard will belong to when it already exists,
-// failing when that NodePool selects different nodes than the shard's partition. Its
-// settings are updated to the shard's when the shard is handed over.
-func existingNodePool(ctx context.Context, reader client.Reader, shard *kaiv1.SchedulingShard,
-	nodePoolName, nodePoolLabelKey string,
-) (*kaires.NodePool, error) {
+// getNodePool returns nil when the NodePool does not exist.
+func getNodePool(ctx context.Context, reader client.Reader, name string) (*kaires.NodePool, error) {
 	nodePool := &kaires.NodePool{}
-	err := reader.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool)
-	if apierrors.IsNotFound(err) {
+	err := reader.Get(ctx, types.NamespacedName{Name: name}, nodePool)
+	if err != nil && apierrors.IsNotFound(err) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to read NodePool %s: %w", nodePoolName, err)
-	}
-
-	partition := shard.Spec.PartitionLabelValue
-	if partition != "" && (nodePool.Spec.LabelKey != nodePoolLabelKey || nodePool.Spec.LabelValue != partition) {
-		return nil, fmt.Errorf("NodePool %s already exists and selects nodes labelled %s=%s, "+
-			"not the %s=%s nodes of SchedulingShard %s; rename one of them",
-			nodePoolName, nodePool.Spec.LabelKey, nodePool.Spec.LabelValue, nodePoolLabelKey, partition, shard.Name)
+		return nil, fmt.Errorf("failed to read NodePool %s: %w", name, err)
 	}
 	return nodePool, nil
 }
 
-// matchShardSettings updates an existing NodePool to the shard's settings, so the shard
-// keeps scheduling the way it did once the controller aligns it to its NodePool.
-func matchShardSettings(ctx context.Context, k8sClient client.Client, nodePool *kaires.NodePool,
-	migration shardMigration,
-) (*kaires.NodePool, error) {
-	if equality.Semantic.DeepEqual(nodePool.Spec.SchedulingShardConfig, migration.config) {
-		return nodePool, nil
+// checkNodePoolSelectsPartition keeps migration from moving nodes between schedulers. The
+// controller relabels every node a NodePool selects with the NodePool's name as its
+// partition, so an existing NodePool selecting by another label would hand its shard
+// whichever nodes carry that label, not the nodes the shard serves today.
+func checkNodePoolSelectsPartition(nodePool *kaires.NodePool, shard *kaiv1.SchedulingShard,
+	partitionLabelKey string,
+) error {
+	partitionLabelValue := shard.Spec.PartitionLabelValue
+	if partitionLabelValue == "" ||
+		(nodePool.Spec.LabelKey == partitionLabelKey && nodePool.Spec.LabelValue == partitionLabelValue) {
+		return nil
 	}
-	original := nodePool.DeepCopy()
-	nodePool.Spec.SchedulingShardConfig = migration.config
-	if err := k8sClient.Patch(ctx, nodePool, client.MergeFrom(original)); err != nil {
-		return nil, fmt.Errorf("failed to update NodePool %s to SchedulingShard %s's settings: %w",
-			nodePool.Name, migration.shard.Name, err)
-	}
-	return nodePool, nil
+	return fmt.Errorf("NodePool %s already exists and selects nodes labelled %s=%s, but SchedulingShard %s "+
+		"serves the nodes labelled %s=%s; taking it over would move nodes between schedulers, so either select "+
+		"%s=%s in the NodePool, rename the NodePool, or move the shard and its nodes to another partitionLabelValue",
+		nodePool.Name, nodePool.Spec.LabelKey, nodePool.Spec.LabelValue, shard.Name,
+		partitionLabelKey, partitionLabelValue, partitionLabelKey, partitionLabelValue)
 }
 
 func migrate(ctx context.Context, k8sClient client.Client, migration shardMigration, opts MigrateShardsOptions) error {
@@ -347,196 +322,35 @@ func migrate(ctx context.Context, k8sClient client.Client, migration shardMigrat
 	return nil
 }
 
+// nodePoolForShard creates the shard's NodePool, or updates the existing one to the shard's
+// settings, so the shard keeps scheduling the same way once the controller aligns it.
 func nodePoolForShard(ctx context.Context, k8sClient client.Client, migration shardMigration,
 	opts MigrateShardsOptions,
 ) (*kaires.NodePool, error) {
-	if migration.existing != nil {
-		return matchShardSettings(ctx, k8sClient, migration.existing, migration)
+	if nodePool := migration.existingNodePool; nodePool != nil {
+		if equality.Semantic.DeepEqual(nodePool.Spec.SchedulingShardConfig, migration.shardConfig) {
+			return nodePool, nil
+		}
+		original := nodePool.DeepCopy()
+		nodePool.Spec.SchedulingShardConfig = migration.shardConfig
+		if err := k8sClient.Patch(ctx, nodePool, client.MergeFrom(original)); err != nil {
+			return nil, fmt.Errorf("failed to update NodePool %s to SchedulingShard %s's settings: %w",
+				nodePool.Name, migration.shard.Name, err)
+		}
+		return nodePool, nil
 	}
 
 	nodePool := &kaires.NodePool{
 		ObjectMeta: metav1.ObjectMeta{Name: migration.nodePoolName},
-		Spec:       kaires.NodePoolSpec{SchedulingShardConfig: migration.config},
+		Spec:       kaires.NodePoolSpec{SchedulingShardConfig: migration.shardConfig},
 	}
-	if partition := migration.shard.Spec.PartitionLabelValue; partition != "" {
-		nodePool.Spec.LabelKey = opts.NodePoolLabelKey
-		nodePool.Spec.LabelValue = partition
+	if partitionLabelValue := migration.shard.Spec.PartitionLabelValue; partitionLabelValue != "" {
+		nodePool.Spec.LabelKey = opts.PartitionLabelKey
+		nodePool.Spec.LabelValue = partitionLabelValue
 	}
-	err := k8sClient.Create(ctx, nodePool)
-	// A retried create may find the NodePool its first attempt made, so it is checked
-	// like any NodePool that was already there.
-	if apierrors.IsAlreadyExists(err) {
-		existing, err := existingNodePool(ctx, k8sClient, migration.shard, nodePool.Name, opts.NodePoolLabelKey)
-		if err != nil {
-			return nil, err
-		}
-		return matchShardSettings(ctx, k8sClient, existing, migration)
-	}
-	if err != nil {
+	if err := k8sClient.Create(ctx, nodePool); err != nil {
 		return nil, fmt.Errorf("failed to create NodePool %s for SchedulingShard %s: %w",
 			nodePool.Name, migration.shard.Name, err)
 	}
 	return nodePool, nil
-}
-
-// schedulingShardConfig is the NodePool configuration the controller turns back into the
-// shard as it is.
-func schedulingShardConfig(shard *kaiv1.SchedulingShard) (*kaires.SchedulingShardConfig, error) {
-	spec := shard.Spec.DeepCopy()
-	timeBasedFairShare, err := timeBasedFairShare(shard.Name, spec)
-	if err != nil {
-		return nil, err
-	}
-	config := &kaires.SchedulingShardConfig{
-		Args:                spec.Args,
-		PlacementStrategy:   spec.PlacementStrategy,
-		QueueDepthPerAction: spec.QueueDepthPerAction,
-		MinRuntime:          spec.MinRuntime,
-		Plugins:             spec.Plugins,
-		Actions:             spec.Actions,
-		TimeBasedFairShare:  timeBasedFairShare,
-	}
-	if equality.Semantic.DeepEqual(config, &kaires.SchedulingShardConfig{}) {
-		return nil, nil
-	}
-	return config, nil
-}
-
-// timeBasedFairShare maps a shard's usage DB back to the NodePool field the controller
-// compiles it from. A kValue without a usage DB is dropped: with no usage to weigh,
-// KAI's share weight w+k*(w-0) scales every queue alike and normalising cancels k out.
-// The client type and the connection-string env var are not carried over: prometheus is
-// the only production client, and nothing on a shard can set the scheduler's env.
-func timeBasedFairShare(shardName string, spec *kaiv1.SchedulingShardSpec) (*kaires.TimeBasedFairShare, error) {
-	usageDB := spec.UsageDBConfig
-	if usageDB == nil {
-		return nil, nil
-	}
-
-	fairShare := &kaires.TimeBasedFairShare{Enabled: ptr.To(true)}
-	if spec.KValue != nil {
-		// KAI treats a negative kValue as 0, which the NodePool's minimum also requires.
-		fairShare.HistoricalUsageWeight = ptr.To(float32(max(*spec.KValue, 0)))
-	}
-	if usageDB.ConnectionString != "" {
-		fairShare.ConnectionString = ptr.To(usageDB.ConnectionString)
-	}
-
-	params := usageDB.UsageParams
-	if params == nil {
-		fairShare.ExtraParams = withKAIDefaultUsageQueries(nil)
-		return fairShare, nil
-	}
-	fairShare.ExtraParams = withKAIDefaultUsageQueries(params.ExtraParams)
-
-	if params.HalfLifePeriod != nil {
-		fairShare.HalfLifePeriod = ptr.To(nodePoolDuration(params.HalfLifePeriod.Duration))
-	}
-	window := &kaires.FairShareWindow{}
-	if params.WindowSize != nil {
-		size, err := str2duration.ParseDuration(string(*params.WindowSize))
-		if err != nil {
-			return nil, fmt.Errorf("SchedulingShard %s has usage window size %q, which cannot be read as a duration: %w",
-				shardName, *params.WindowSize, err)
-		}
-		window.Size = ptr.To(nodePoolDuration(size))
-	}
-	if params.WindowType != nil {
-		window.Type = ptr.To(string(*params.WindowType))
-	}
-	window.TumblingStartTime = params.TumblingWindowStartTime
-	if params.CronString != "" {
-		window.CronString = ptr.To(params.CronString)
-	}
-	if *window != (kaires.FairShareWindow{}) {
-		fairShare.Window = window
-	}
-
-	sampling := &kaires.FairShareSampling{
-		FetchInterval:   goDuration(params.FetchInterval),
-		StalenessPeriod: goDuration(params.StalenessPeriod),
-		WaitTimeout:     goDuration(params.WaitTimeout),
-	}
-	if *sampling != (kaires.FairShareSampling{}) {
-		fairShare.Sampling = sampling
-	}
-	return fairShare, nil
-}
-
-func withKAIDefaultUsageQueries(extraParams map[string]string) map[string]string {
-	params := make(map[string]string, len(extraParams)+len(kaiDefaultUsageQueries))
-	for key, query := range kaiDefaultUsageQueries {
-		params[key] = query
-	}
-	for key, value := range extraParams {
-		params[key] = value
-	}
-	return params
-}
-
-// nodePoolDuration formats a duration in the units the NodePool's half-life and window
-// size accept: days, hours and minutes.
-func nodePoolDuration(duration time.Duration) string {
-	switch {
-	case duration <= 0:
-		return "0"
-	case duration%(24*time.Hour) == 0:
-		return fmt.Sprintf("%dd", duration/(24*time.Hour))
-	case duration%time.Hour == 0:
-		return fmt.Sprintf("%dh", duration/time.Hour)
-	default:
-		return strconv.FormatFloat(duration.Minutes(), 'f', -1, 64) + "m"
-	}
-}
-
-func goDuration(duration *metav1.Duration) *string {
-	if duration == nil {
-		return nil
-	}
-	return ptr.To(duration.Duration.String())
-}
-
-// transientRetry is how long the hook rides out a passing API error, such as the
-// nodepool-controller's webhook restarting during an upgrade, before failing the install.
-var transientRetry = wait.Backoff{Steps: 5, Duration: time.Second, Factor: 2, Jitter: 0.1}
-
-// retryingClient retries the calls the hook makes on errors that a later attempt can
-// succeed past. A refusal, such as a conflict or a validation error, still fails at once.
-type retryingClient struct {
-	client.Client
-}
-
-func (c retryingClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object,
-	opts ...client.GetOption,
-) error {
-	return retryTransient(func() error { return c.Client.Get(ctx, key, obj, opts...) })
-}
-
-func (c retryingClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	return retryTransient(func() error { return c.Client.List(ctx, list, opts...) })
-}
-
-func (c retryingClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	return retryTransient(func() error {
-		// A failed attempt may still have filled in the object, and a create must not
-		// carry a resourceVersion.
-		obj.SetResourceVersion("")
-		return c.Client.Create(ctx, obj, opts...)
-	})
-}
-
-func (c retryingClient) Patch(ctx context.Context, obj client.Object, patch client.Patch,
-	opts ...client.PatchOption,
-) error {
-	return retryTransient(func() error { return c.Client.Patch(ctx, obj, patch, opts...) })
-}
-
-func retryTransient(call func() error) error {
-	return retry.OnError(transientRetry, isTransient, call)
-}
-
-func isTransient(err error) bool {
-	return apierrors.IsServerTimeout(err) || apierrors.IsTimeout(err) || apierrors.IsTooManyRequests(err) ||
-		apierrors.IsServiceUnavailable(err) || apierrors.IsInternalError(err) ||
-		utilnet.IsConnectionRefused(err) || utilnet.IsConnectionReset(err) || utilnet.IsProbableEOF(err)
 }
