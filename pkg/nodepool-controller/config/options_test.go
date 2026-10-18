@@ -52,3 +52,17 @@ var _ = Describe("AddLabelFlags", func() {
 		})
 	})
 })
+
+var _ = Describe("FinalizerNameForDomain", func() {
+	It("composes the same finalizer FinalizerName reads from the config", func() {
+		restore := SetForTest(&NodePoolControllerConfig{FinalizerDomain: "example.com"})
+		defer restore()
+
+		Expect(FinalizerNameForDomain("example.com")).To(Equal("nodepool.example.com/finalize"))
+		Expect(FinalizerName()).To(Equal(FinalizerNameForDomain("example.com")))
+	})
+
+	It("defaults to the KAI domain", func() {
+		Expect(FinalizerNameForDomain(DefaultFinalizerDomain)).To(Equal("nodepool.kai.scheduler/finalize"))
+	})
+})

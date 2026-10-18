@@ -29,17 +29,8 @@ var deletionPollInterval = time.Second
 func Cleanup(ctx context.Context, k8sClient client.Client, namespace, configName string) error {
 	logger := logf.FromContext(ctx)
 
-	deployments := &appsv1.DeploymentList{}
-	if err := k8sClient.List(ctx, deployments, client.InNamespace(namespace),
-		client.MatchingLabels{common.OperatorManagedByLabelKey: common.OperatorManagedByLabelValue}); err != nil {
-		return fmt.Errorf("failed to list operator-managed deployments in %s: %w", namespace, err)
-	}
-	for i := range deployments.Items {
-		deployment := &deployments.Items[i]
-		if err := deleteAndWait(ctx, k8sClient, deployment); err != nil {
-			return fmt.Errorf("failed to delete deployment %s/%s: %w", namespace, deployment.Name, err)
-		}
-		logger.Info("Deleted deployment", "namespace", namespace, "name", deployment.Name)
+	if err := deleteOperatorManagedDeployments(ctx, k8sClient, namespace); err != nil {
+		return err
 	}
 
 	if configName == "" {
@@ -60,7 +51,25 @@ func Cleanup(ctx context.Context, k8sClient client.Client, namespace, configName
 	return nil
 }
 
-func deleteAndWait(ctx context.Context, k8sClient client.Client, object client.Object) error {
+func deleteOperatorManagedDeployments(
+	ctx context.Context, k8sClient client.Client, namespace string, opts ...client.DeleteOption,
+) error {
+	deployments := &appsv1.DeploymentList{}
+	if err := k8sClient.List(ctx, deployments, client.InNamespace(namespace),
+		client.MatchingLabels{common.OperatorManagedByLabelKey: common.OperatorManagedByLabelValue}); err != nil {
+		return fmt.Errorf("failed to list operator-managed deployments in %s: %w", namespace, err)
+	}
+	for i := range deployments.Items {
+		deployment := &deployments.Items[i]
+		if err := deleteAndWait(ctx, k8sClient, deployment, opts...); err != nil {
+			return fmt.Errorf("failed to delete deployment %s/%s: %w", namespace, deployment.Name, err)
+		}
+		logf.FromContext(ctx).Info("Deleted deployment", "namespace", namespace, "name", deployment.Name)
+	}
+	return nil
+}
+
+func deleteAndWait(ctx context.Context, k8sClient client.Client, object client.Object, opts ...client.DeleteOption) error {
 	key := client.ObjectKeyFromObject(object)
 	if err := k8sClient.Get(ctx, key, object); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -70,7 +79,7 @@ func deleteAndWait(ctx context.Context, k8sClient client.Client, object client.O
 	}
 	uid := object.GetUID()
 
-	if err := k8sClient.Delete(ctx, object); err != nil {
+	if err := k8sClient.Delete(ctx, object, opts...); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}

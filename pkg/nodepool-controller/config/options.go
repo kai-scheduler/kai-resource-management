@@ -30,7 +30,7 @@ func AddLabelFlags(fs *flag.FlagSet, cfg *NodePoolControllerConfig) {
 		kaiconstants.DefaultMetricsNamespace,
 		"Prefix attached to every Prometheus metric the controller emits or queries (Subsystem of its own gauge and prefix of the queue-allocation metric names written into each SchedulingShard)")
 	fs.StringVar(&cfg.FinalizerDomain, "finalizer-domain",
-		defaultFinalizerDomain,
+		DefaultFinalizerDomain,
 		"DNS-style domain prefix used to compose the nodepool finalizer string")
 	fs.StringVar(&cfg.SchedulingShardArgsStr, "scheduling-shard-args",
 		"",

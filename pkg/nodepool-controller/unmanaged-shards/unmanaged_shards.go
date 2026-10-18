@@ -18,6 +18,13 @@ import (
 // scheduler: KRM neither reconciles the shard nor touches the partition's nodes.
 const IgnoreShardLabelKey = "kai/ignore-shard-for-krm"
 
+// AdoptionLabelKey marks a shard that predates KRM, so uninstall releases it rather than
+// letting it go with its NodePool.
+const (
+	AdoptionLabelKey = "kai.resources/adoption"
+	AdoptionAdopted  = "adopted"
+)
+
 // IsUnmanaged ignores the label on a shard a NodePool already owns, since releasing an
 // adopted shard is an uninstall, and on the default partition, which always needs a NodePool.
 func IsUnmanaged(shard *kaiv1.SchedulingShard) bool {
@@ -45,12 +52,16 @@ func ListPartitionLabelValues(ctx context.Context, reader client.Reader) (map[st
 // OwningNodePoolName returns the NodePool controlling the shard, or "" when none does.
 func OwningNodePoolName(shard *kaiv1.SchedulingShard) string {
 	owner := metav1.GetControllerOf(shard)
-	if owner == nil || owner.Kind != "NodePool" {
-		return ""
-	}
-	ownerGroupVersion, err := schema.ParseGroupVersion(owner.APIVersion)
-	if err != nil || ownerGroupVersion.Group != v1alpha1.GroupVersion.Group {
+	if owner == nil || !IsNodePoolReference(*owner) {
 		return ""
 	}
 	return owner.Name
+}
+
+func IsNodePoolReference(owner metav1.OwnerReference) bool {
+	if owner.Kind != "NodePool" {
+		return false
+	}
+	ownerGroupVersion, err := schema.ParseGroupVersion(owner.APIVersion)
+	return err == nil && ownerGroupVersion.Group == v1alpha1.GroupVersion.Group
 }
