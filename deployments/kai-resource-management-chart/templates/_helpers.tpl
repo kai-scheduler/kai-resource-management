@@ -1,6 +1,13 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+{{/* True when installed next to an already running KAI Scheduler (kai-scheduler.enabled=false). */}}
+{{- define "kai-resource-management.usesExistingKaiScheduler" -}}
+{{- if eq (toString (dig "enabled" true (index .Values "kai-scheduler"))) "false" -}}
+true
+{{- end -}}
+{{- end -}}
+
 {{/*
 Returns a non-empty string when installing on OpenShift: either forced via
 .Values.openshift or auto-detected from the OpenShift ClusterVersion CRD.

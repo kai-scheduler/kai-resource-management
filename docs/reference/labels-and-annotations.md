@@ -163,6 +163,7 @@ The only annotations you set yourself, rather than reading.
 | `kai/ignore-shard-for-krm` | `true` | Read | Leave this shard's partition to the scheduler serving it today. KRM never writes the shard and never touches nodes in its partition. Ignored on the `default` partition's shard and on a shard a node pool already owns. Set it when the shard is created: the SchedulingShard webhook refuses to add, change or remove it later, except on the `default` partition's shard |
 | `kai.resources/adoption` | `adopted` | Read | The shard existed before KRM and must outlive it. With `kai-scheduler.enabled=false`, uninstall removes the shard's node pool owner reference and its `kai.resources/` labels and annotations, and leaves the shard in place. A shard without it is deleted with its node pool |
 | `kai.resources/managed-shard-args` | comma-separated arg keys | Written | Annotation listing the `args` keys KRM wrote. KRM removes a listed key once its node pool stops setting it, and leaves every unlisted key — args you added by hand — alone. A shard without it gets it on its next update; until then KRM treats every arg as its own |
+| `kai.resources/adoption` | `adopted` | Written | The shard existed before KRM and was taken over by the node pool that owns it. See [installing on a cluster that already has shards](../concepts/node-pools.md#installing-on-a-cluster-that-already-has-shards) |
 
 See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
 
