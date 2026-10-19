@@ -8,6 +8,7 @@ import (
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
@@ -37,10 +38,15 @@ var _ = Describe("The partitionLabelValue webhooks", Ordered, Label("nodepool-co
 		return err
 	}
 
-	currentUnmanagedShard := func() *kaischedulerv1.SchedulingShard {
-		shard := &kaischedulerv1.SchedulingShard{}
-		Expect(testClient.Get(ctx, client.ObjectKeyFromObject(unmanagedShard), shard)).To(Succeed())
-		return shard
+	// The KAI Scheduler operator keeps patching the shard's status, and a stale copy is refused as a
+	// conflict before the webhook ever sees it, so re-read and retry until the webhook answers.
+	updateUnmanagedShard := func(change func(*kaischedulerv1.SchedulingShard)) error {
+		return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			shard := &kaischedulerv1.SchedulingShard{}
+			Expect(testClient.Get(ctx, client.ObjectKeyFromObject(unmanagedShard), shard)).To(Succeed())
+			change(shard)
+			return testClient.Update(ctx, shard)
+		})
 	}
 
 	BeforeAll(func() {
@@ -100,28 +106,22 @@ var _ = Describe("The partitionLabelValue webhooks", Ordered, Label("nodepool-co
 	})
 
 	Context("on SchedulingShard update", func() {
-		// Re-read each time: a rejected update leaves the local copy dirty.
 		It("refuses to change partitionLabelValue", func() {
-			shard := currentUnmanagedShard()
-			shard.Spec.PartitionLabelValue = utils.GenerateName("npc-moved")
-
-			Expect(testClient.Update(ctx, shard)).
-				To(MatchError(ContainSubstring("cannot change partitionLabelValue")))
+			Expect(updateUnmanagedShard(func(shard *kaischedulerv1.SchedulingShard) {
+				shard.Spec.PartitionLabelValue = utils.GenerateName("npc-moved")
+			})).To(MatchError(ContainSubstring("cannot change partitionLabelValue")))
 		})
 
 		It("refuses to remove the unmanaged label", func() {
-			shard := currentUnmanagedShard()
-			delete(shard.Labels, unmanaged_shards.IgnoreShardLabelKey)
-
-			Expect(testClient.Update(ctx, shard)).
-				To(MatchError(ContainSubstring(unmanaged_shards.IgnoreShardLabelKey)))
+			Expect(updateUnmanagedShard(func(shard *kaischedulerv1.SchedulingShard) {
+				delete(shard.Labels, unmanaged_shards.IgnoreShardLabelKey)
+			})).To(MatchError(ContainSubstring(unmanaged_shards.IgnoreShardLabelKey)))
 		})
 
 		It("admits an update that keeps both", func() {
-			shard := currentUnmanagedShard()
-			shard.Spec.Args = map[string]string{"verbosity": "4"}
-
-			Expect(testClient.Update(ctx, shard)).To(Succeed())
+			Expect(updateUnmanagedShard(func(shard *kaischedulerv1.SchedulingShard) {
+				shard.Spec.Args = map[string]string{"verbosity": "4"}
+			})).To(Succeed())
 		})
 	})
 
