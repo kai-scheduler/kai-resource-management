@@ -57,6 +57,26 @@ var _ = Describe("Deployment", func() {
 			"--finalizer-domain", "kai.resources"))
 	})
 
+	Context("scheduler namespace", func() {
+		It("defaults to the KRM namespace when unset or empty", func() {
+			Expect(buildArgsList(newKRMConfig())).To(ContainElements("--scheduler-namespace", testNamespace))
+
+			krmConfig := newKRMConfig()
+			krmConfig.Spec.NodePoolController.Args.SchedulerNamespace = ptr.To("")
+			Expect(buildArgsList(krmConfig)).To(ContainElements("--scheduler-namespace", testNamespace))
+		})
+
+		It("follows a pre-existing scheduler into its own namespace", func() {
+			krmConfig := newKRMConfig()
+			krmConfig.Spec.NodePoolController.Args.SchedulerNamespace = ptr.To("kai-scheduler")
+
+			args := buildArgsList(krmConfig)
+
+			Expect(args).To(ContainElements("--scheduler-namespace", "kai-scheduler"))
+			Expect(args).ToNot(ContainElement(testNamespace))
+		})
+	})
+
 	// Verbosity is a switch, not a level: --log-level is not a flag this binary has.
 	It("passes --debug only when asked, and never --log-level", func() {
 		Expect(buildArgsList(newKRMConfig())).ToNot(ContainElement("--debug"))

@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- if and .Values.nodePoolController.enabled .Values.rbac.create }}
-# Namespaced Role: the nodepool-controller manages its own workload-plane objects
-# (its Deployment/Service/ConfigMaps/ServiceMonitors) inside the install namespace.
+{{- $schedulerNamespace := include "kai-resource-management.schedulerNamespace" . }}
+# Namespaced Role: the nodepool-controller manages its per-shard ServiceMonitors
+# beside the scheduler, which an existing KAI Scheduler may run outside the release namespace.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: kai-nodepool-controller
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $schedulerNamespace }}
   labels:
     {{- include "kai-resource-management.labels" . | nindent 4 }}
 rules:
@@ -26,7 +27,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: kai-nodepool-controller
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $schedulerNamespace }}
   labels:
     {{- include "kai-resource-management.labels" . | nindent 4 }}
 roleRef:

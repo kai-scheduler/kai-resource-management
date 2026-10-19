@@ -1510,6 +1510,11 @@ spec:
                           queries, including the queue-allocation metric names written into each
                           SchedulingShard.
                         type: string
+                      schedulerNamespace:
+                        description: |-
+                          SchedulerNamespace is the namespace of the KAI Scheduler, where per-shard
+                          ServiceMonitors are written. Empty means spec.namespace.
+                        type: string
                       schedulingShardArgs:
                         description: |-
                           SchedulingShardArgs is a JSON-encoded map of cluster-wide KAI scheduler args
