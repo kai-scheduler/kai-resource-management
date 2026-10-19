@@ -465,6 +465,7 @@ are gone, it:
    none of them and no controller is left to process it.
 
 A shard without the label still belongs to its node pool and is deleted with it.
+A later install takes the released shards over again.
 Setting `postCleanup.enabled=false` fails the render in this mode. If the hook fails,
 see [`helm uninstall` fails on the cleanup hook](../../docs/how-to/troubleshooting.md#helm-uninstall-fails-on-the-cleanup-hook).
 

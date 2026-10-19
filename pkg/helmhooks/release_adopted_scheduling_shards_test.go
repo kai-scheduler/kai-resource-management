@@ -16,8 +16,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
-
-	unmanaged_shards "github.com/kai-scheduler/kai-resource-management/pkg/nodepool-controller/unmanaged-shards"
 )
 
 func nodePoolOwnerReference(name string) metav1.OwnerReference {
@@ -31,8 +29,8 @@ func adoptedShard(name string) *kaiv1.SchedulingShard {
 	return &kaiv1.SchedulingShard{ObjectMeta: metav1.ObjectMeta{
 		Name: name,
 		Labels: map[string]string{
-			unmanaged_shards.AdoptionLabelKey: unmanaged_shards.AdoptionLabelValue,
-			"app":                             "kai-scheduler",
+			AdoptionLabelKey: AdoptionLabelValue,
+			"app":            "kai-scheduler",
 		},
 		Annotations:     map[string]string{"kai.resources/managed-shard-args": "a,b"},
 		OwnerReferences: []metav1.OwnerReference{nodePoolOwnerReference(name)},
@@ -63,8 +61,26 @@ var _ = Describe("Cleanup releasing adopted scheduling shards", func() {
 
 		shard := getShard(k8sClient, "team-a")
 		Expect(shard.OwnerReferences).To(BeEmpty())
-		Expect(shard.Labels).NotTo(HaveKey(unmanaged_shards.AdoptionLabelKey))
+		Expect(shard.Labels).NotTo(HaveKey(AdoptionLabelKey))
 		Expect(shard.Annotations).NotTo(HaveKey("kai.resources/managed-shard-args"))
+	})
+
+	It("releases a shard MigrateShards adopted, which a reinstall adopts again", func() {
+		migrateOpts := MigrateShardsOptions{PartitionLabelKey: "kai.scheduler/node-pool", DefaultNodePoolName: "default"}
+		k8sClient := newCleanupClient(interceptor.Funcs{}, &kaiv1.SchedulingShard{
+			ObjectMeta: metav1.ObjectMeta{Name: "team-a"},
+			Spec:       kaiv1.SchedulingShardSpec{PartitionLabelValue: "team-a"},
+		})
+		Expect(MigrateShards(ctx, k8sClient, migrateOpts)).To(Succeed())
+
+		Expect(Cleanup(ctx, k8sClient, opts)).To(Succeed())
+
+		shard := getShard(k8sClient, "team-a")
+		Expect(shard.OwnerReferences).To(BeEmpty())
+		Expect(shard.Labels).NotTo(HaveKey(AdoptionLabelKey))
+
+		Expect(MigrateShards(ctx, k8sClient, migrateOpts)).To(Succeed())
+		Expect(getShard(k8sClient, "team-a").Labels).To(HaveKeyWithValue(AdoptionLabelKey, AdoptionLabelValue))
 	})
 
 	It("keeps the app label and owners that are not NodePools", func() {
@@ -82,7 +98,7 @@ var _ = Describe("Cleanup releasing adopted scheduling shards", func() {
 
 	It("leaves a shard KRM did not adopt to go with its NodePool", func() {
 		shard := adoptedShard("team-b")
-		delete(shard.Labels, unmanaged_shards.AdoptionLabelKey)
+		delete(shard.Labels, AdoptionLabelKey)
 		k8sClient := newCleanupClient(interceptor.Funcs{}, shard)
 
 		Expect(Cleanup(ctx, k8sClient, opts)).To(Succeed())

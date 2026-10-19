@@ -18,13 +18,6 @@ import (
 // scheduler: KRM neither reconciles the shard nor touches the partition's nodes.
 const IgnoreShardLabelKey = "kai/ignore-shard-for-krm"
 
-// AdoptionLabelKey marks a shard that predates KRM, so uninstall releases it rather than
-// letting it go with its NodePool.
-const (
-	AdoptionLabelKey   = "kai.resources/adoption"
-	AdoptionLabelValue = "adopted"
-)
-
 // IsUnmanaged ignores the label on a shard a NodePool already owns, since releasing an
 // adopted shard is an uninstall, and on the default partition, which always needs a NodePool.
 func IsUnmanaged(shard *kaiv1.SchedulingShard) bool {
