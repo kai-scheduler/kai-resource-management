@@ -198,6 +198,45 @@ serves.
 
 See [excluding nodes from management](../how-to/exclude-nodes-from-management.md).
 
+## Installing on a cluster that already has shards
+
+When KRM is installed or upgraded beside an existing KAI Scheduler
+(`kai-scheduler.enabled=false`), every existing `SchedulingShard` becomes a node pool before
+any KRM controller starts:
+
+- A shard serving partition `P` gets a node pool named `P` that selects nodes labelled
+  with the node-pool label key and value `P`. The shard with an empty
+  `partitionLabelValue` goes to the `default` node pool.
+- The node pool takes the shard's settings: `args`, placement strategy, queue depth,
+  minimum runtime, plugins, actions and time-based fair share, including the usage-DB
+  address and queries. A node pool that already selects the partition is updated to them.
+  Settings a node pool does not have, such as `goMemLimit`, stay on the shard.
+- The shard keeps its name. It is labelled `kai.resources/adoption=adopted` and owned by
+  its node pool from then on, so change its settings on the node pool.
+
+Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart does
+not create the `default` node pool itself; this step does, from KAI's default shard when there
+is one and otherwise from `defaultNodePool.spec`. It is created once, so later changes to
+`defaultNodePool.spec` do not reach it, and an install that skips Helm hooks
+(`helm install --no-hooks`, `helm template | kubectl apply`) gets no `default` node pool.
+
+The scheduler sees the same shard settings before and after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that already
+have an owning controller, such as a node pool.
+
+The install fails, and changes no shard, when a shard cannot be carried over exactly. The
+error names the shard and what to change:
+
+- Its partition is not a valid node pool name, for example `Team_A`, or is the `default`
+  node pool's name.
+- Two shards serve the same partition.
+- A node pool of that name already exists and selects its nodes by anything other than the
+  node-pool label and the partition's value. KRM relabels a node pool's nodes with its name,
+  so taking the shard over would move nodes between schedulers.
+- It sets a worker-node label key arg, or an arg in
+  `nodePoolController.args.schedulingShardArgs`, to a different value than KRM does.
+- KAI Scheduler reads node pools from a different label than KRM. Set
+  `kai-scheduler.global.nodePoolLabelKey` to KAI's key.
+
 ## Leaving a partition to another scheduler
 
 On a cluster that already runs KAI Scheduler, a partition can stay with the scheduler that

@@ -54,6 +54,17 @@ var _ = Describe("Subcommand arguments", func() {
 			[]string{"--minimum-version=0.0.0", "--kai-scheduler-version=v0.1.0"})).To(Succeed())
 	})
 
+	It("rejects --default-nodepool-spec that is not a NodePool spec", func() {
+		Expect(migrateShards(ctx, unreachableClient,
+			[]string{"--ensure-default-nodepool", `--default-nodepool-spec={"labelKey":1}`})).
+			To(MatchError(ContainSubstring("not a NodePool spec")))
+	})
+
+	It("rejects --scheduling-shard-args that is not a JSON map of strings", func() {
+		Expect(migrateShards(ctx, unreachableClient, []string{`--scheduling-shard-args={"a":1}`})).
+			To(MatchError(ContainSubstring("not a JSON map of strings")))
+	})
+
 	It("rejects an unknown flag", func() {
 		Expect(applyConfig(ctx, unreachableClient, []string{"--nonesuch=1"})).To(HaveOccurred())
 	})
