@@ -45,12 +45,16 @@ func ListPartitionLabelValues(ctx context.Context, reader client.Reader) (map[st
 // OwningNodePoolName returns the NodePool controlling the shard, or "" when none does.
 func OwningNodePoolName(shard *kaiv1.SchedulingShard) string {
 	owner := metav1.GetControllerOf(shard)
-	if owner == nil || owner.Kind != "NodePool" {
-		return ""
-	}
-	ownerGroupVersion, err := schema.ParseGroupVersion(owner.APIVersion)
-	if err != nil || ownerGroupVersion.Group != v1alpha1.GroupVersion.Group {
+	if owner == nil || !IsNodePoolReference(*owner) {
 		return ""
 	}
 	return owner.Name
+}
+
+func IsNodePoolReference(owner metav1.OwnerReference) bool {
+	if owner.Kind != "NodePool" {
+		return false
+	}
+	ownerGroupVersion, err := schema.ParseGroupVersion(owner.APIVersion)
+	return err == nil && ownerGroupVersion.Group == v1alpha1.GroupVersion.Group
 }

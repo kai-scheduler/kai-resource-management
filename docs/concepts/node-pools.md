@@ -213,6 +213,8 @@ any KRM controller starts:
   Settings a node pool does not have, such as `goMemLimit`, stay on the shard.
 - The shard keeps its name. It is labelled `kai.resources/adoption=adopted` and owned by
   its node pool from then on, so change its settings on the node pool.
+  Uninstalling KRM hands it back to the scheduler unowned, and a reinstall takes it over
+  again. See [Uninstall](../../deployments/kai-resource-management-chart/README.md#uninstall).
 
 Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart does
 not create the `default` node pool itself; this step does, from KAI's default shard when there

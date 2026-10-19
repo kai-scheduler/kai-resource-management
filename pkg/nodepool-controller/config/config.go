@@ -11,7 +11,7 @@ const (
 	// below.
 	defaultKAIPrefix = "kai.scheduler"
 
-	defaultFinalizerDomain = defaultKAIPrefix
+	DefaultFinalizerDomain = defaultKAIPrefix
 
 	// nodepoolFinalizerPrefix and nodepoolFinalizerSuffix are appended around
 	// the configured FinalizerDomain to compose the nodepool finalizer string.
@@ -138,5 +138,11 @@ func SetForTest(c *NodePoolControllerConfig) func() {
 // FinalizerName composes the nodepool-finalizer string from the configured
 // FinalizerDomain. Default "kai.scheduler" -> "nodepool.kai.scheduler/finalize".
 func FinalizerName() string {
-	return fmt.Sprintf("%s%s%s", nodepoolFinalizerPrefix, Get().FinalizerDomain, nodepoolFinalizerSuffix)
+	return FinalizerNameForDomain(Get().FinalizerDomain)
+}
+
+// FinalizerNameForDomain lets a process without the controller's config, such as the
+// uninstall hook, compose the identical finalizer string.
+func FinalizerNameForDomain(domain string) string {
+	return fmt.Sprintf("%s%s%s", nodepoolFinalizerPrefix, domain, nodepoolFinalizerSuffix)
 }
