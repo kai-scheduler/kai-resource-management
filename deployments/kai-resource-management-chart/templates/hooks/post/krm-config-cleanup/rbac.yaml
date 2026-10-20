@@ -55,6 +55,16 @@ rules:
     resources: ["krmconfigs"]
     resourceNames: ["krm-config"]
     verbs: ["delete", "get"]
+  {{- if not (dig "enabled" true (index .Values "kai-scheduler")) }}
+  # Shards are released and NodePool finalizers stripped by patch alone; no get,
+  # update or delete, so the hook cannot remove either.
+  - apiGroups: ["kai.scheduler"]
+    resources: ["schedulingshards"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["kai.resources"]
+    resources: ["nodepools"]
+    verbs: ["list", "patch"]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

@@ -213,7 +213,7 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 
 	args := []string{
 		"--metrics-port", strconv.Itoa(int(*config.ControllerService.Metrics.TargetPort)),
-		"--scheduler-namespace", krmConfig.Spec.Namespace,
+		"--scheduler-namespace", schedulerNamespace(krmConfig),
 		// Spelled out either way: the binary defaults this to true and would then
 		// start a TLS server with no certificate mounted.
 		"--enable-nodepool-validation-webhook=" + strconv.FormatBool(webhookEnabled(config.Webhooks)),
@@ -246,6 +246,15 @@ func buildArgsList(krmConfig *krmv1alpha1.KRMConfig) []string {
 
 	// Last, so a flag repeated here wins over the one built above it.
 	return append(args, config.ExtraArgs...)
+}
+
+// A pre-existing KAI Scheduler may run outside the KRM namespace, and its
+// ServiceMonitors have to sit beside it for Prometheus to scrape them.
+func schedulerNamespace(krmConfig *krmv1alpha1.KRMConfig) string {
+	if namespace := ptr.Deref(krmConfig.Spec.NodePoolController.Args.SchedulerNamespace, ""); namespace != "" {
+		return namespace
+	}
+	return krmConfig.Spec.Namespace
 }
 
 // Empty counts as unset: passing a flag with an empty value would override the

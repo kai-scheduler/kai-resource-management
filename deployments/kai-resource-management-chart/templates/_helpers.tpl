@@ -13,6 +13,18 @@ true
 {{- end -}}
 {{- end -}}
 
+{{/* The bundled scheduler always runs in the release namespace, so only an existing one may sit elsewhere. */}}
+{{- define "kai-resource-management.schedulerNamespace" -}}
+{{- if .Values.schedulerNamespace -}}
+{{- if not (include "kai-resource-management.usesExistingKaiScheduler" .) -}}
+{{- fail "schedulerNamespace is only valid with kai-scheduler.enabled=false: the bundled KAI Scheduler runs in the release namespace" -}}
+{{- end -}}
+{{- .Values.schedulerNamespace -}}
+{{- else -}}
+{{- .Release.Namespace -}}
+{{- end -}}
+{{- end -}}
+
 {{/*
 schedulerName, nodePoolLabelKey and queueLabelKey as YAML. Beside an existing scheduler, unset
 ones are read from its kai-config. The CRD is checked first: lookup of an unserved kind fails
@@ -413,7 +425,8 @@ own RBAC and webhook templates use, so a setting has one home and two readers.
       {{- end }}
     {{- end }}
     {{- $argsBody := include "kai-resource-management.krm-config-nodepool-controller-args" (dict
-        "args" $args "metricsNamespace" $metrics.namespace "dcgmExporterNamespace" $comp.dcgmExporterNamespace) }}
+        "args" $args "metricsNamespace" $metrics.namespace "dcgmExporterNamespace" $comp.dcgmExporterNamespace
+        "schedulerNamespace" (and .Values.schedulerNamespace (include "kai-resource-management.schedulerNamespace" .))) }}
     {{- if trim $argsBody }}
     args:
       {{- trim $argsBody | nindent 6 }}
@@ -428,7 +441,9 @@ own RBAC and webhook templates use, so a setting has one home and two readers.
 The typed args of the KRMConfig, taken from nodePoolController.args. Only these keys
 are modelled; anything else set there is ignored, and belongs in extraArgs. qps and
 burst are deliberately absent: they live on service.k8sClientConfig. metricsNamespace
-and dcgmExporterNamespace are passed in because their chart values sit outside args.
+and dcgmExporterNamespace are passed in because their chart values sit outside args,
+and schedulerNamespace because it is top-level; it is passed only when set, so the
+operator's own fallback to spec.namespace applies otherwise.
 */}}
 {{- define "kai-resource-management.krm-config-nodepool-controller-args" -}}
 {{- $args := .args -}}
@@ -449,6 +464,9 @@ metricsNamespace: {{ . | quote }}
 {{- end }}
 {{- with .dcgmExporterNamespace }}
 dcgmExporterNamespace: {{ . | quote }}
+{{- end }}
+{{- with .schedulerNamespace }}
+schedulerNamespace: {{ . | quote }}
 {{- end }}
 {{- end -}}
 

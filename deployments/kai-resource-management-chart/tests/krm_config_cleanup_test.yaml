@@ -129,3 +129,87 @@ tests:
       - equal:
           path: spec.template.spec.restartPolicy
           value: Never
+
+  # Unset means the subchart is bundled, so no shard predates KRM: the ordinary
+  # uninstall must stay exactly as it was.
+  - it: leaves shards and NodePool finalizers alone outside co-install mode
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --release-adopted-scheduling-shards
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --strip-nodepool-finalizers
+
+  - it: grants nothing on shards or NodePools outside co-install mode
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: ["kai.resources"]
+              resources: ["krmconfigs"]
+              resourceNames: ["krm-config"]
+              verbs: ["delete", "get"]
+
+  - it: releases adopted shards and strips NodePool finalizers in co-install mode
+    set:
+      kai-scheduler.enabled: false
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --release-adopted-scheduling-shards
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --strip-nodepool-finalizers
+      # Unset, the binary's default matches nodepool-controller's.
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --finalizer-domain=
+          any: true
+
+  # A different domain would strip a finalizer nodepool-controller never set.
+  - it: strips the finalizer of the configured domain
+    set:
+      kai-scheduler.enabled: false
+      commonArgs.finalizerDomain: example.com
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --finalizer-domain=example.com
+
+  - it: may list and patch shards and NodePools in co-install mode, and nothing more
+    set:
+      kai-scheduler.enabled: false
+    template: templates/hooks/post/krm-config-cleanup/rbac.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.scheduler"]
+            resources: ["schedulingshards"]
+            verbs: ["list", "patch"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kai.resources"]
+            resources: ["nodepools"]
+            verbs: ["list", "patch"]
+
+  - it: refuses to disable the cleanup in co-install mode
+    set:
+      kai-scheduler.enabled: false
+      postCleanup.enabled: false
+    template: templates/hooks/post/krm-config-cleanup/job.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: postCleanup.enabled=false is not supported with kai-scheduler.enabled=false

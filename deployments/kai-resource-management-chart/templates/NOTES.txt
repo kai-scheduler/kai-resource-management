@@ -47,3 +47,7 @@ Notes:
 
 Verify:
   kubectl -n {{ .Release.Namespace }} get deploy,svc,servicemonitor
+{{- $schedulerNamespace := include "kai-resource-management.schedulerNamespace" . }}
+{{- if ne $schedulerNamespace .Release.Namespace }}
+  kubectl -n {{ $schedulerNamespace }} get servicemonitor   # per-shard, beside the scheduler
+{{- end }}
