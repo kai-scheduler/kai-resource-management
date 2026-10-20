@@ -26,6 +26,10 @@ const (
 	adminNodePoolLabelKey = "e2e.admin/node-pool"
 	adminQueueLabelKey    = "e2e.admin/queue"
 
+	// An admin's own label on their shard, which neither adoption nor release may drop.
+	adminShardLabelKey   = "e2e.admin/team"
+	adminShardLabelValue = "research"
+
 	// Below the minimum KRM supports. The detected version cannot be used: CI installs a
 	// 0.0.0-<commit> build of KAI, which the check accepts as unreleased.
 	unsupportedKAIVersion = "v0.17.0"

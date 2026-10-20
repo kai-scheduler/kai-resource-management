@@ -12,14 +12,17 @@ import (
 	kaiconstants "github.com/kai-scheduler/api/constants"
 	kaischedulerv1 "github.com/kai-scheduler/api/kai/v1"
 	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
+	kaiv2alpha2 "github.com/kai-scheduler/api/scheduling/v2alpha2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kai-scheduler/kai-resource-management/pkg/helmhooks"
@@ -61,6 +64,15 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 	)
 
 	adminLeafQueue := func() string { return adminQueues[len(adminQueues)-1].Name }
+
+	expectAdminShardSettings := func(g Gomega) {
+		shard := &kaischedulerv1.SchedulingShard{}
+		g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(adminShard), shard)).To(Succeed())
+		g.Expect(shard.Labels).To(HaveKeyWithValue(adminShardLabelKey, adminShardLabelValue))
+		g.Expect(shard.Spec.Args).To(HaveKeyWithValue("v", "4"))
+		g.Expect(shard.Spec.PlacementStrategy).To(HaveField("GPU", HaveValue(Equal("spread"))))
+		g.Expect(shard.Spec.GoMemLimitRatio).To(Equal(adminShard.Spec.GoMemLimitRatio))
+	}
 
 	// runAdminPod submits a pod the way a workload reaches KAI without KRM: by scheduler name
 	// and queue label, plus a partition label unless it belongs to the default partition.
@@ -128,8 +140,13 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		Expect(nodes.SetLabel(ctx, testClient, unmanagedNode, adminNodePoolLabelKey, unmanagedPartition)).
 			To(Succeed())
 
-		// Named apart from its partition, so a migration that renamed shards would show.
+		// Named apart from its partition, so a migration that renamed shards would show. Its
+		// settings are ones a node pool models, args and placement, and one it does not.
 		adminShard = resources.SchedulingShard(utils.GenerateName("coi-admin-shard"), adminPartition)
+		adminShard.Labels[adminShardLabelKey] = adminShardLabelValue
+		adminShard.Spec.Args = map[string]string{"v": "4"}
+		adminShard.Spec.PlacementStrategy = &kaischedulerv1.PlacementStrategy{GPU: ptr.To("spread")}
+		adminShard.Spec.GoMemLimitRatio = ptr.To(0.8)
 		unmanagedShard = resources.SchedulingShard(utils.GenerateName("coi-unmanaged-shard"), unmanagedPartition,
 			resources.Unmanaged())
 		for _, shard := range []*kaischedulerv1.SchedulingShard{adminShard, unmanagedShard} {
@@ -260,6 +277,18 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			}
 		})
 
+		It("carries the admin shard's settings to its node pool, and keeps the rest on the shard", func() {
+			config := wait.ForNodePoolPhase(ctx, testClient, adminPartition, kaires.NodePoolReady).
+				Spec.SchedulingShardConfig
+			Expect(config).ToNot(BeNil())
+			Expect(config.Args).To(HaveKeyWithValue("v", "4"))
+			Expect(config.PlacementStrategy).To(HaveField("GPU", HaveValue(Equal("spread"))))
+
+			// Held for a while: the controller rewrites the shard on every reconcile, and must
+			// merge into it rather than replace what a node pool cannot express.
+			Consistently(expectAdminShardSettings).WithTimeout(5 * constant.Interval).Should(Succeed())
+		})
+
 		It("leaves the admin's queue tree and pod groups as they were", func() {
 			for _, queue := range adminQueues {
 				current := &kaiv2.Queue{}
@@ -281,6 +310,43 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			runAdminPod("", defaultNode)
 		})
 
+		// KRM moves its own unschedulable pod groups to another node pool; an admin's must stay
+		// where KAI put it.
+		It("leaves an admin pod group alone when it cannot be scheduled", func() {
+			pod := resources.Pod(utils.GenerateName("coi-admin-pending"), adminNamespace,
+				resources.WithSchedulerName(kaiconstants.DefaultSchedulerName),
+				resources.WithQueueLabel(adminQueueLabelKey, adminLeafQueue()),
+				resources.WithNodePoolLabel(adminNodePoolLabelKey, adminPartition))
+			pod.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1000"),
+			}
+			Expect(testClient.Create(ctx, pod)).To(Succeed())
+			DeferCleanup(func() {
+				Expect(client.IgnoreNotFound(testClient.Delete(ctx, pod))).To(Succeed())
+				wait.ForDeleted(ctx, testClient, pod)
+			})
+
+			podGroup := wait.ForPodGroup(ctx, testClient, adminNamespace, pod.Name)
+			queue, partition := podGroup.Spec.Queue, podGroup.Labels[adminNodePoolLabelKey]
+			Expect(partition).To(Equal(adminPartition))
+
+			getPodGroup := func(g Gomega) *kaiv2alpha2.PodGroup {
+				current := &kaiv2alpha2.PodGroup{}
+				g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), current)).To(Succeed())
+				return current
+			}
+			Eventually(func(g Gomega) {
+				g.Expect(getPodGroup(g).Status.SchedulingConditions).ToNot(BeEmpty(),
+					"KAI should have reported the pod group unschedulable")
+			}).WithTimeout(constant.PodTimeout).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				current := getPodGroup(g)
+				g.Expect(current.Spec.Queue).To(Equal(queue))
+				g.Expect(current.Labels).To(HaveKeyWithValue(adminNodePoolLabelKey, partition))
+			}).WithTimeout(5 * constant.Interval).Should(Succeed())
+		})
+
 		It("leaves an unmanaged shard, its spec and its nodes alone", func() {
 			shard := &kaischedulerv1.SchedulingShard{}
 			Expect(testClient.Get(ctx, client.ObjectKeyFromObject(unmanagedShard), shard)).To(Succeed())
@@ -291,9 +357,7 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			err := testClient.Get(ctx, types.NamespacedName{Name: unmanagedPartition}, &kaires.NodePool{})
 			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "no node pool should exist for it: %v", err)
 
-			node := &corev1.Node{}
-			Expect(testClient.Get(ctx, types.NamespacedName{Name: unmanagedNode}, node)).To(Succeed())
-			Expect(node.Labels).To(HaveKeyWithValue(adminNodePoolLabelKey, unmanagedPartition))
+			expectNodeLabel(unmanagedNode, adminNodePoolLabelKey, unmanagedPartition)
 
 			runAdminPod(unmanagedPartition, unmanagedNode)
 		})
@@ -323,6 +387,21 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			shard := resources.SchedulingShard(utils.GenerateName("coi-orphan"), utils.GenerateName("coi-orphan"))
 
 			Expect(createExpectingRefusal(shard)).To(MatchError(ContainSubstring("no nodepool")))
+		})
+
+		It("refuses to hand an adopted shard back, or move it to another partition", func() {
+			shard := &kaischedulerv1.SchedulingShard{}
+			Expect(testClient.Get(ctx, client.ObjectKeyFromObject(adminShard), shard)).To(Succeed())
+
+			ignored := shard.DeepCopy()
+			ignored.Labels[unmanaged_shards.IgnoreShardLabelKey] = "true"
+			Expect(testClient.Patch(ctx, ignored, client.MergeFrom(shard))).To(MatchError(
+				ContainSubstring("cannot add, change or remove")))
+
+			moved := shard.DeepCopy()
+			moved.Spec.PartitionLabelValue = utils.GenerateName("coi-moved")
+			Expect(testClient.Patch(ctx, moved, client.MergeFrom(shard))).To(MatchError(
+				ContainSubstring("cannot change partitionLabelValue")))
 		})
 
 		Context("a project", Ordered, func() {
@@ -459,6 +538,8 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 				Expect(keysWithPrefix(shard.Labels, "kai.resources/")).To(BeEmpty(), "shard %s", name)
 				Expect(keysWithPrefix(shard.Annotations, "kai.resources/")).To(BeEmpty(), "shard %s", name)
 			}
+
+			Eventually(expectAdminShardSettings).Should(Succeed())
 		})
 
 		It("still schedules the admin's workloads", func() {
@@ -490,9 +571,20 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 	})
 
 	// A smoke test of the recommended layout: no schedulerNamespace, because the release
-	// namespace is the scheduler's. It also re-migrates the shards released above.
+	// namespace is the scheduler's. It also re-migrates the shards released above, this time
+	// with KAI's default shard labelled to be ignored, which the first install did not.
 	Context("installed into the scheduler's own namespace", func() {
 		It("installs and comes up", func() {
+			// With KRM gone nothing refuses the label.
+			shard := &kaischedulerv1.SchedulingShard{}
+			Expect(testClient.Get(ctx, types.NamespacedName{Name: defaultShardName}, shard)).To(Succeed())
+			ignored := shard.DeepCopy()
+			if ignored.Labels == nil {
+				ignored.Labels = map[string]string{}
+			}
+			ignored.Labels[unmanaged_shards.IgnoreShardLabelKey] = "true"
+			Expect(testClient.Patch(ctx, ignored, client.MergeFrom(shard))).To(Succeed())
+
 			output, err := installKRM(krmReleaseName, kaiNamespace)
 			Expect(err).ToNot(HaveOccurred(), "installing KRM failed: %s", output)
 
@@ -502,6 +594,14 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 				key := types.NamespacedName{Namespace: kaiNamespace, Name: name}
 				Expect(testClient.Get(ctx, key, deployment)).To(Succeed(), name)
 			}
+		})
+
+		// The default partition always needs a node pool, so the label cannot keep it out.
+		It("adopts KAI's default shard even when it is labelled to be ignored", func() {
+			shard := wait.ForSchedulingShardReady(ctx, testClient, defaultShardName)
+			Expect(shard.Labels).ToNot(HaveKey(unmanaged_shards.IgnoreShardLabelKey))
+			Expect(shard.Labels).To(HaveKeyWithValue(helmhooks.AdoptionLabelKey, helmhooks.AdoptionLabelValue))
+			Expect(shard.OwnerReferences).To(ContainElement(HaveField("Name", defaultNodePoolName)))
 		})
 
 		It("uninstalls, and its node pools still delete", func() {
@@ -548,7 +648,7 @@ func expectNodeLabel(nodeName, key, value string) {
 		g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
 		g.Expect(node.Labels).To(matcher)
 		g.Expect(node.Spec.Unschedulable).To(BeFalse(), "node %s should not be cordoned", nodeName)
-	}).WithTimeout(10 * constant.Interval).Should(Succeed())
+	}).WithTimeout(5 * constant.Interval).Should(Succeed())
 }
 
 func keysWithPrefix(values map[string]string, prefix string) []string {
