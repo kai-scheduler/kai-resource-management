@@ -3,8 +3,8 @@
 
 {{- if and .Values.nodePoolController.enabled .Values.rbac.create }}
 {{- $schedulerNamespace := include "kai-resource-management.schedulerNamespace" . }}
-# Namespaced Role: the nodepool-controller manages its per-shard ServiceMonitors
-# beside the scheduler, which an existing KAI Scheduler may run outside the release namespace.
+# Namespaced Role for the nodepool-controller's per-shard ServiceMonitors, which live beside
+# the scheduler: an existing KAI Scheduler may run outside the release namespace.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
