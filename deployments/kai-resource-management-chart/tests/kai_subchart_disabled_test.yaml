@@ -1,0 +1,27 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Wildcards: naming a template of a disabled subchart fails as "not exists".
+suite: kai-scheduler subchart beside an existing KAI Scheduler
+release:
+  name: krm
+  namespace: kai-resource-management
+templates:
+  - charts/kai-scheduler/templates/*
+  - charts/kai-scheduler/templates/**/*
+tests:
+  - it: installs no KAI Scheduler, and no kai-config deployer, with kai-scheduler.enabled=false
+    set:
+      kai-scheduler.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: installs KAI Scheduler and its kai-config deployer by default
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: charts/kai-scheduler/templates/services/operator.yaml
+      - hasDocuments:
+          count: 1
+        template: charts/kai-scheduler/templates/hooks/post/kai-config-deployer/job.yaml

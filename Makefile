@@ -72,6 +72,7 @@ helm-deps: ## Fetch the chart's declared subchart dependencies into charts/.
 test-chart: helm-deps ## Run Helm chart unit tests in the pinned container.
 	@echo "Running tests for Helm chart: kai-resource-management"
 	helm lint ./deployments/kai-resource-management-chart
+	helm lint ./deployments/kai-resource-management-chart --set kai-scheduler.enabled=false
 	docker run -t --rm -v ./deployments/kai-resource-management-chart:/apps helmunittest/helm-unittest:3.17.2-0.8.1 . -f 'tests/**/*_test.yaml'
 
 .PHONY: test

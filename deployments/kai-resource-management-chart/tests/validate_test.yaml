@@ -1,0 +1,89 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+suite: kai-scheduler.enabled validation
+templates:
+  - templates/validate.yaml
+  - templates/hooks/pre/migrate-shards/job.yaml
+release:
+  name: rm
+  namespace: kai
+kubernetesProvider:
+  scheme:
+    "apps/v1/Deployment":
+      gvr:
+        group: apps
+        version: v1
+        resource: deployments
+      namespaced: true
+tests:
+  - it: rejects a kai-scheduler.enabled that is not a bool
+    set:
+      kai-scheduler.enabled: "false"
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: kai-scheduler.enabled must be true or false (got "false")
+
+  - it: refuses to disable the KAI Scheduler this release installed
+    set:
+      kai-scheduler.enabled: false
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - &bundledKaiOperator
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kai-operator
+            namespace: kai
+            annotations:
+              meta.helm.sh/release-name: rm
+              meta.helm.sh/release-namespace: kai
+    template: templates/validate.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: release rm installed KAI Scheduler in namespace kai, and kai-scheduler.enabled=false would uninstall it; keep kai-scheduler.enabled=true for this release
+
+  - it: upgrades beside a KAI Scheduler another release installed in the same namespace
+    set:
+      kai-scheduler.enabled: false
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kai-operator
+            namespace: kai
+            annotations:
+              meta.helm.sh/release-name: kai-scheduler
+              meta.helm.sh/release-namespace: kai
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}
+
+  - it: does not guard a first install
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - *bundledKaiOperator
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}
+
+  - it: does not guard an upgrade that keeps KAI Scheduler bundled
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - *bundledKaiOperator
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}

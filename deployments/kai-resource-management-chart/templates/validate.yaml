@@ -1,0 +1,11 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+{{- /* Renders nothing. Disabling the subchart on a release that installed it would uninstall
+KAI Scheduler. */ -}}
+{{- if and .Release.IsUpgrade (include "kai-resource-management.usesExistingKaiScheduler" .) }}
+{{- $operator := lookup "apps/v1" "Deployment" .Release.Namespace "kai-operator" }}
+{{- $annotations := dig "metadata" "annotations" dict $operator }}
+{{- if and (eq (get $annotations "meta.helm.sh/release-name") .Release.Name) (eq (get $annotations "meta.helm.sh/release-namespace") .Release.Namespace) }}
+{{- fail (printf "release %s installed KAI Scheduler in namespace %s, and kai-scheduler.enabled=false would uninstall it; keep kai-scheduler.enabled=true for this release" .Release.Name .Release.Namespace) }}
+{{- end }}
+{{- end }}
