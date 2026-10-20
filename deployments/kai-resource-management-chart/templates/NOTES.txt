@@ -15,9 +15,18 @@ Components:
 {{- end }}
 
 Notes:
+{{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
+{{- $vocabulary := include "kai-resource-management.schedulerVocabulary" . | fromYaml }}
+  - Installed beside the KAI Scheduler already running in this cluster, which keeps its own
+    kai-config. KRM uses, from this chart's values or that kai-config:
+      schedulerName:    {{ $vocabulary.schedulerName | default "KAI default" }}
+      nodePoolLabelKey: {{ $vocabulary.nodePoolLabelKey | default "KAI default" }}
+      queueLabelKey:    {{ $vocabulary.queueLabelKey | default "KAI default" }}
+{{- else }}
   - KAI-scheduler is bundled as a subchart, bringing its scheduler and CRDs
     (scheduling.run.ai/podgroups,queues; kai.scheduler/schedulingshards,topologies). Its Config CR is
     applied by KAI's config-deployer hook.
+{{- end }}
 {{- if .Values.krmOperator.enabled }}
 {{- if .Values.krmConfigDeployer.enabled }}
   - The KRMConfig "krm-config" is applied by a post-install hook, outside the Helm release,

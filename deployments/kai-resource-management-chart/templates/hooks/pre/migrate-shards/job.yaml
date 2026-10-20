@@ -1,8 +1,8 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-{{- $kai := index .Values "kai-scheduler" | default dict }}
 {{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
+{{- $vocabulary := include "kai-resource-management.schedulerVocabulary" . | fromYaml }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -28,7 +28,7 @@ spec:
         # it will write.
         args:
           - migrate-shards
-          {{- with ($kai.global | default dict).nodePoolLabelKey }}
+          {{- with $vocabulary.nodePoolLabelKey }}
           - --nodepool-label-key={{ . }}
           {{- end }}
           {{- with (.Values.defaultNodePool | default dict).name }}

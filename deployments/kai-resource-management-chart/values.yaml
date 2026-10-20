@@ -60,11 +60,14 @@ serviceMonitor:
   # Prometheus. Harmless without it; required if the KAI accounting Prometheus is deployed.
   accounting: true
 
-# KAI-scheduler subchart (oci://ghcr.io/kai-scheduler/kai-scheduler), always bundled — the controllers
-# depend on its scheduler + CRDs. Parent global.* (imagePullSecrets, securityContext, scheduling)
+# KAI-scheduler subchart (oci://ghcr.io/kai-scheduler/kai-scheduler) — the controllers depend on its
+# scheduler + CRDs. Parent global.* (imagePullSecrets, securityContext, scheduling)
 # is shared with the subchart automatically by Helm; KAI-specific overrides are set here. (Our
 # registry/tag live under the top-level `image:` block, NOT global, so they don't clobber KAI's images.)
 kai-scheduler:
+  # Set false on a cluster that already runs KAI Scheduler; unset label keys below are then read
+  # from its kai-config.
+  enabled: true
   global:
     # Pin KAI to its own published images regardless of the parent global.registry.
     registry: ghcr.io/kai-scheduler/kai-scheduler
@@ -109,7 +112,7 @@ commonArgs:
   projectLabelKey: ""               # --project-label-key
   allowExternalQueues: false        # --allow-external-queues; leave Queues no Project or Department owns, and PodGroups outside projects, untouched
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
-  schedulerName: ""                 # --scheduler-name; empty ⇒ the bundled scheduler
+  schedulerName: ""                 # --scheduler-name; empty ⇒ KAI Scheduler's
 
 # KRM operator. Reconciles the cluster-scoped, singleton KRMConfig and deploys the
 # three services described by it. Their RBAC and admission webhooks stay with this

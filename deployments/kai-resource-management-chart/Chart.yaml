@@ -26,3 +26,4 @@ dependencies:
   - name: kai-scheduler
     repository: oci://ghcr.io/kai-scheduler/kai-scheduler
     version: "0.0.0-e496b75"
+    condition: kai-scheduler.enabled

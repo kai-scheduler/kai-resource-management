@@ -1,0 +1,279 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+suite: shared scheduler settings from an existing kai-config
+templates:
+  - templates/krm-config.yaml
+  - templates/hooks/pre/migrate-shards/job.yaml
+  - templates/validate.yaml
+  - templates/NOTES.txt
+release:
+  name: rm
+  namespace: kai
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
+kubernetesProvider:
+  scheme:
+    "apiextensions.k8s.io/v1/CustomResourceDefinition":
+      gvr:
+        group: apiextensions.k8s.io
+        version: v1
+        resource: customresourcedefinitions
+      namespaced: false
+    "kai.scheduler/v1/Config":
+      gvr:
+        group: kai.scheduler
+        version: v1
+        resource: configs
+      namespaced: false
+    "apps/v1/Deployment":
+      gvr:
+        group: apps
+        version: v1
+        resource: deployments
+      namespaced: true
+tests:
+  - it: reads all three from kai-config beside an existing KAI Scheduler
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - &configCRD
+          apiVersion: apiextensions.k8s.io/v1
+          kind: CustomResourceDefinition
+          metadata:
+            name: configs.kai.scheduler
+        - &customKaiConfig
+          apiVersion: kai.scheduler/v1
+          kind: Config
+          metadata:
+            name: kai-config
+          spec:
+            namespace: kai-scheduler
+            global:
+              schedulerName: existing-scheduler
+              nodePoolLabelKey: example.com/pool
+              queueLabelKey: example.com/queue
+    asserts:
+      - equal: {path: spec.global.schedulerName, value: existing-scheduler}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.global.nodePoolLabelKey, value: example.com/pool}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.global.queueLabelKey, value: example.com/queue}
+        template: templates/krm-config.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key=example.com/pool
+        template: templates/hooks/pre/migrate-shards/job.yaml
+      - matchRegexRaw:
+          pattern: "nodePoolLabelKey: example.com/pool"
+        template: templates/NOTES.txt
+
+  - it: keeps an explicitly set value over kai-config, key by key
+    set:
+      kai-scheduler.enabled: false
+      kai-scheduler.global.nodePoolLabelKey: explicit.io/pool
+    kubernetesProvider:
+      objects:
+        - *configCRD
+        - *customKaiConfig
+    asserts:
+      - equal: {path: spec.global.nodePoolLabelKey, value: explicit.io/pool}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.global.schedulerName, value: existing-scheduler}
+        template: templates/krm-config.yaml
+      - equal: {path: spec.global.queueLabelKey, value: example.com/queue}
+        template: templates/krm-config.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --nodepool-label-key=explicit.io/pool
+        template: templates/hooks/pre/migrate-shards/job.yaml
+
+  - it: keeps all three explicit values over kai-config
+    set:
+      kai-scheduler.enabled: false
+      commonArgs.schedulerName: explicit-scheduler
+      kai-scheduler.global.nodePoolLabelKey: explicit.io/pool
+      kai-scheduler.podgrouper.queueLabelKey: explicit.io/queue
+    kubernetesProvider:
+      objects:
+        - *configCRD
+        - *customKaiConfig
+    template: templates/krm-config.yaml
+    asserts:
+      - equal: {path: spec.global.schedulerName, value: explicit-scheduler}
+      - equal: {path: spec.global.nodePoolLabelKey, value: explicit.io/pool}
+      - equal: {path: spec.global.queueLabelKey, value: explicit.io/queue}
+
+  - it: ignores kai-config while the subchart is bundled
+    kubernetesProvider:
+      objects:
+        - *configCRD
+        - *customKaiConfig
+    template: templates/krm-config.yaml
+    asserts:
+      - notExists: {path: spec.global.schedulerName}
+      - notExists: {path: spec.global.nodePoolLabelKey}
+      - notExists: {path: spec.global.queueLabelKey}
+
+  - it: leaves a key kai-config does not set to KAI Scheduler's default
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - *configCRD
+        - apiVersion: kai.scheduler/v1
+          kind: Config
+          metadata:
+            name: kai-config
+          spec:
+            namespace: kai-scheduler
+    asserts:
+      - notExists: {path: spec.global.schedulerName}
+        template: templates/krm-config.yaml
+      - notExists: {path: spec.global.nodePoolLabelKey}
+        template: templates/krm-config.yaml
+      - notExists: {path: spec.global.queueLabelKey}
+        template: templates/krm-config.yaml
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - migrate-shards
+            - --default-nodepool-name=default
+            - --ensure-default-nodepool
+            - --default-nodepool-spec={}
+        template: templates/hooks/pre/migrate-shards/job.yaml
+      - matchRegexRaw:
+          pattern: "schedulerName: +KAI default"
+        template: templates/NOTES.txt
+
+  - it: reads only what kai-config sets, as KAI's chart writes it by default
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - *configCRD
+        - apiVersion: kai.scheduler/v1
+          kind: Config
+          metadata:
+            name: kai-config
+          spec:
+            namespace: kai-scheduler
+            global:
+              queueLabelKey: kai.scheduler/queue
+    template: templates/krm-config.yaml
+    asserts:
+      - equal: {path: spec.global.queueLabelKey, value: kai.scheduler/queue}
+      - notExists: {path: spec.global.schedulerName}
+      - notExists: {path: spec.global.nodePoolLabelKey}
+
+  - it: renders without a cluster, leaving all three unset
+    set:
+      kai-scheduler.enabled: false
+    template: templates/krm-config.yaml
+    asserts:
+      - notExists: {path: spec.global.schedulerName}
+      - notExists: {path: spec.global.nodePoolLabelKey}
+      - notExists: {path: spec.global.queueLabelKey}
+
+  - it: renders with explicit values and no cluster
+    set:
+      kai-scheduler.enabled: false
+      commonArgs.schedulerName: explicit-scheduler
+      kai-scheduler.global.nodePoolLabelKey: explicit.io/pool
+      kai-scheduler.podgrouper.queueLabelKey: explicit.io/queue
+    template: templates/krm-config.yaml
+    asserts:
+      - equal: {path: spec.global.schedulerName, value: explicit-scheduler}
+      - equal: {path: spec.global.nodePoolLabelKey, value: explicit.io/pool}
+      - equal: {path: spec.global.queueLabelKey, value: explicit.io/queue}
+
+  - it: does not read kai-config when its CRD is not installed
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - *customKaiConfig
+    template: templates/krm-config.yaml
+    asserts:
+      - notExists: {path: spec.global.schedulerName}
+      - notExists: {path: spec.global.nodePoolLabelKey}
+      - notExists: {path: spec.global.queueLabelKey}
+
+  - it: rejects a kai-scheduler.enabled that is not a bool
+    set:
+      kai-scheduler.enabled: "false"
+    template: templates/hooks/pre/migrate-shards/job.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: kai-scheduler.enabled must be true or false (got "false")
+
+  - it: refuses to disable the KAI Scheduler this release installed
+    set:
+      kai-scheduler.enabled: false
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - &bundledKaiOperator
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kai-operator
+            namespace: kai
+            annotations:
+              meta.helm.sh/release-name: rm
+              meta.helm.sh/release-namespace: kai
+    template: templates/validate.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: release rm installed KAI Scheduler in namespace kai, and kai-scheduler.enabled=false would uninstall it; keep kai-scheduler.enabled=true for this release
+
+  - it: upgrades beside a KAI Scheduler another release installed in the same namespace
+    set:
+      kai-scheduler.enabled: false
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: kai-operator
+            namespace: kai
+            annotations:
+              meta.helm.sh/release-name: kai-scheduler
+              meta.helm.sh/release-namespace: kai
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}
+
+  - it: does not guard a first install
+    set:
+      kai-scheduler.enabled: false
+    kubernetesProvider:
+      objects:
+        - *bundledKaiOperator
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}
+
+  - it: does not guard an upgrade that keeps KAI Scheduler bundled
+    release:
+      upgrade: true
+    kubernetesProvider:
+      objects:
+        - *bundledKaiOperator
+    template: templates/validate.yaml
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments: {count: 0}
+
+  - it: notes the bundled KAI Scheduler by default
+    template: templates/NOTES.txt
+    asserts:
+      - matchRegexRaw:
+          pattern: KAI-scheduler is bundled as a subchart
