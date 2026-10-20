@@ -1,0 +1,86 @@
+# Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# The nodepool-controller writes its per-shard ServiceMonitors beside the scheduler,
+# so its Role and the --scheduler-namespace the operator passes it must both follow
+# schedulerNamespace, while its ServiceAccount stays in the release namespace.
+suite: schedulerNamespace places the ServiceMonitor RBAC beside the scheduler
+release:
+  name: krm
+  namespace: krm
+set:
+  krmConfigDeployer.enabled: false
+  krmConfig.render: true
+tests:
+  # Unset, the operator's own fallback to spec.namespace applies: an emitted value
+  # would take ownership of the field under server-side apply.
+  - it: keeps everything in the release namespace by default
+    templates:
+      - templates/nodepool-controller/role.yaml
+      - templates/krm-config.yaml
+    asserts:
+      - equal: {path: metadata.namespace, value: krm}
+        template: templates/nodepool-controller/role.yaml
+      - notExists: {path: spec.nodePoolController.args.schedulerNamespace}
+        template: templates/krm-config.yaml
+
+  - it: renders unchanged when the existing scheduler shares the release namespace
+    templates:
+      - templates/nodepool-controller/role.yaml
+      - templates/krm-config.yaml
+    set:
+      kai-scheduler.enabled: false
+      schedulerNamespace: krm
+    asserts:
+      - equal: {path: metadata.namespace, value: krm}
+        template: templates/nodepool-controller/role.yaml
+      - equal: {path: spec.nodePoolController.args.schedulerNamespace, value: krm}
+        template: templates/krm-config.yaml
+
+  - it: relocates the single Role and RoleBinding to an existing scheduler's namespace
+    template: templates/nodepool-controller/role.yaml
+    set:
+      kai-scheduler.enabled: false
+      schedulerNamespace: kai-scheduler
+    asserts:
+      - hasDocuments: {count: 2}
+      - isKind: {of: Role}
+        documentIndex: 0
+      - equal: {path: metadata.namespace, value: kai-scheduler}
+        documentIndex: 0
+      - isKind: {of: RoleBinding}
+        documentIndex: 1
+      - equal: {path: metadata.namespace, value: kai-scheduler}
+        documentIndex: 1
+      - equal: {path: "subjects[0].namespace", value: krm}
+        documentIndex: 1
+
+  - it: sends an existing scheduler's namespace to the operator
+    template: templates/krm-config.yaml
+    set:
+      kai-scheduler.enabled: false
+      schedulerNamespace: kai-scheduler
+    asserts:
+      - equal: {path: spec.nodePoolController.args.schedulerNamespace, value: kai-scheduler}
+      - equal: {path: spec.namespace, value: krm}
+
+  - it: points the install notes at the release namespace only by default
+    template: templates/NOTES.txt
+    asserts:
+      - notMatchRegexRaw: {pattern: "per-shard"}
+
+  - it: points the install notes at an existing scheduler's namespace for its ServiceMonitors
+    template: templates/NOTES.txt
+    set:
+      kai-scheduler.enabled: false
+      schedulerNamespace: kai-scheduler
+    asserts:
+      - matchRegexRaw: {pattern: "kubectl -n kai-scheduler get servicemonitor"}
+
+  - it: refuses a scheduler namespace while the bundled scheduler is installed
+    template: templates/nodepool-controller/role.yaml
+    set:
+      schedulerNamespace: kai-scheduler
+    asserts:
+      - failedTemplate:
+          errorPattern: schedulerNamespace is only valid with kai-scheduler.enabled=false

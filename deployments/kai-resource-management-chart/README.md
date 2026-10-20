@@ -87,6 +87,7 @@ The main configuration groups are:
 | `krmConfig`, `krmConfigDeployer` | How the `KRMConfig` CR is created, and the toggle to manage it yourself. |
 | `postCleanup` | Post-delete hook that removes the operator's objects and the `KRMConfig`. With `kai-scheduler.enabled=false` it also releases adopted SchedulingShards, and must stay enabled. |
 | `serviceMonitor` | Prometheus Operator monitoring resources. |
+| `schedulerNamespace` | Namespace of an existing KAI Scheduler, with `kai-scheduler.enabled=false` only. The node-pool controller writes its per-shard ServiceMonitors there, and the chart places the Role for them there too. Empty means the release namespace. |
 | `defaultNodePool` | The chart-managed catch-all NodePool. |
 | `nodePoolController` | Node-pool controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhook this chart still renders. |
 | `projectController` | Project controller configuration, passed to the operator through the `KRMConfig`, plus the RBAC and webhooks this chart still renders. |

@@ -60,6 +60,11 @@ serviceMonitor:
   # Prometheus. Harmless without it; required if the KAI accounting Prometheus is deployed.
   accounting: true
 
+# Namespace of a pre-existing KAI Scheduler, for kai-scheduler.enabled=false only (setting it
+# with the bundled scheduler fails the render). The nodepool-controller writes its per-shard
+# ServiceMonitors there, and its Role for them is placed there. Empty -> the release namespace.
+schedulerNamespace: ""
+
 # KAI-scheduler subchart (oci://ghcr.io/kai-scheduler/kai-scheduler), always bundled — the controllers
 # depend on its scheduler + CRDs. Parent global.* (imagePullSecrets, securityContext, scheduling)
 # is shared with the subchart automatically by Helm; KAI-specific overrides are set here. (Our
