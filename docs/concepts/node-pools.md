@@ -216,6 +216,11 @@ any KRM controller starts:
   Uninstalling KRM hands it back to the scheduler unowned, and a reinstall takes it over
   again. See [Uninstall](../../deployments/kai-resource-management-chart/README.md#uninstall).
 
+A node pool created this way selects its nodes by the node-pool label itself, so changing a
+node's label changes its partition at once. The usual hold for running pods
+([How a node moves between node pools](#how-a-node-moves-between-node-pools)) does not apply:
+drain the node's workloads before relabelling it.
+
 Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart does
 not create the `default` node pool itself; this step does, from KAI's default shard when there
 is one and otherwise from `defaultNodePool.spec`. It is created once, so later changes to
