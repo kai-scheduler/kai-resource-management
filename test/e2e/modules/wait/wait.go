@@ -183,8 +183,16 @@ func ForQueue(ctx goctx.Context, k8sClient client.Client, name string) *kaiv2.Qu
 func ForServiceMonitor(
 	ctx goctx.Context, k8sClient client.Client, name string,
 ) *monitoringv1.ServiceMonitor {
+	return ForServiceMonitorInNamespace(ctx, k8sClient, constant.ReleaseNamespace, name)
+}
+
+// ForServiceMonitorInNamespace is for a scheduler running outside the release namespace,
+// where nodepool-controller writes its ServiceMonitors instead.
+func ForServiceMonitorInNamespace(
+	ctx goctx.Context, k8sClient client.Client, namespace, name string,
+) *monitoringv1.ServiceMonitor {
 	monitor := &monitoringv1.ServiceMonitor{}
-	key := types.NamespacedName{Namespace: constant.ReleaseNamespace, Name: name}
+	key := types.NamespacedName{Namespace: namespace, Name: name}
 	getObject(ctx, k8sClient, key, monitor, "service monitor "+name)
 
 	return monitor
