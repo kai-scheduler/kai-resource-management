@@ -50,6 +50,8 @@ func installKAIScheduler() {
 		"--wait", "--timeout", helm.Timeout,
 	)
 	Expect(err).ToNot(HaveOccurred(), "installing KAI Scheduler failed: %s", output)
+
+	wait.ForKAIConfigAvailable(ctx, testClient)
 }
 
 func uninstallKAIScheduler() {

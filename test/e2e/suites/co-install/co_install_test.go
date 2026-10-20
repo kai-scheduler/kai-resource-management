@@ -53,8 +53,9 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		// A node pool created through KRM once installed, whose shard KRM creates rather than adopts.
 		createdNodePool string
 
-		// Root first, leaf last: the three levels KRM cannot model and must leave alone.
-		adminQueues     []*kaiv2.Queue
+		// Per partition, root first, leaf last: the three levels KRM cannot model and must leave
+		// alone. Each partition's scheduler sees only the queues labelled with that partition.
+		adminQueues     map[string][]*kaiv2.Queue
 		adminQueueSpecs map[string]kaiv2.QueueSpec
 
 		adminNamespace string
@@ -63,7 +64,10 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		adminPodGroupPartitions map[string]string
 	)
 
-	adminLeafQueue := func() string { return adminQueues[len(adminQueues)-1].Name }
+	adminLeafQueue := func(partition string) string {
+		tree := adminQueues[partition]
+		return tree[len(tree)-1].Name
+	}
 
 	expectAdminShardSettings := func(g Gomega) {
 		shard := &kaischedulerv1.SchedulingShard{}
@@ -79,7 +83,7 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 	runAdminPod := func(partition, expectedNode string) *corev1.Pod {
 		options := []resources.PodOption{
 			resources.WithSchedulerName(kaiconstants.DefaultSchedulerName),
-			resources.WithQueueLabel(adminQueueLabelKey, adminLeafQueue()),
+			resources.WithQueueLabel(adminQueueLabelKey, adminLeafQueue(partition)),
 		}
 		if partition != "" {
 			options = append(options, resources.WithNodePoolLabel(adminNodePoolLabelKey, partition))
@@ -159,20 +163,26 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		wait.ForSchedulingShardReady(ctx, testClient, adminShard.Name)
 		unmanagedShardSpec = wait.ForSchedulingShardReady(ctx, testClient, unmanagedShard.Name).Spec
 
-		By("building a three-level queue tree")
+		By("building a three-level queue tree in each partition")
+		adminQueues = map[string][]*kaiv2.Queue{}
 		adminQueueSpecs = map[string]kaiv2.QueueSpec{}
-		parent := ""
-		for _, level := range []string{"coi-admin-root", "coi-admin-mid", "coi-admin-leaf"} {
-			queue := resources.Queue(utils.GenerateName(level), parent)
-			Expect(testClient.Create(ctx, queue)).To(Succeed())
-			// Children are deleted before their parents, which KAI's queue webhook requires.
-			DeferCleanup(func() {
-				Expect(client.IgnoreNotFound(testClient.Delete(ctx, queue))).To(Succeed())
-				wait.ForDeleted(ctx, testClient, queue)
-			})
-			adminQueues = append(adminQueues, queue)
-			adminQueueSpecs[queue.Name] = wait.ForQueue(ctx, testClient, queue.Name).Spec
-			parent = queue.Name
+		for _, partition := range []string{adminPartition, unmanagedPartition, ""} {
+			parent := ""
+			for _, level := range []string{"coi-admin-root", "coi-admin-mid", "coi-admin-leaf"} {
+				queue := resources.Queue(utils.GenerateName(level), parent)
+				if partition != "" {
+					queue.Labels[adminNodePoolLabelKey] = partition
+				}
+				Expect(testClient.Create(ctx, queue)).To(Succeed())
+				// Children are deleted before their parents, which KAI's queue webhook requires.
+				DeferCleanup(func() {
+					Expect(client.IgnoreNotFound(testClient.Delete(ctx, queue))).To(Succeed())
+					wait.ForDeleted(ctx, testClient, queue)
+				})
+				adminQueues[partition] = append(adminQueues[partition], queue)
+				adminQueueSpecs[queue.Name] = wait.ForQueue(ctx, testClient, queue.Name).Spec
+				parent = queue.Name
+			}
 		}
 
 		By("running the admin's workloads in each partition")
@@ -289,12 +299,14 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			Consistently(expectAdminShardSettings).WithTimeout(5 * constant.Interval).Should(Succeed())
 		})
 
-		It("leaves the admin's queue tree and pod groups as they were", func() {
-			for _, queue := range adminQueues {
-				current := &kaiv2.Queue{}
-				Expect(testClient.Get(ctx, client.ObjectKeyFromObject(queue), current)).To(Succeed())
-				Expect(current.Spec).To(Equal(adminQueueSpecs[queue.Name]), "queue %s", queue.Name)
-				Expect(current.OwnerReferences).To(BeEmpty(), "queue %s", queue.Name)
+		It("leaves the admin's queue trees and pod groups as they were", func() {
+			for _, tree := range adminQueues {
+				for _, queue := range tree {
+					current := &kaiv2.Queue{}
+					Expect(testClient.Get(ctx, client.ObjectKeyFromObject(queue), current)).To(Succeed())
+					Expect(current.Spec).To(Equal(adminQueueSpecs[queue.Name]), "queue %s", queue.Name)
+					Expect(current.OwnerReferences).To(BeEmpty(), "queue %s", queue.Name)
+				}
 			}
 
 			for podName, queue := range adminPodGroupQueues {
@@ -315,7 +327,7 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		It("leaves an admin pod group alone when it cannot be scheduled", func() {
 			pod := resources.Pod(utils.GenerateName("coi-admin-pending"), adminNamespace,
 				resources.WithSchedulerName(kaiconstants.DefaultSchedulerName),
-				resources.WithQueueLabel(adminQueueLabelKey, adminLeafQueue()),
+				resources.WithQueueLabel(adminQueueLabelKey, adminLeafQueue(adminPartition)),
 				resources.WithNodePoolLabel(adminNodePoolLabelKey, adminPartition))
 			pod.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("1000"),
@@ -434,10 +446,19 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			It("schedules its pods through its own queue on the existing scheduler", func() {
 				pod := resources.Pod(utils.GenerateName("coi-pod"), namespace)
 				Expect(testClient.Create(ctx, pod)).To(Succeed())
+				DeferCleanup(func() {
+					Expect(client.IgnoreNotFound(testClient.Delete(ctx, pod))).To(Succeed())
+					wait.ForDeleted(ctx, testClient, pod)
+				})
 
 				podGroup := wait.ForPodGroup(ctx, testClient, namespace, pod.Name)
-				Expect(podGroup.Spec.Queue).To(Equal(resources.QueueName(project.Name, adminPartition)))
-				Expect(podGroup.Labels).To(HaveKeyWithValue(adminNodePoolLabelKey, adminPartition))
+				// The assigner moves the pod group onto the project's queue after KAI creates it.
+				Eventually(func(g Gomega) {
+					current := &kaiv2alpha2.PodGroup{}
+					g.Expect(testClient.Get(ctx, client.ObjectKeyFromObject(podGroup), current)).To(Succeed())
+					g.Expect(current.Spec.Queue).To(Equal(resources.QueueName(project.Name, adminPartition)))
+					g.Expect(current.Labels).To(HaveKeyWithValue(adminNodePoolLabelKey, adminPartition))
+				}).Should(Succeed())
 
 				running := wait.ForPodRunning(ctx, testClient, namespace, pod.Name)
 				Expect(running.Spec.SchedulerName).To(Equal(kaiconstants.DefaultSchedulerName))
