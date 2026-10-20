@@ -47,6 +47,9 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 		adminShard, unmanagedShard         *kaischedulerv1.SchedulingShard
 		unmanagedShardSpec                 kaischedulerv1.SchedulingShardSpec
 
+		// A node pool created through KRM once installed, whose shard KRM creates rather than adopts.
+		createdNodePool string
+
 		// Root first, leaf last: the three levels KRM cannot model and must leave alone.
 		adminQueues     []*kaiv2.Queue
 		adminQueueSpecs map[string]kaiv2.QueueSpec
@@ -104,13 +107,14 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 
 		adminPartition = utils.GenerateName("coi-admin")
 		unmanagedPartition = utils.GenerateName("coi-unmanaged")
+		createdNodePool = utils.GenerateName("coi-created")
 
-		// Registered before the admin world, so it runs after it is gone: the migration
-		// created these node pools, and nothing else removes them when a spec fails early.
+		// Registered before the admin world, so it runs after it is gone: these node pools
+		// outlive the uninstall by design, and nothing else removes them when a spec fails early.
 		DeferCleanup(func() {
 			uninstallKRM(krmReleaseName, kaiNamespace)
 			uninstallKRM(krmReleaseName, constant.ReleaseNamespace)
-			deleteNodePools(adminPartition, defaultNodePoolName)
+			deleteNodePools(adminPartition, defaultNodePoolName, createdNodePool)
 		})
 
 		By("partitioning nodes the way KAI does without KRM")
@@ -301,6 +305,20 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 				ContainSubstring("labelled " + unmanaged_shards.IgnoreShardLabelKey)))
 		})
 
+		It("creates a shard of its own for a new node pool, without marking it adopted", func() {
+			// On a partition no node carries: only the shard is under test here.
+			nodePool := resources.NodePool(createdNodePool, adminNodePoolLabelKey, createdNodePool)
+			Expect(testClient.Create(ctx, nodePool)).To(Succeed())
+
+			shard := wait.ForSchedulingShardReady(ctx, testClient, createdNodePool)
+			Expect(shard.Spec.PartitionLabelValue).To(Equal(createdNodePool))
+			Expect(shard.OwnerReferences).To(ContainElement(And(
+				HaveField("Kind", "NodePool"),
+				HaveField("Name", createdNodePool),
+			)))
+			Expect(shard.Labels).ToNot(HaveKey(helmhooks.AdoptionLabelKey))
+		})
+
 		It("refuses a shard with no node pool and no ignore label", func() {
 			shard := resources.SchedulingShard(utils.GenerateName("coi-orphan"), utils.GenerateName("coi-orphan"))
 
@@ -386,7 +404,163 @@ var _ = Describe("KRM installed onto a running KAI Scheduler", Ordered, Label("c
 			}).Should(Succeed())
 		})
 	})
+
+	// The migrated node pool selects on the scheduler's own partition key, so relabelling a node
+	// moves its partition directly, and the controller's wait for running pods never gets a say.
+	// The pods are removed first; the move with pods running is a documented limitation.
+	Context("moving a node of a migrated node pool", func() {
+		BeforeAll(func() {
+			Expect(testClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace(adminNamespace),
+				client.MatchingLabels{adminNodePoolLabelKey: adminPartition})).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+					FieldSelector: "spec.nodeName=" + adminNode,
+					LabelSelector: adminNodePoolLabelKey + "=" + adminPartition,
+				})
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(pods.Items).To(BeEmpty(), "pods of partition %q are still on %s", adminPartition, adminNode)
+			}).WithTimeout(constant.PodTimeout).Should(Succeed())
+		})
+
+		It("selects on the scheduler's node pool label key", func() {
+			nodePool := wait.ForNodePoolPhase(ctx, testClient, adminPartition, kaires.NodePoolReady)
+			Expect(nodePool.Spec.LabelKey).To(Equal(adminNodePoolLabelKey))
+			expectNodeInNodePool(adminNode, adminPartition)
+		})
+
+		It("moves the node to the default node pool when the label is removed", func() {
+			Expect(nodes.RemoveLabel(ctx, testClient, adminNode, adminNodePoolLabelKey)).To(Succeed())
+
+			expectNodeInNodePool(adminNode, defaultNodePoolName)
+			expectNodeNotInNodePool(adminNode, adminPartition)
+			expectNodeLabel(adminNode, adminNodePoolLabelKey, "")
+		})
+
+		It("moves it back when the label is restored", func() {
+			Expect(nodes.SetLabel(ctx, testClient, adminNode, adminNodePoolLabelKey, adminPartition)).To(Succeed())
+
+			expectNodeInNodePool(adminNode, adminPartition)
+			expectNodeNotInNodePool(adminNode, defaultNodePoolName)
+			expectNodeLabel(adminNode, adminNodePoolLabelKey, adminPartition)
+		})
+	})
+
+	Context("after helm uninstall", func() {
+		BeforeAll(func() {
+			uninstallKRM(krmReleaseName, constant.ReleaseNamespace)
+		})
+
+		It("leaves every adopted shard running and owned by nothing of KRM's", func() {
+			for _, name := range []string{adminShard.Name, defaultShardName} {
+				shard := wait.ForSchedulingShardReady(ctx, testClient, name)
+				Expect(shard.OwnerReferences).ToNot(ContainElement(HaveField("Kind", "NodePool")), "shard %s", name)
+				// This strips the suite's own kai.resources/e2e labels too; cleanup deletes by name.
+				Expect(keysWithPrefix(shard.Labels, "kai.resources/")).To(BeEmpty(), "shard %s", name)
+				Expect(keysWithPrefix(shard.Annotations, "kai.resources/")).To(BeEmpty(), "shard %s", name)
+			}
+		})
+
+		It("still schedules the admin's workloads", func() {
+			runAdminPod(adminPartition, adminNode)
+			runAdminPod("", defaultNode)
+		})
+
+		// The counterpart to the adopted shards: uninstall releases only those, so a shard KRM
+		// created still belongs to its node pool and goes with it.
+		It("deletes a shard KRM created along with its node pool", func() {
+			shard := wait.ForSchedulingShardReady(ctx, testClient, createdNodePool)
+			Expect(shard.OwnerReferences).To(ContainElement(HaveField("Name", createdNodePool)),
+				"uninstall should not release a shard KRM created")
+
+			deleteNodePools(createdNodePool)
+
+			wait.ForDeleted(ctx, testClient, shard)
+		})
+
+		// Helm deletes no node pool, so this is what proves the shards were released: an owned
+		// shard would be garbage-collected with its node pool, and the finalizer would hang.
+		It("deletes a node pool without taking its shard or hanging on a finalizer", func() {
+			deleteNodePools(adminPartition, defaultNodePoolName)
+
+			wait.ForSchedulingShardReady(ctx, testClient, adminShard.Name)
+			wait.ForSchedulingShardReady(ctx, testClient, defaultShardName)
+			runAdminPod(adminPartition, adminNode)
+		})
+	})
+
+	// A smoke test of the recommended layout: no schedulerNamespace, because the release
+	// namespace is the scheduler's. It also re-migrates the shards released above.
+	Context("installed into the scheduler's own namespace", func() {
+		It("installs and comes up", func() {
+			output, err := installKRM(krmReleaseName, kaiNamespace)
+			Expect(err).ToNot(HaveOccurred(), "installing KRM failed: %s", output)
+
+			Expect(wait.ForKRMConfigDeployed(ctx, testClient).Spec.Namespace).To(Equal(kaiNamespace))
+			for _, name := range []string{"nodepool-controller", "project-controller", "pod-group-assigner"} {
+				deployment := &appsv1.Deployment{}
+				key := types.NamespacedName{Namespace: kaiNamespace, Name: name}
+				Expect(testClient.Get(ctx, key, deployment)).To(Succeed(), name)
+			}
+		})
+
+		It("uninstalls, and its node pools still delete", func() {
+			uninstallKRM(krmReleaseName, kaiNamespace)
+			deleteNodePools(adminPartition, defaultNodePoolName)
+
+			wait.ForSchedulingShardReady(ctx, testClient, adminShard.Name)
+			wait.ForSchedulingShardReady(ctx, testClient, defaultShardName)
+		})
+	})
 })
+
+func expectNodeInNodePool(node, nodePoolName string) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		nodePool := &kaires.NodePool{}
+		g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool)).To(Succeed())
+		g.Expect(nodePool.Status.Nodes).To(ContainElement(HaveField("Name", node)),
+			"node %s should belong to node pool %s", node, nodePoolName)
+	}).Should(Succeed())
+}
+
+func expectNodeNotInNodePool(node, nodePoolName string) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		nodePool := &kaires.NodePool{}
+		g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool)).To(Succeed())
+		g.Expect(nodePool.Status.Nodes).ToNot(ContainElement(HaveField("Name", node)),
+			"node %s should have left node pool %s", node, nodePoolName)
+	}).Should(Succeed())
+}
+
+// expectNodeLabel holds for a while, not only once: the controller must settle on the label,
+// not rewrite it on its next reconcile. An empty value means the label is absent.
+func expectNodeLabel(nodeName, key, value string) {
+	GinkgoHelper()
+	matcher := HaveKeyWithValue(key, value)
+	if value == "" {
+		matcher = Not(HaveKey(key))
+	}
+
+	Consistently(func(g Gomega) {
+		node := &corev1.Node{}
+		g.Expect(testClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+		g.Expect(node.Labels).To(matcher)
+		g.Expect(node.Spec.Unschedulable).To(BeFalse(), "node %s should not be cordoned", nodeName)
+	}).WithTimeout(10 * constant.Interval).Should(Succeed())
+}
+
+func keysWithPrefix(values map[string]string, prefix string) []string {
+	var keys []string
+	for key := range values {
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+
+	return keys
+}
 
 // versionCheckMessage is the reason the version-check hook failed. Helm reports only that the
 // Job hit its backoff limit; the container's termination message carries why.
