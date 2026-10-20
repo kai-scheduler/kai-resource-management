@@ -16,12 +16,12 @@ Components:
 
 Notes:
 {{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
-{{- $vocabulary := include "kai-resource-management.schedulerVocabulary" . | fromYaml }}
+{{- $kaiSchedulerSettings := include "kai-resource-management.kaiSchedulerSettings" . | fromYaml }}
   - Installed beside the KAI Scheduler already running in this cluster, which keeps its own
     kai-config. KRM uses, from this chart's values or that kai-config:
-      schedulerName:    {{ $vocabulary.schedulerName | default "KAI default" }}
-      nodePoolLabelKey: {{ $vocabulary.nodePoolLabelKey | default "KAI default" }}
-      queueLabelKey:    {{ $vocabulary.queueLabelKey | default "KAI default" }}
+      schedulerName:    {{ $kaiSchedulerSettings.schedulerName | default "KAI default" }}
+      nodePoolLabelKey: {{ $kaiSchedulerSettings.nodePoolLabelKey | default "KAI default" }}
+      queueLabelKey:    {{ $kaiSchedulerSettings.queueLabelKey | default "KAI default" }}
 {{- else }}
   - KAI-scheduler is bundled as a subchart, bringing its scheduler and CRDs
     (scheduling.run.ai/podgroups,queues; kai.scheduler/schedulingshards,topologies). Its Config CR is

@@ -77,11 +77,11 @@ kai-scheduler:
     # Pin KAI to its own published images regardless of the parent global.registry.
     registry: ghcr.io/kai-scheduler/kai-scheduler
     # Shared node-pool label key. One source: KAI's kai-config and all three controllers read it.
-    # Empty ⇒ the scheduler and controllers use their built-in default.
+    # Empty ⇒ KAI Scheduler's.
     nodePoolLabelKey: ""
   podgrouper:
     # Shared queue label key (sibling of global.nodePoolLabelKey), read by KAI's kai-config,
-    # project-controller and pod-group-assigner. Empty ⇒ built-in default.
+    # project-controller and pod-group-assigner. Empty ⇒ KAI Scheduler's.
     queueLabelKey: ""
   # KAI owns its Config CR via the built-in deployer hook (no operator in this chart).
   # For GitOps/ArgoCD instead set kaiConfigDeployer.enabled=false and kaiConfig.render=true.

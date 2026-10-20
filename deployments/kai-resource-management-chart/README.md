@@ -235,9 +235,10 @@ construction: `schedulerName` from `commonArgs.schedulerName`,
 `nodePoolLabelKey` from `kai-scheduler.global.nodePoolLabelKey` and
 `queueLabelKey` from `kai-scheduler.podgrouper.queueLabelKey`. Each is written
 into the CR only when set; left unset, no flag is passed and each service uses
-its own built-in default, as does the bundled scheduler. Installing alongside a
-scheduler this chart did not install is not supported yet — set all three
-explicitly to whatever that scheduler uses.
+its own built-in default, as does the bundled scheduler. Installed alongside a
+scheduler this chart did not install (`kai-scheduler.enabled=false`), the ones
+left unset are read from that scheduler's `kai-config` instead. An offline render
+(`helm template`, GitOps) cannot read it, so set all three explicitly there.
 
 Its ClusterRole is maintained by hand rather than generated, and must be
 extended whenever the operator is taught to own a new kind.

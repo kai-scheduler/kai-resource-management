@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 {{- if include "kai-resource-management.usesExistingKaiScheduler" . }}
-{{- $vocabulary := include "kai-resource-management.schedulerVocabulary" . | fromYaml }}
+{{- $kaiSchedulerSettings := include "kai-resource-management.kaiSchedulerSettings" . | fromYaml }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -28,7 +28,7 @@ spec:
         # it will write.
         args:
           - migrate-shards
-          {{- with $vocabulary.nodePoolLabelKey }}
+          {{- with $kaiSchedulerSettings.nodePoolLabelKey }}
           - --nodepool-label-key={{ . }}
           {{- end }}
           {{- with (.Values.defaultNodePool | default dict).name }}

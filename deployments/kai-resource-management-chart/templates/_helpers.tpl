@@ -30,14 +30,14 @@ schedulerName, nodePoolLabelKey and queueLabelKey as YAML. Beside an existing sc
 ones are read from its kai-config. The CRD is checked first: lookup of an unserved kind fails
 the install.
 */}}
-{{- define "kai-resource-management.schedulerVocabulary" -}}
+{{- define "kai-resource-management.kaiSchedulerSettings" -}}
 {{- $kai := index .Values "kai-scheduler" | default dict -}}
-{{- $vocabulary := dict
+{{- $kaiSchedulerSettings := dict
     "schedulerName" ((.Values.commonArgs | default dict).schedulerName | default "")
     "nodePoolLabelKey" (($kai.global | default dict).nodePoolLabelKey | default "")
     "queueLabelKey" (($kai.podgrouper | default dict).queueLabelKey | default "") -}}
 {{- $unset := list -}}
-{{- range $key, $value := $vocabulary -}}
+{{- range $key, $value := $kaiSchedulerSettings -}}
 {{- if not $value -}}
 {{- $unset = append $unset $key -}}
 {{- end -}}
@@ -46,11 +46,11 @@ the install.
 {{- if lookup "apiextensions.k8s.io/v1" "CustomResourceDefinition" "" "configs.kai.scheduler" -}}
 {{- $kaiConfig := lookup "kai.scheduler/v1" "Config" "" "kai-config" -}}
 {{- range $key := $unset -}}
-{{- $_ := set $vocabulary $key (dig "spec" "global" $key "" $kaiConfig) -}}
+{{- $_ := set $kaiSchedulerSettings $key (dig "spec" "global" $key "" $kaiConfig) -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
-{{- toYaml $vocabulary -}}
+{{- toYaml $kaiSchedulerSettings -}}
 {{- end -}}
 
 {{/*
@@ -265,14 +265,14 @@ defaults.
 */}}
 {{- define "kai-resource-management.krm-config-global" -}}
 {{- $commonArgs := .Values.commonArgs | default dict -}}
-{{- $vocabulary := include "kai-resource-management.schedulerVocabulary" . | fromYaml -}}
-{{- with $vocabulary.schedulerName }}
+{{- $kaiSchedulerSettings := include "kai-resource-management.kaiSchedulerSettings" . | fromYaml -}}
+{{- with $kaiSchedulerSettings.schedulerName }}
 schedulerName: {{ . | quote }}
 {{- end }}
-{{- with $vocabulary.queueLabelKey }}
+{{- with $kaiSchedulerSettings.queueLabelKey }}
 queueLabelKey: {{ . | quote }}
 {{- end }}
-{{- with $vocabulary.nodePoolLabelKey }}
+{{- with $kaiSchedulerSettings.nodePoolLabelKey }}
 nodePoolLabelKey: {{ . | quote }}
 {{- end }}
 {{- if $commonArgs.finalizerDomain }}
