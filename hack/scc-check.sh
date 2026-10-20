@@ -24,8 +24,14 @@ CHART_DIR="${1:-deployments/kai-resource-management-chart}"
 SCC_TEMPLATE="${CHART_DIR}/templates/rbac/scc.yaml"
 
 # rbac.create gates the SCC itself, so force it on: this checks SCC coverage, not
-# whether an installation happens to create RBAC.
-rendered="$(helm template scc-check "${CHART_DIR}" --set openshift=true --set rbac.create=true)"
+# whether an installation happens to create RBAC. Some hooks render only with
+# kai-scheduler.enabled=false.
+rendered="$(
+  for kai_scheduler_enabled in true false; do
+    helm template scc-check "${CHART_DIR}" --set openshift=true --set rbac.create=true \
+      --set kai-scheduler.enabled="${kai_scheduler_enabled}"
+  done
+)"
 
 # Only this chart's own ServiceAccounts: the kai-scheduler subchart grants its own
 # through its own SCC, and its objects are rendered from charts/ rather than templates/.

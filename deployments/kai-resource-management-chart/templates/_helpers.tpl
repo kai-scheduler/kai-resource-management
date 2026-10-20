@@ -1,9 +1,14 @@
 # Copyright 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-{{/* True when installed next to an already running KAI Scheduler (kai-scheduler.enabled=false). */}}
+{{/* True when installed next to an already running KAI Scheduler (kai-scheduler.enabled=false).
+Must be a bool: Helm's dependency condition ignores anything else and keeps the subchart. */}}
 {{- define "kai-resource-management.usesExistingKaiScheduler" -}}
-{{- if eq (toString (dig "enabled" true (index .Values "kai-scheduler"))) "false" -}}
+{{- $enabled := dig "enabled" true (index .Values "kai-scheduler" | default dict) -}}
+{{- if not (kindIs "bool" $enabled) -}}
+{{- fail (printf "kai-scheduler.enabled must be true or false (got %q)" (toString $enabled)) -}}
+{{- end -}}
+{{- if not $enabled -}}
 true
 {{- end -}}
 {{- end -}}
@@ -18,6 +23,34 @@ true
 {{- else -}}
 {{- .Release.Namespace -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+schedulerName, nodePoolLabelKey and queueLabelKey as YAML. Beside an existing scheduler, unset
+ones are read from its kai-config. The CRD is checked first: lookup of an unserved kind fails
+the install.
+*/}}
+{{- define "kai-resource-management.kaiSchedulerSettings" -}}
+{{- $kai := index .Values "kai-scheduler" | default dict -}}
+{{- $kaiSchedulerSettings := dict
+    "schedulerName" ((.Values.commonArgs | default dict).schedulerName | default "")
+    "nodePoolLabelKey" (($kai.global | default dict).nodePoolLabelKey | default "")
+    "queueLabelKey" (($kai.podgrouper | default dict).queueLabelKey | default "") -}}
+{{- $unset := list -}}
+{{- range $key, $value := $kaiSchedulerSettings -}}
+{{- if not $value -}}
+{{- $unset = append $unset $key -}}
+{{- end -}}
+{{- end -}}
+{{- if and $unset (include "kai-resource-management.usesExistingKaiScheduler" .) -}}
+{{- if lookup "apiextensions.k8s.io/v1" "CustomResourceDefinition" "" "configs.kai.scheduler" -}}
+{{- $kaiConfig := lookup "kai.scheduler/v1" "Config" "" "kai-config" -}}
+{{- range $key := $unset -}}
+{{- $_ := set $kaiSchedulerSettings $key (dig "spec" "global" $key "" $kaiConfig) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $kaiSchedulerSettings -}}
 {{- end -}}
 
 {{/*
@@ -232,17 +265,15 @@ defaults.
 */}}
 {{- define "kai-resource-management.krm-config-global" -}}
 {{- $commonArgs := .Values.commonArgs | default dict -}}
-{{- $kai := index .Values "kai-scheduler" | default dict -}}
-{{- $nodePoolLabelKey := ($kai.global | default dict).nodePoolLabelKey -}}
-{{- $queueLabelKey := ($kai.podgrouper | default dict).queueLabelKey -}}
-{{- if $commonArgs.schedulerName }}
-schedulerName: {{ $commonArgs.schedulerName | quote }}
+{{- $kaiSchedulerSettings := include "kai-resource-management.kaiSchedulerSettings" . | fromYaml -}}
+{{- with $kaiSchedulerSettings.schedulerName }}
+schedulerName: {{ . | quote }}
 {{- end }}
-{{- if $queueLabelKey }}
-queueLabelKey: {{ $queueLabelKey | quote }}
+{{- with $kaiSchedulerSettings.queueLabelKey }}
+queueLabelKey: {{ . | quote }}
 {{- end }}
-{{- if $nodePoolLabelKey }}
-nodePoolLabelKey: {{ $nodePoolLabelKey | quote }}
+{{- with $kaiSchedulerSettings.nodePoolLabelKey }}
+nodePoolLabelKey: {{ . | quote }}
 {{- end }}
 {{- if $commonArgs.finalizerDomain }}
 finalizerDomain: {{ $commonArgs.finalizerDomain | quote }}

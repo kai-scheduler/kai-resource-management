@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  Install beside an existing KAI Scheduler with kai-scheduler.enabled=false, taking its label keys and scheduler name from its kai-config
