@@ -64,6 +64,19 @@ tests:
       - equal: {path: spec.nodePoolController.args.schedulerNamespace, value: kai-scheduler}
       - equal: {path: spec.namespace, value: krm}
 
+  - it: points the install notes at the release namespace only by default
+    template: templates/NOTES.txt
+    asserts:
+      - notMatchRegexRaw: {pattern: "per-shard"}
+
+  - it: points the install notes at an existing scheduler's namespace for its ServiceMonitors
+    template: templates/NOTES.txt
+    set:
+      kai-scheduler.enabled: false
+      schedulerNamespace: kai-scheduler
+    asserts:
+      - matchRegexRaw: {pattern: "kubectl -n kai-scheduler get servicemonitor"}
+
   - it: refuses a scheduler namespace while the bundled scheduler is installed
     template: templates/nodepool-controller/role.yaml
     set:

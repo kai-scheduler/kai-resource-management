@@ -1513,7 +1513,8 @@ spec:
                       schedulerNamespace:
                         description: |-
                           SchedulerNamespace is the namespace of the KAI Scheduler, where per-shard
-                          ServiceMonitors are written. Empty means spec.namespace.
+                          ServiceMonitors are written. Empty means spec.namespace. It must match where
+                          the scheduler actually runs; nothing checks it.
                         type: string
                       schedulingShardArgs:
                         description: |-
