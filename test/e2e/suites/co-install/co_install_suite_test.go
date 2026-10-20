@@ -9,6 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
@@ -18,7 +19,9 @@ import (
 var (
 	ctx        goctx.Context
 	testClient client.Client
-	env        environment
+	// For what the controller-runtime client cannot do: pod logs and the service proxy.
+	clientset *kubernetes.Clientset
+	env       environment
 )
 
 func TestCoInstall(t *testing.T) {
@@ -39,5 +42,7 @@ var _ = BeforeSuite(func() {
 	env = readEnvironment()
 
 	// Also where preflight runs and can refuse.
-	testClient = testcontext.GetConnectivity(ctx, Default).Client
+	connectivity := testcontext.GetConnectivity(ctx, Default)
+	testClient = connectivity.Client
+	clientset = connectivity.KubeClientset
 })
