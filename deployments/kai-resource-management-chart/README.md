@@ -22,6 +22,11 @@ and the [concepts](../../docs/concepts/README.md).
 The KAI Scheduler dependency version is pinned in `Chart.yaml`. Building or
 testing this chart requires network access to pull it from GHCR.
 
+On a cluster that already runs KAI Scheduler, install with `kai-scheduler.enabled=false`
+and follow [installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md)
+instead: it takes over the scheduler's shards, and some of its choices must be made
+before installing.
+
 ## Build and test
 
 Run chart commands from the repository root:
@@ -238,7 +243,8 @@ into the CR only when set; left unset, no flag is passed and each service uses
 its own built-in default, as does the bundled scheduler. Installed alongside a
 scheduler this chart did not install (`kai-scheduler.enabled=false`), the ones
 left unset are read from that scheduler's `kai-config` instead. An offline render
-(`helm template`, GitOps) cannot read it, so set all three explicitly there.
+(`helm template`, GitOps) cannot read it, so set all three explicitly there. See
+[installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md#2-match-krm-to-the-scheduler).
 
 Its ClusterRole is maintained by hand rather than generated, and must be
 extended whenever the operator is taught to own a new kind.
@@ -470,6 +476,8 @@ A shard without the label still belongs to its node pool and is deleted with it.
 A later install takes the released shards over again.
 Setting `postCleanup.enabled=false` fails the render in this mode. If the hook fails,
 see [`helm uninstall` fails on the cleanup hook](../../docs/how-to/troubleshooting.md#helm-uninstall-fails-on-the-cleanup-hook).
+The whole co-install procedure, uninstall included, is in
+[installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md#uninstalling).
 
 Helm does not track hook resources in the release manifest, so on OpenShift the
 SecurityContextConstraints and its grant also survive uninstallation. Remove them

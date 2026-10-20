@@ -261,7 +261,9 @@ The label is ignored:
 
 Label the shard before installing KRM, or when creating it. Once KRM is installed, its
 SchedulingShard webhook refuses to add, change or remove the label on an existing shard,
-except on the `default` partition's shard, where the label has no effect.
+except on the `default` partition's shard, where the label has no effect. The full
+install procedure is in
+[installing alongside an existing KAI Scheduler](../getting-started/co-install-with-existing-kai.md).
 
 ### What the webhooks refuse
 
