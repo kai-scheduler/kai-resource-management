@@ -160,6 +160,22 @@ func ForSchedulingShardReady(
 	return shard
 }
 
+// ForKAIConfigAvailable waits for the operands KAI's operator deploys after its chart is
+// installed. `helm install --wait` covers only the chart's own objects, so without this the
+// first pod can reach KAI's admission webhook before anything serves it.
+func ForKAIConfigAvailable(ctx goctx.Context, k8sClient client.Client) *kaischedulerv1.Config {
+	kaiConfig := &kaischedulerv1.Config{}
+	name := kaiconstants.DefaultKAIConfigSingeltonInstanceName
+
+	gomega.EventuallyWithOffset(1, func(g gomega.Gomega) {
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, kaiConfig)).To(gomega.Succeed())
+		g.Expect(meta.IsStatusConditionTrue(kaiConfig.Status.Conditions, string(kaischedulerv1.ConditionTypeAvailable))).
+			To(gomega.BeTrue(), "kai config %q is not Available: %v", name, conditionSummary(kaiConfig.Status.Conditions))
+	}).WithContext(ctx).WithTimeout(constant.PodTimeout).WithPolling(constant.Interval).Should(gomega.Succeed())
+
+	return kaiConfig
+}
+
 // conditionSummary renders conditions compactly, so a timeout says which one
 // was unmet rather than dumping the whole object.
 func conditionSummary(conditions []metav1.Condition) map[string]string {
@@ -183,8 +199,16 @@ func ForQueue(ctx goctx.Context, k8sClient client.Client, name string) *kaiv2.Qu
 func ForServiceMonitor(
 	ctx goctx.Context, k8sClient client.Client, name string,
 ) *monitoringv1.ServiceMonitor {
+	return ForServiceMonitorInNamespace(ctx, k8sClient, constant.ReleaseNamespace, name)
+}
+
+// ForServiceMonitorInNamespace is for a scheduler running outside the release namespace,
+// where nodepool-controller writes its ServiceMonitors instead.
+func ForServiceMonitorInNamespace(
+	ctx goctx.Context, k8sClient client.Client, namespace, name string,
+) *monitoringv1.ServiceMonitor {
 	monitor := &monitoringv1.ServiceMonitor{}
-	key := types.NamespacedName{Namespace: constant.ReleaseNamespace, Name: name}
+	key := types.NamespacedName{Namespace: namespace, Name: name}
 	getObject(ctx, k8sClient, key, monitor, "service monitor "+name)
 
 	return monitor

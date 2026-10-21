@@ -5,22 +5,17 @@ package upgrade
 
 import (
 	goctx "context"
-	"fmt"
 	"os"
-	"os/exec"
 
-	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/constant"
+	"github.com/kai-scheduler/kai-resource-management/test/e2e/modules/helm"
 )
 
 const (
 	// releaseName is what every harness naming this chart's release uses.
 	releaseName = "krm"
-
-	// helmTimeout covers the CRD hook, every operand and the post-upgrade hook Job.
-	helmTimeout = "10m"
 
 	// chartPathEnv is required: a silent skip would pass CI having tested nothing.
 	chartPathEnv = "UPGRADE_CHART_PATH"
@@ -56,12 +51,8 @@ func upgradeRelease(ctx goctx.Context, path string) {
 		args = append(args, "--set", "image.tag="+imageTag)
 	}
 
-	args = append(args, "--wait", "--timeout", helmTimeout)
+	args = append(args, "--wait", "--timeout", helm.Timeout)
 
-	By("running helm " + fmt.Sprint(args))
-
-	// #nosec G702 -- the harness owning these arguments already holds the kubeconfig.
-	output, err := exec.CommandContext(ctx, "helm", args...).CombinedOutput()
-	fmt.Fprintln(GinkgoWriter, string(output))
-	Expect(err).ToNot(HaveOccurred(), "helm upgrade failed: %s", string(output))
+	output, err := helm.Run(ctx, args...)
+	Expect(err).ToNot(HaveOccurred(), "helm upgrade failed: %s", output)
 }
