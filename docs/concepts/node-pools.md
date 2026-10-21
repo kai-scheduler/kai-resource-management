@@ -210,7 +210,9 @@ any KRM controller starts:
 - The node pool takes the shard's settings: `args`, placement strategy, queue depth,
   minimum runtime, plugins, actions and time-based fair share, including the usage-DB
   address and queries. A node pool that already selects the partition is updated to them.
-  Settings a node pool does not have, such as `goMemLimit`, stay on the shard.
+  Settings a node pool does not have, such as `goMemLimit`, stay on the shard. A `kValue`
+  without a usage DB, which has no effect, is dropped, as is the usage DB's
+  `connectionStringEnvVar`, and its `clientType` becomes `prometheus`.
 - The shard keeps its name. It is labelled `kai.resources/adoption=adopted` and owned by
   its node pool from then on, so change its settings on the node pool.
   Uninstalling KRM hands it back to the scheduler unowned, and a reinstall takes it over
@@ -222,11 +224,13 @@ is one and otherwise from `defaultNodePool.spec`. It is created once, so later c
 `defaultNodePool.spec` do not reach it, and an install that skips Helm hooks
 (`helm install --no-hooks`, `helm template --no-hooks`) gets no `default` node pool.
 
-The scheduler sees the same shard settings before and after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that already
-have an owning controller, such as a node pool.
+Apart from the settings dropped above, and the worker-node label key args KRM adds, which
+restart the shard's scheduler once, the scheduler sees the same shard settings before and
+after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that
+already have an owning controller, such as a node pool.
 
-The install fails, and changes no shard, when a shard cannot be carried over exactly. The
-error names the shard and what to change:
+The install fails, and changes no shard, when a shard cannot be taken over. The error names
+the shard and what to change:
 
 - Its partition is not a valid node pool name, for example `Team_A`, or is the `default`
   node pool's name.

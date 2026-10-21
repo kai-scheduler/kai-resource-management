@@ -16,16 +16,32 @@ by the `default` node pool. The shard keeps its name, and its settings move onto
 pool, so from then on you change them there. The shard is labelled
 `kai.resources/adoption=adopted`.
 
+**Most settings move over unchanged.** The node pool takes the shard's `args`, placement
+strategy, queue depth, minimum runtime, plugins, actions and time-based fair share, including
+the usage DB's `connectionString` and queries. Settings a node pool has no field for, such as
+`goMemLimitRatio` and `scenarioSearchBudgets`, stay on the shard. Three are not kept:
+
+- a `kValue` on a shard with no usage DB, where it has no effect;
+- the usage DB's `clientType`, which becomes `prometheus`;
+- the usage DB's `connectionStringEnvVar`. Put the address in `connectionString` instead.
+
+**Each shard KRM takes over gets three args**, `cpu-worker-node-label-key`,
+`gpu-worker-node-label-key` and `mig-worker-node-label-key`, so its scheduler restarts once.
+
 **Deleting that node pool deletes the shard**, and with it the scheduler KAI runs for that
 partition. That is what ownership means, for a shard KRM took over exactly as for one it
 created. See [deleting a node pool](../concepts/node-pools.md#deleting-a-node-pool).
 
-**Queues and workloads KRM did not create are left alone**, as long as you install with
-`allowExternalQueues` on (step 2). Your existing queue hierarchy, and the workloads that use
-it, keep scheduling as before.
+**The install takes over no queues and no workloads.** KRM never touches a workload in a
+namespace that belongs to no KRM project. Queues KRM did not create are left alone
+afterwards too, as long as you install with `allowExternalQueues` on (step 2). Your existing
+queue hierarchy, and the workloads that use it, keep scheduling as before.
 
 ## Before you start
 
+- **KAI Resource Management chart 0.19.0 or later.** Earlier charts ignore
+  `kai-scheduler.enabled=false`: they try to install a second KAI Scheduler, fail on the
+  existing one's resources, and leave KRM's CRDs behind.
 - **KAI Scheduler v0.18.0 or later**, already running. A build of KAI's `main` branch,
   tagged `0.0.0-<commit>`, is also accepted. The install checks this and fails on an older
   version; see [the version check](../../deployments/kai-resource-management-chart/README.md#kai-scheduler-version-check).
@@ -45,6 +61,9 @@ it, keep scheduling as before.
   export KRM_NAMESPACE="${KAI_NAMESPACE}"
   echo "${KAI_NAMESPACE}"
   ```
+
+  The rest of this guide uses both variables, so set them again in any new shell. If one is
+  empty, Helm and kubectl quietly use your current namespace instead.
 
 - **A release of its own.** Never switch a release of this chart that installed KAI Scheduler
   to `kai-scheduler.enabled=false`: that uninstalls the scheduler. `helm upgrade` refuses it,
@@ -83,7 +102,8 @@ KRM is running its webhook refuses to add, change or remove the label on an exis
 
 **The `default` shard cannot be excluded.** The shard with an empty `partitionLabelValue`
 always belongs to the `default` node pool, which KRM needs. If it carries the label, the
-install removes it.
+install removes it. It is also the one shard whose label the webhook lets you change later,
+since there the label has no effect.
 
 While you are here, check for shards the install cannot take over. It fails, and changes
 nothing, for any reason in
@@ -93,7 +113,11 @@ Before a first install, look for:
 - a partition that is not a valid node pool name, such as `Team_A`, or is the `default` node
   pool's name;
 - two shards serving the same partition;
-- a worker-node label key arg set to a value other than KRM's.
+- `cpu-worker-node-label-key`, `gpu-worker-node-label-key` or `mig-worker-node-label-key` in
+  a shard's `args` with a value other than KRM's, which by default is
+  `node-role.kubernetes.io/cpu-worker`, `node-role.kubernetes.io/gpu-worker` or
+  `node-role.kubernetes.io/mig-enabled`. The same goes for any arg you set in
+  `nodePoolController.args.schedulingShardArgs`.
 
 Fix those first, or label the shards. A partition served by two shards needs **every** one
 of them labelled: the install counts labelled shards too, so labelling one still fails it.
@@ -122,9 +146,12 @@ since its node pools would then select different nodes. The error names the valu
 This is checked only while a shard is left to take over, so normally only on the first
 install. If you later change the key on either side, change it on the other too.
 
-Also turn on **`commonArgs.allowExternalQueues`**. Without it, KRM treats every queue as its
-own, and the first project or department whose name matches one of your queues takes it
-over. Turning it on later does not hand a taken-over queue back. See
+Also turn on **`commonArgs.allowExternalQueues`**. Installing with
+`kai-scheduler.enabled=false` does not turn it on for you, and without it KRM treats every
+queue as its own. A project whose queue has the same name as one of yours takes that queue
+over: it moves the queue under the project's department and rewrites its quota and
+priority, so any queues below it end up in KRM's tree. Turning the flag on later does not
+hand it back. See
 [queues KRM did not create](../concepts/queues-and-quota.md#queues-krm-did-not-create).
 
 ## 3. Install
@@ -132,6 +159,7 @@ over. Turning it on later does not hand a taken-over queue back. See
 ```bash
 helm upgrade --install krm \
   oci://ghcr.io/kai-scheduler/kai-resource-management/kai-resource-management \
+  --version 0.19.0 \
   --namespace "${KRM_NAMESPACE}" \
   --create-namespace \
   --set kai-scheduler.enabled=false \
@@ -139,6 +167,8 @@ helm upgrade --install krm \
   --set commonArgs.allowExternalQueues=true \
   --wait --timeout 10m
 ```
+
+Without the `ServiceMonitor` CRD, add `--set serviceMonitor.create=false`.
 
 `kai-scheduler.enabled=false` keeps the chart from installing a second KAI Scheduler; your
 existing `kai-config` stays the single source of truth. `schedulerNamespace` puts the
@@ -155,8 +185,12 @@ Before any KRM controller starts, three Helm hooks run in order:
    [What KRM takes over](#what-krm-takes-over), and creates the `default` node pool from
    KAI's default shard, or from `defaultNodePool.spec` when there is none.
 
-If a shard cannot be carried over exactly, the install fails before any shard is changed,
-and the error names the shard and what to change. Read it from the Job:
+Once the release is installed, a fourth hook applies the `KRMConfig`, which starts KRM's
+controllers.
+
+If a shard cannot be taken over, the install fails before any shard is changed, and the
+error names the shard and what to change. Read it from the Job, which is kept only when it
+fails:
 
 ```bash
 kubectl logs job/kai-resource-management-migrate-shards -n "${KRM_NAMESPACE}"
@@ -188,7 +222,21 @@ kubectl get schedulingshards -o custom-columns='NAME:.metadata.name,'\
 'IGNORED:.metadata.labels.kai/ignore-shard-for-krm'
 ```
 
-Each node pool's scheduler is monitored from KAI Scheduler's namespace:
+With a `default` shard, a `team-a` shard KRM took over and a `legacy` shard you labelled:
+
+```text
+NAME      PARTITION   OWNER     ADOPTED   IGNORED
+default   <none>      default   adopted   <none>
+legacy    legacy      <none>    <none>    true
+team-a    team-a      team-a    adopted   <none>
+```
+
+The `default` shard serves the empty partition, so it shows `<none>`.
+
+Unless you installed with `serviceMonitor.create=false`, each node pool's scheduler is
+monitored from KAI Scheduler's namespace, by a `ServiceMonitor` named
+`kai-scheduler-<node pool>`. When KRM shares that namespace, its own controllers'
+`ServiceMonitor`s are listed there too.
 
 ```bash
 kubectl get servicemonitors -n "${KAI_NAMESPACE}"
@@ -211,7 +259,21 @@ On a cluster with KRM, every partition is either a node pool's or explicitly lef
 another scheduler. When you add one:
 
 - **To manage it with KRM, create a node pool.** KRM creates the shard for it. See
-  [partitioning nodes into node pools](../how-to/partition-nodes-into-node-pools.md).
+  [partitioning nodes into node pools](../how-to/partition-nodes-into-node-pools.md). To keep
+  labelling nodes the way you do for KAI Scheduler today, do what the install did for the
+  shards it took over: name the node pool after the partition and select on the node-pool
+  label.
+
+  ```yaml
+  apiVersion: kai.resources/v1alpha1
+  kind: NodePool
+  metadata:
+    name: team-b
+  spec:
+    labelKey: kai.scheduler/node-pool   # or the key from step 2
+    labelValue: team-b
+  ```
+
 - **To leave it to another scheduler, create the shard with the label** in its manifest:
 
   ```yaml
@@ -228,14 +290,26 @@ exists for it; create that nodepool, or label the shard kai/ignore-shard-for-krm
 leave its nodes to another scheduler
 ```
 
-If a shard gets in anyway, for example while the webhook was down, KRM never writes it, and a
-node pool for its partition reports `Unschedulable`. Delete the shard. See
+The webhook fails closed, so a shard gets past it only while the webhook is not registered,
+such as during an install or with `nodePoolController.webhook.nodepool=false`. KRM never
+writes such a shard, and a node pool for its partition reports `Unschedulable`. Delete the
+shard. See
 [node pool is Unschedulable](../how-to/troubleshooting.md#node-pool-is-unschedulable).
 
 Running the same `helm upgrade` again takes the shard over instead, but only if that node
 pool selects its nodes by the node-pool label and the partition's value; otherwise the
 upgrade fails. When it succeeds, the shard's settings **replace** the node pool's
 `schedulingShardConfig`.
+
+## Upgrading KAI Scheduler later
+
+Upgrade KAI Scheduler as before. Its chart still renders the `default` shard, but the
+settings that moved to the `default` node pool now belong to KRM. If an upgrade changes one
+of them in KAI Scheduler's values, such as `scheduler.placementStrategy` or an arg in
+`scheduler.args`, KRM puts the node pool's value back within seconds. Change those on the
+`default` node pool instead. Settings that stayed on the shard, such as
+`scheduler.goMemLimitRatio`, and args the node pool does not set still follow KAI
+Scheduler's chart.
 
 ## Installing without Helm hooks
 
@@ -267,10 +341,13 @@ helm uninstall krm --namespace "${KRM_NAMESPACE}"
 ```
 
 Once KRM's controllers are gone, a post-delete hook hands every shard KRM took over back to
-the scheduler: its node pool owner reference and KRM's labels and annotations are removed,
-and it stays in place and keeps scheduling. It keeps its **current** settings, including any
-changes you made through its node pool since the install, not the ones it had before KRM.
-Compare it with `shards-before-krm.yaml` if you want those back.
+the scheduler: its node pool owner reference and its `kai.resources/` labels and annotations
+are removed, and it stays in place and keeps scheduling. The `app: kai-scheduler` label KRM
+added stays, and so do the node labels KRM wrote, so every node stays in its partition.
+
+The shard keeps its **current** settings, including any changes you made through its node
+pool since the install, not the ones it had before KRM. Compare it with
+`shards-before-krm.yaml` if you want those back.
 
 Node pools are not deleted, because Helm retains KRM's CRDs and their objects. The hook
 removes their finalizers, so you can delete them afterwards without them hanging. Deleting

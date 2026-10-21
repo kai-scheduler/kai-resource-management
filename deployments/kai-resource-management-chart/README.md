@@ -23,9 +23,11 @@ The KAI Scheduler dependency version is pinned in `Chart.yaml`. Building or
 testing this chart requires network access to pull it from GHCR.
 
 On a cluster that already runs KAI Scheduler, install with `kai-scheduler.enabled=false`
-and follow [installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md)
-instead: it takes over the scheduler's shards, and some of its choices must be made
-before installing.
+and `commonArgs.allowExternalQueues=true`, and follow
+[installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md)
+instead. The install takes over the scheduler's shards but not its queues, and
+`allowExternalQueues` keeps KRM's projects from taking those queues over afterwards. Both
+choices must be made before installing.
 
 ## Build and test
 
