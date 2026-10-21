@@ -462,6 +462,15 @@ jobs:
             kubectl -n kai-resource-management logs deploy/$deploy --tail=200 || true
           done
 
+  # The co-install suite starts after v0.18, but the ruleset that requires its
+  # check also covers this branch.
+  e2e-co-install-tests:
+    name: Run E2E Co-install Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip message
+        run: echo "The co-install suite does not exist on this branch."
+
   cleanup-images-cache:
     name: Cleanup Images Cache
     needs: [ e2e-tests, e2e-upgrade-tests, check-build-and-test-required ]
