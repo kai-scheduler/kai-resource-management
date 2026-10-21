@@ -46,9 +46,11 @@ it, keep scheduling as before.
   echo "${KAI_NAMESPACE}"
   ```
 
-- **A release of its own.** A release of this chart that installed KAI Scheduler cannot be
-  switched to `kai-scheduler.enabled=false`: the upgrade is refused, because it would
-  uninstall that scheduler.
+- **A release of its own.** Never switch a release of this chart that installed KAI Scheduler
+  to `kai-scheduler.enabled=false`: that uninstalls the scheduler. `helm upgrade` refuses it,
+  but `helm template` and GitOps tools cannot see the cluster, so nothing stops them. A
+  GitOps tool that prunes deletes KAI Scheduler, and if it also manages KAI's CRDs, every
+  queue, pod group and shard with them.
 
 - **A copy of what you have today**, so you can compare after installing:
 
@@ -84,13 +86,17 @@ always belongs to the `default` node pool, which KRM needs. If it carries the la
 install removes it.
 
 While you are here, check for shards the install cannot take over. It fails, and changes
-nothing, when:
+nothing, for any reason in
+[installing on a cluster that already has shards](../concepts/node-pools.md#installing-on-a-cluster-that-already-has-shards).
+Before a first install, look for:
 
-- a partition is not a valid node pool name, such as `Team_A`, or is the `default` node
+- a partition that is not a valid node pool name, such as `Team_A`, or is the `default` node
   pool's name;
-- two shards serve the same partition.
+- two shards serving the same partition;
+- a worker-node label key arg set to a value other than KRM's.
 
-Fix those first, or label the shards.
+Fix those first, or label the shards. A partition served by two shards needs **every** one
+of them labelled: the install counts labelled shards too, so labelling one still fails it.
 
 ## 2. Match KRM to the scheduler
 
@@ -113,6 +119,8 @@ kubectl get configs.kai.scheduler kai-config -o jsonpath='{.spec.global}'
 
 The install fails if KAI Scheduler reads node pools from a different label than KRM would use,
 since its node pools would then select different nodes. The error names the value to set.
+This is checked only while a shard is left to take over, so normally only on the first
+install. If you later change the key on either side, change it on the other too.
 
 Also turn on **`commonArgs.allowExternalQueues`**. Without it, KRM treats every queue as its
 own, and the first project or department whose name matches one of your queues takes it
@@ -173,12 +181,11 @@ Each shard KRM took over is owned by its node pool and labelled as adopted. Each
 labelled has no owner:
 
 ```bash
-kubectl get schedulingshards -o custom-columns=\
-NAME:.metadata.name,\
-PARTITION:.spec.partitionLabelValue,\
-OWNER:.metadata.ownerReferences[0].name,\
-ADOPTED:.metadata.labels.kai\\.resources/adoption,\
-IGNORED:.metadata.labels.kai/ignore-shard-for-krm
+kubectl get schedulingshards -o custom-columns='NAME:.metadata.name,'\
+'PARTITION:.spec.partitionLabelValue,'\
+'OWNER:.metadata.ownerReferences[0].name,'\
+'ADOPTED:.metadata.labels.kai\.resources/adoption,'\
+'IGNORED:.metadata.labels.kai/ignore-shard-for-krm'
 ```
 
 Each node pool's scheduler is monitored from KAI Scheduler's namespace:
@@ -222,27 +229,36 @@ leave its nodes to another scheduler
 ```
 
 If a shard gets in anyway, for example while the webhook was down, KRM never writes it, and a
-node pool for its partition reports `Unschedulable`. Run the same `helm upgrade` again to
-take the shard over, or delete it. See
+node pool for its partition reports `Unschedulable`. Delete the shard. See
 [node pool is Unschedulable](../how-to/troubleshooting.md#node-pool-is-unschedulable).
+
+Running the same `helm upgrade` again takes the shard over instead, but only if that node
+pool selects its nodes by the node-pool label and the partition's value; otherwise the
+upgrade fails. When it succeeds, the shard's settings **replace** the node pool's
+`schedulingShardConfig`.
 
 ## Installing without Helm hooks
 
-`helm template | kubectl apply`, `helm install --no-hooks`, and GitOps tools that render the
-chart offline differ from a plain `helm install` in two ways:
+Install with `helm upgrade --install` as in step 3 when you can. The alternatives differ from
+it:
 
-- **Nothing is read from the cluster.** The three settings in step 2 are not filled from
-  `kai-config`, and KRM falls back to KAI Scheduler's defaults, which may not be the ones
-  your scheduler uses. Set them explicitly, along with `schedulerNamespace` and
-  `allowExternalQueues`.
-- **Hooks that do not run do nothing.** Without them there is no version check, no shard is
-  taken over, and in this mode no `default` node pool is created. Unlabelled shards then
-  block their partitions' node pools. Run `helm upgrade --install` with hooks for the first
-  install and for every upgrade, or check that your tool runs the chart's `pre-install` and
+- **`helm template | kubectl apply` runs every hook at once.** `helm template` prints the
+  chart's hook Jobs along with everything else, so `kubectl apply` starts them together and
+  in no order. That includes the uninstall cleanup Job, which can delete KRM's controllers and
+  its `KRMConfig`, and hands back any shard already taken over. Never apply that output;
+  render with `--no-hooks`, and read the next point.
+- **Without hooks, their work does not happen.** With `--no-hooks` there is no version check,
+  no shard is taken over, and no `default` node pool is created, so unlabelled shards block
+  their partitions' node pools. No `KRMConfig` is applied either, so the KRM operator starts
+  no controllers unless the chart renders it as a release resource; see the chart's
+  [KRM operator](../../deployments/kai-resource-management-chart/README.md#how-the-krmconfig-is-created)
+  section. On a `helm upgrade --no-hooks`, KRM's CRDs are not upgraded. Run every install
+  and upgrade with hooks, or check that your GitOps tool runs the chart's `pre-install` and
   `pre-upgrade` hooks.
-
-The other values an offline install needs are in the chart's
-[KRM operator](../../deployments/kai-resource-management-chart/README.md#krm-operator) section.
+- **An offline render cannot read the cluster.** `helm template` and GitOps tools do not fill
+  the three settings in step 2 from `kai-config`, and KRM falls back to KAI Scheduler's
+  defaults, which may not be the ones your scheduler uses. Set them explicitly, along with
+  `schedulerNamespace` and `allowExternalQueues`. `helm install --no-hooks` still reads them.
 
 ## Uninstalling
 
@@ -262,9 +278,12 @@ a node pool then deletes only a shard KRM created, never one it released. Instal
 again takes the released shards over again.
 
 The hook does this only while `postCleanup.enabled` is on, so the chart refuses to render
-with it off in this mode. If the hook fails, some shards may still belong to their node
-pools; **do not delete those node pools** before following
+with it off in this mode. If the hook fails, or never runs, some shards still belong to
+their node pools; **do not delete those node pools** before following
 [`helm uninstall` fails on the cleanup hook](../how-to/troubleshooting.md#helm-uninstall-fails-on-the-cleanup-hook).
+The hook never runs when KRM is removed any other way: `helm uninstall --no-hooks`,
+deleting what `helm template` rendered, or a GitOps tool that does not run the chart's
+`post-delete` hook.
 
 The rest of what uninstall keeps and removes is in the chart's
 [uninstall](../../deployments/kai-resource-management-chart/README.md#uninstall) section.
@@ -275,7 +294,7 @@ The rest of what uninstall keeps and removes is in the chart's
   with projects under it. A deeper tree you built keeps working, but it cannot be turned into
   departments and projects, and a queue of yours cannot be placed under one of KRM's. See
   [keeping the two kinds of tree apart](../concepts/queues-and-quota.md#keeping-the-two-kinds-of-tree-apart).
-- **No switching an existing release.** A release that installed KAI Scheduler stays
+- **No switching an existing release.** A release that installed KAI Scheduler must stay
   bundled; see [Before you start](#before-you-start).
 
 ## What to read next

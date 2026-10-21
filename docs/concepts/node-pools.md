@@ -220,7 +220,7 @@ Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the 
 not create the `default` node pool itself; this step does, from KAI's default shard when there
 is one and otherwise from `defaultNodePool.spec`. It is created once, so later changes to
 `defaultNodePool.spec` do not reach it, and an install that skips Helm hooks
-(`helm install --no-hooks`, `helm template | kubectl apply`) gets no `default` node pool.
+(`helm install --no-hooks`, `helm template --no-hooks`) gets no `default` node pool.
 
 The scheduler sees the same shard settings before and after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that already
 have an owning controller, such as a node pool.
