@@ -231,7 +231,9 @@ commonArgs:
   allowExternalQueues: true
 ```
 
-Turn it on when you install the chart. Installing with it off leaves existing queues
+Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart turns
+it on unless you set it to `false`. Otherwise, turn it on when you install the chart.
+Installing with it off leaves existing queues
 alone, but the first project or department whose derived name matches one takes it over,
 and a queue taken over keeps the owner reference, so turning the flag on later does not
 hand it back.

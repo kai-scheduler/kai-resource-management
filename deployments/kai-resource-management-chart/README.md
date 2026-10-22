@@ -23,11 +23,11 @@ The KAI Scheduler dependency version is pinned in `Chart.yaml`. Building or
 testing this chart requires network access to pull it from GHCR.
 
 On a cluster that already runs KAI Scheduler, install with `kai-scheduler.enabled=false`
-and `commonArgs.allowExternalQueues=true`, and follow
+and follow
 [installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md)
 instead. The install takes over the scheduler's shards but not its queues, and
-`allowExternalQueues` keeps KRM's projects from taking those queues over afterwards. Both
-choices must be made before installing.
+`commonArgs.allowExternalQueues`, on by default in this mode, keeps KRM's projects from
+taking those queues over afterwards. Some of its choices must be made before installing.
 
 ## Build and test
 
@@ -274,7 +274,8 @@ Project and department validation runs on create and update but never on delete.
 Deletion ordering is enforced by the controllers' finalizers instead.
 
 Queue validation is the exception: it exists only with `commonArgs.allowExternalQueues`,
-which defaults to `false` and is also what makes project-controller serve it. It rejects a
+which is also what makes project-controller serve it. That defaults to `true` beside an
+existing KAI Scheduler (`kai-scheduler.enabled=false`) and to `false` otherwise. It rejects a
 queue no Project or Department owns whose `parentQueue` is one they do, and its
 `matchConditions`, GA in Kubernetes 1.30, send the API server's call only for such a queue
 gaining a parent, so other Queue writes never depend on project-controller being up.
