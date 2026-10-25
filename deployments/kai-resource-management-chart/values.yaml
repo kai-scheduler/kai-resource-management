@@ -115,7 +115,7 @@ commonArgs:
   finalizerDomain: ""               # --finalizer-domain
   namespaceProjectLabelKey: ""      # --namespace-project-label-key
   projectLabelKey: ""               # --project-label-key
-  allowExternalQueues: false        # --allow-external-queues; leave Queues no Project or Department owns, and PodGroups outside projects, untouched
+  allowExternalQueues: null         # --allow-external-queues; leave Queues no Project or Department owns, and PodGroups outside projects, untouched. Unset ⇒ true with kai-scheduler.enabled=false, else false
   enforceSchedulerAnnotationKey: "" # --enforce-scheduler-annotation-key
   schedulerName: ""                 # --scheduler-name; empty ⇒ KAI Scheduler's
 

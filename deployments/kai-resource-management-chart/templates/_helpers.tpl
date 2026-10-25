@@ -13,6 +13,18 @@ true
 {{- end -}}
 {{- end -}}
 
+{{/* "true" when commonArgs.allowExternalQueues is on. Unset, it follows usesExistingKaiScheduler:
+beside an existing KAI Scheduler every Queue predates KRM, and one a same-named Project takes
+over is not handed back when the flag is turned on later. */}}
+{{- define "kai-resource-management.allowExternalQueues" -}}
+{{- $allow := (.Values.commonArgs | default dict).allowExternalQueues -}}
+{{- if kindIs "invalid" $allow -}}
+{{- include "kai-resource-management.usesExistingKaiScheduler" . -}}
+{{- else if $allow -}}
+true
+{{- end -}}
+{{- end -}}
+
 {{/* The bundled scheduler always runs in the release namespace, so only an existing one may sit elsewhere. */}}
 {{- define "kai-resource-management.schedulerNamespace" -}}
 {{- if .Values.schedulerNamespace -}}
@@ -287,7 +299,7 @@ projectLabelKey: {{ $commonArgs.projectLabelKey | quote }}
 {{- if $commonArgs.enforceSchedulerAnnotationKey }}
 enforceSchedulerAnnotationKey: {{ $commonArgs.enforceSchedulerAnnotationKey | quote }}
 {{- end }}
-{{- if $commonArgs.allowExternalQueues }}
+{{- if include "kai-resource-management.allowExternalQueues" . }}
 allowExternalQueues: true
 {{- end }}
 {{- with (.Values.defaultNodePool | default dict).name }}
