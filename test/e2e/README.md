@@ -13,6 +13,11 @@ Ginkgo suites that run against a live cluster with the chart installed.
 - `suites/upgrade` — installs nothing itself: it builds a world on whatever
   version is installed, upgrades the release to another chart, and asks whether
   the world came through. Excluded from `make test-e2e`; see below.
+- `suites/co-install` — needs a cluster with no chart on it: it installs KAI
+  Scheduler on its own, installs this chart beside it with
+  `kai-scheduler.enabled=false`, and checks the admin's shards, queues and
+  workloads before and after uninstalling. Excluded from `make test-e2e`; see
+  below.
 
 ## Running them
 
@@ -45,9 +50,10 @@ make test-e2e
 make test-e2e E2E_LABEL_FILTER=flows
 ```
 
-`E2E_LABEL_FILTER` defaults to `!upgrade`, so an ordinary run skips the upgrade
-suite. Narrow the run with that variable rather than with a `--label-filter` in
-`GINKGO_FLAGS`: a second one would win and quietly re-enable `upgrade`.
+`E2E_LABEL_FILTER` defaults to `!upgrade && !co-install`, so an ordinary run
+skips the upgrade and co-install suites. Narrow the run with that variable rather
+than with a `--label-filter` in `GINKGO_FLAGS`: a second one would win and
+quietly re-enable them.
 
 `CLUSTER_NAME` (default `krm-e2e`) and `K8S_VERSION` override the defaults.
 
@@ -56,8 +62,9 @@ workers so node pools can own different nodes at the same time, and test pods
 carry no control-plane toleration. `hack/e2e-values.yaml` lowers the resource
 requests so everything fits on a small machine.
 
-CI runs the same suites on every pull request; see the `e2e-tests` and
-`e2e-upgrade-tests` jobs and `.github/actions/setup-e2e-cluster`.
+CI runs the same suites on every pull request; see the `e2e-tests`,
+`e2e-upgrade-tests` and `e2e-co-install-tests` jobs and
+`.github/actions/setup-e2e-cluster`.
 
 ## Upgrade tests
 
@@ -95,6 +102,33 @@ inherits it. `UPGRADE_VALUES_FILE` and `UPGRADE_IMAGE_TAG` have to repeat
 whatever the install used — helm gives no way to hold values steady across an
 upgrade, so leaving them out changes the configuration underneath the test.
 
+## Co-install tests
+
+The co-install suite starts from a cluster with nothing on it, the way an admin
+who already runs KAI Scheduler would. One command builds that cluster, packages
+this tree's chart and runs the suite:
+
+```bash
+hack/run-e2e-co-install-kind.sh
+```
+
+It takes the same `--skip-build` and `--preserve-cluster` flags as
+`run-e2e-kind.sh`. KAI Scheduler is installed at the version this chart pins;
+`KAI_VERSION` and `KAI_CHART` point it elsewhere.
+
+On a cluster with no chart and no KAI Scheduler on it, the suite alone is:
+
+```bash
+CO_INSTALL_CHART_PATH=/abs/path/to/chart.tgz \
+CO_INSTALL_VALUES_FILE=$PWD/hack/e2e-values.yaml \
+CO_INSTALL_IMAGE_TAG=0.0.0 \
+CO_INSTALL_KAI_CHART=oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler \
+CO_INSTALL_KAI_VERSION=<version> \
+  make test-e2e-co-install
+```
+
+The chart path must be absolute, as for the upgrade suite.
+
 ## Safety contract
 
 The suites create and delete cluster-scoped objects, so they must never run
@@ -109,6 +143,11 @@ against a real cluster. `modules/context` enforces this:
 - The upgrade suite additionally runs `helm upgrade` against the `krm` release,
   a stronger mutation than the other suites make. It is bounded by the same
   guard, and by being labelled out of `make test-e2e`.
+- The co-install suite goes further: it installs and uninstalls the
+  `kai-scheduler` release and the `krm` release, in both `kai-resource-management`
+  and `kai-scheduler`. The same guard and label bound it. Its node pools are
+  created by the chart's migration hook rather than by the suite, so it deletes
+  them by name at the end.
 - Every created object carries `kai.resources/e2e=true`, which preflight matches
   on, and `kai.resources/e2e-run=<id>` identifying the process that made it, so
   a run only ever deletes its own.

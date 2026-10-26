@@ -111,10 +111,10 @@ coverage: test-go ## Print total statement coverage.
 	@$(GO) tool cover -func=$(COVERAGE_PROFILE) | tail -1
 
 # Kept out of `make test`: these mutate whatever KUBECONFIG points at.
-E2E_LABEL_FILTER ?= !upgrade
+E2E_LABEL_FILTER ?= !upgrade && !co-install
 
 .PHONY: test-e2e
-test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECONFIG; destructive. Excludes upgrade.
+test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECONFIG; destructive. Excludes upgrade and co-install.
 	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --randomize-all \
 		--randomize-suites --trace -vv --label-filter '$(E2E_LABEL_FILTER)' \
 		$(GINKGO_FLAGS) ./test/e2e/suites
@@ -125,6 +125,12 @@ test-e2e: | $(GOCACHE) $(GOTMPDIR) ## Run e2e suites against the current KUBECON
 test-e2e-upgrade: | $(GOCACHE) $(GOTMPDIR) ## Upgrade the installed release to UPGRADE_CHART_PATH and verify it; destructive.
 	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --trace -vv \
 		--label-filter 'upgrade' $(GINKGO_FLAGS) ./test/e2e/suites/upgrade
+
+# Not randomized, for the same reason: KRM is installed and uninstalled part way through.
+.PHONY: test-e2e-co-install
+test-e2e-co-install: | $(GOCACHE) $(GOTMPDIR) ## Install KAI Scheduler, then CO_INSTALL_CHART_PATH on top of it, and verify both; destructive.
+	$(GO) run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going --trace -vv \
+		--label-filter 'co-install' $(GINKGO_FLAGS) ./test/e2e/suites/co-install
 
 .PHONY: lint-go
 lint-go: gocache | $(GOCACHE) $(GOTMPDIR) ## Run golangci-lint for all Go packages.

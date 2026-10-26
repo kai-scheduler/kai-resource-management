@@ -12,6 +12,7 @@ import (
 
 	kaischedulerv1 "github.com/kai-scheduler/api/kai/v1"
 	kaitopologyv1alpha1 "github.com/kai-scheduler/api/kai/v1alpha1"
+	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -242,6 +243,20 @@ func queueConfigs(owner string, nodePools []string) []kaires.QueueConfig {
 	return queues
 }
 
+// Queue builds a queue the way an admin does without KRM. KAI's queue webhook refuses one
+// without resources, so it gets no quota and no limit.
+func Queue(name, parentQueue string) *kaiv2.Queue {
+	unlimited := kaiv2.QueueResource{Quota: 0, OverQuotaWeight: 1, Limit: -1}
+
+	return &kaiv2.Queue{
+		ObjectMeta: objectMeta(name),
+		Spec: kaiv2.QueueSpec{
+			ParentQueue: parentQueue,
+			Resources:   &kaiv2.QueueResources{GPU: unlimited, CPU: unlimited, Memory: unlimited},
+		},
+	}
+}
+
 // QueueName is the name the controller gives the queue an owner has for a node pool.
 func QueueName(owner, nodePool string) string {
 	return fmt.Sprintf("%s-%s", owner, nodePool)
@@ -265,6 +280,11 @@ func WithNodePoolAnnotation(key string, nodePools ...string) PodOption {
 		}
 		pod.Annotations[key] = strings.Join(nodePools, " ")
 	}
+}
+
+// WithQueueLabel binds the pod to a queue the way KAI's pod-grouper does without KRM.
+func WithQueueLabel(key, queue string) PodOption {
+	return func(pod *corev1.Pod) { pod.Labels[key] = queue }
 }
 
 // WithNodePoolLabel names a node pool for the mutating webhook to turn into affinity.
