@@ -131,6 +131,50 @@ var _ = Describe("Namespace Resource Handler", func() {
 		Expect(actual.Annotations).To(HaveKeyWithValue("unrelated.example.com/owner", "someone-else"))
 	})
 
+	It("Keeps labels it does not own when a flipped EnforceKaiScheduler updates the Namespace", func() {
+		// Given a namespace already reconciled from a project with enforcement off, and
+		// carrying a Pod Security Admission label as a live namespace would.
+		project.Spec.EnforceKaiScheduler = false
+		Expect(client.Create(context.TODO(), &project)).To(Succeed())
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		created, err := handler.GetNamespace(defaultRunaiProjNamespace)
+		Expect(err).ToNot(HaveOccurred())
+		created.Labels["pod-security.kubernetes.io/enforce"] = "restricted"
+		Expect(client.Update(context.TODO(), &created)).To(Succeed())
+
+		// When enforcement is turned on for the same project.
+		project.Spec.EnforceKaiScheduler = true
+		_, err = handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		// Then the handler's labels are written and the foreign label survives.
+		actual, err := handler.GetNamespace(defaultRunaiProjNamespace)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(actual.Labels).To(HaveKeyWithValue(config.Get().NamespaceProjectLabelKey, project.Name))
+		Expect(actual.Labels).To(HaveKeyWithValue(config.Get().NamespaceVersionLabelKey, AgentNamespaceVersion))
+		Expect(actual.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
+	})
+
+	It("Keeps labels it does not own when adopting a pre-created Namespace by name", func() {
+		preCreated := &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   defaultRunaiProjNamespace,
+				Labels: map[string]string{"pod-security.kubernetes.io/enforce": "restricted"},
+			},
+		}
+		Expect(client.Create(context.TODO(), preCreated)).To(Succeed())
+
+		_, err := handler.HandleResource(project)
+		Expect(err).Should(Succeed())
+
+		actual, err := handler.GetNamespace(defaultRunaiProjNamespace)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(actual.Labels).To(HaveKeyWithValue(config.Get().NamespaceProjectLabelKey, project.Name))
+		Expect(actual.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
+	})
+
 	It("Handles an existing Namespace", func() {
 		By("Modifying the Namespace when the incoming project Namespace spec has differences", func() {
 
