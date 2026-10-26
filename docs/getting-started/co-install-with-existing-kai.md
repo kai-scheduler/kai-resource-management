@@ -5,9 +5,9 @@ its own scheduling shards, queues and label keys, who want to add KAI Resource M
 without rebuilding any of them. On a cluster with no scheduler, follow the
 [quickstart](quickstart.md) instead: it installs KAI Scheduler for you.
 
-The guide assumes you know KRM's objects: node pools, projects and departments, and how they
-map onto KAI Scheduler's shards and queues. If you do not, read the [overview](../overview.md)
-first.
+This guide assumes you know KRM's objects: node pools, projects and departments, and how they
+map onto KAI Scheduler's shards and queues. If they are new to you, read the
+[overview](../overview.md) first.
 
 Read the whole guide before you install. Two choices are hard to undo once KRM is running:
 which shards it takes over, and whether it may touch queues it did not create.
