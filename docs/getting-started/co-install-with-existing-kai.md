@@ -5,25 +5,39 @@ its own scheduling shards, queues and label keys, who want to add KAI Resource M
 without rebuilding any of them. On a cluster with no scheduler, follow the
 [quickstart](quickstart.md) instead: it installs KAI Scheduler for you.
 
+The guide assumes you know KRM's objects: node pools, projects and departments, and how they
+map onto KAI Scheduler's shards and queues. If you do not, read the [overview](../overview.md)
+first.
+
 Read the whole guide before you install. Two choices are hard to undo once KRM is running:
 which shards it takes over, and whether it may touch queues it did not create.
 
 ## What KRM takes over
 
-**Every `SchedulingShard` you do not exclude becomes a node pool.** A shard serving partition
-`P` is owned by a node pool named `P`; the shard with an empty `partitionLabelValue` is owned
-by the `default` node pool. The shard keeps its name, and its settings move onto the node
-pool, so from then on you change them there. The shard is labelled
+| What you have today | Once KRM is installed |
+| --- | --- |
+| Shards you did not label | Each is owned by a node pool, with the same name and settings. Change its settings on the node pool. Deleting the node pool deletes the shard |
+| Shards labelled `kai/ignore-shard-for-krm=true` | Left alone, and so are their nodes. Exception: the `default` shard is always taken over |
+| Queues | Left alone by default. With `allowExternalQueues=false`, creating a project whose queue has the same name as one of yours takes that queue over |
+| Workloads outside KRM's projects | Left alone |
+
+**Every `SchedulingShard` becomes a node pool, unless explicitly excluded.** A shard serving
+partition `P` is owned by a node pool named `P`; the shard with an empty `partitionLabelValue`
+is owned by the `default` node pool. The shard keeps its name, and its settings move onto the
+node pool, so from then on you change them there. The shard is labelled
 `kai.resources/adoption=adopted`.
 
-**Most settings move over unchanged.** The node pool takes the shard's `args`, placement
-strategy, queue depth, minimum runtime, plugins, actions and time-based fair share, including
-the usage DB's `connectionString` and queries. Settings a node pool has no field for, such as
-`goMemLimitRatio` and `scenarioSearchBudgets`, stay on the shard. Three are not kept:
+**The `default` node pool is KRM's catch-all.** It holds every node no other node pool
+claims, and it cannot be deleted; see
+[the `default` node pool](../concepts/node-pools.md#the-default-node-pool). The install
+creates it from KAI's default shard, the one with an empty `partitionLabelValue`. If KAI has
+no default shard, it is created from `defaultNodePool.spec`.
 
-- a `kValue` on a shard with no usage DB, where it has no effect;
-- the usage DB's `clientType`, which becomes `prometheus`;
-- the usage DB's `connectionStringEnvVar`. Put the address in `connectionString` instead.
+**Most settings move over unchanged.** The node pool takes the shard's `args`, placement
+strategy, queue depth, minimum runtime, plugins, actions and time-based fair share. Settings a
+node pool has no field for, such as `goMemLimitRatio` and `scenarioSearchBudgets`, stay on the
+shard. If a shard uses time-based fair share, read
+[the exceptions below](#if-a-shard-uses-time-based-fair-share).
 
 **Each shard KRM takes over gets three args**, `cpu-worker-node-label-key`,
 `gpu-worker-node-label-key` and `mig-worker-node-label-key`, so its scheduler restarts once.
@@ -34,8 +48,22 @@ created. See [deleting a node pool](../concepts/node-pools.md#deleting-a-node-po
 
 **The install takes over no queues and no workloads.** KRM never touches a workload in a
 namespace that belongs to no KRM project. Queues KRM did not create are left alone
-afterwards too while `allowExternalQueues` is on, which is the default here (step 2). Your
-existing queue hierarchy, and the workloads that use it, keep scheduling as before.
+afterwards too while `allowExternalQueues` is `true`, the default here, so your existing
+queue hierarchy and the workloads that use it keep scheduling as before. If you set it to
+`false`, creating a project whose queue has the same name as one of yours takes that queue
+over; see step 2.
+
+### If a shard uses time-based fair share
+
+Skip this unless a shard sets `usageDBConfig` or `kValue`. Three of those settings change:
+
+- **A `kValue` without `usageDBConfig` is dropped.** It has no effect without a usage DB.
+- **`connectionStringEnvVar` is dropped.** A node pool takes the usage DB's address only from
+  `connectionString`. Without one, the scheduler uses the Prometheus configured in
+  `kai-config`. To keep the address the shard uses today, put it in `connectionString`
+  before installing.
+- **`clientType` is always `prometheus`.** It is the only usage DB KAI Scheduler supports
+  outside its own tests.
 
 ## Before you start
 
@@ -99,16 +127,16 @@ KRM then creates no node pool for that partition, never writes its shard, and ne
 relabels, cordons or counts its nodes. See
 [leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
 
-**Label before you install.** The install takes over every shard without the label, and once
-KRM is running its webhook refuses to add, change or remove the label on an existing shard.
+**Label before you install.** The install takes over every shard without the label. Once KRM
+is running, its webhook refuses to add, change or remove the label on an existing shard.
 
 **The `default` shard cannot be excluded.** The shard with an empty `partitionLabelValue`
 always belongs to the `default` node pool, which KRM needs. If it carries the label, the
 install removes it. It is also the one shard whose label the webhook lets you change later,
 since there the label has no effect.
 
-While you are here, check for shards the install cannot take over. It fails, and changes
-nothing, for any reason in
+While you are here, check for shards the install cannot take over. When it finds one, the
+install fails and changes nothing; every reason is in
 [installing on a cluster that already has shards](../concepts/node-pools.md#installing-on-a-cluster-that-already-has-shards).
 Before a first install, look for:
 
@@ -161,6 +189,9 @@ helm upgrade --install krm \
 ```
 
 Without the `ServiceMonitor` CRD, add `--set serviceMonitor.create=false`.
+
+Every later `helm upgrade` of this release needs `kai-scheduler.enabled=false` too: keep it
+in a values file, or pass `--reuse-values`. Without it, the upgrade fails.
 
 `kai-scheduler.enabled=false` keeps the chart from installing a second KAI Scheduler; your
 existing `kai-config` stays the single source of truth. `schedulerNamespace` puts the
@@ -289,10 +320,10 @@ writes such a shard, and a node pool for its partition reports `Unschedulable`. 
 shard. See
 [node pool is Unschedulable](../how-to/troubleshooting.md#node-pool-is-unschedulable).
 
-Running the same `helm upgrade` again takes the shard over instead, but only if that node
-pool selects its nodes by the node-pool label and the partition's value; otherwise the
-upgrade fails. When it succeeds, the shard's settings **replace** the node pool's
-`schedulingShardConfig`.
+To take such a shard over instead, run the same `helm upgrade` again. If the node pool for
+its partition selects its nodes by anything other than the node-pool label and the
+partition's value, the upgrade fails. When it succeeds, the shard's settings **replace** the
+node pool's `schedulingShardConfig`.
 
 ## Upgrading KAI Scheduler later
 
@@ -324,8 +355,8 @@ removes their finalizers, so you can delete them afterwards without them hanging
 a node pool then deletes only a shard KRM created, never one it released. Installing KRM
 again takes the released shards over again.
 
-The hook does this only while `postCleanup.enabled` is on, so the chart refuses to render
-with it off in this mode. If the hook fails, or never runs, some shards still belong to
+In this mode the chart refuses to render with `postCleanup.enabled` off, because the hook
+runs only while it is on. If the hook fails, or never runs, some shards still belong to
 their node pools; **do not delete those node pools** before following
 [`helm uninstall` fails on the cleanup hook](../how-to/troubleshooting.md#helm-uninstall-fails-on-the-cleanup-hook).
 

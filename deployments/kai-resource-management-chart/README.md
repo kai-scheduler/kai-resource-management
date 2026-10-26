@@ -22,12 +22,13 @@ and the [concepts](../../docs/concepts/README.md).
 The KAI Scheduler dependency version is pinned in `Chart.yaml`. Building or
 testing this chart requires network access to pull it from GHCR.
 
-On a cluster that already runs KAI Scheduler, install with `kai-scheduler.enabled=false`
-and follow
+On a cluster that already runs KAI Scheduler, install and upgrade with
+`kai-scheduler.enabled=false`, and follow
 [installing alongside an existing KAI Scheduler](../../docs/getting-started/co-install-with-existing-kai.md)
-instead. The install takes over the scheduler's shards but not its queues, and
-`commonArgs.allowExternalQueues`, on by default in this mode, keeps KRM's projects from
-taking those queues over afterwards. Some of its choices must be made before installing.
+instead. The install takes over the scheduler's shards but not its queues. Afterwards, the
+existing queues stay intact while `commonArgs.allowExternalQueues` is `true`, the default in
+this mode. With it `false`, creating a KRM project whose queue has the same name as an
+existing queue takes that queue over. Some of these choices must be made before installing.
 
 ## Build and test
 

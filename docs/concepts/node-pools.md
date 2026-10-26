@@ -208,15 +208,22 @@ any KRM controller starts:
   with the node-pool label key and value `P`. The shard with an empty
   `partitionLabelValue` goes to the `default` node pool.
 - The node pool takes the shard's settings: `args`, placement strategy, queue depth,
-  minimum runtime, plugins, actions and time-based fair share, including the usage-DB
-  address and queries. A node pool that already selects the partition is updated to them.
-  Settings a node pool does not have, such as `goMemLimit`, stay on the shard. A `kValue`
-  without a usage DB, which has no effect, is dropped, as is the usage DB's
-  `connectionStringEnvVar`, and its `clientType` becomes `prometheus`.
+  minimum runtime, plugins, actions and time-based fair share. A node pool that already
+  selects the partition is updated to them. Settings a node pool does not have, such as
+  `goMemLimit`, stay on the shard.
 - The shard keeps its name. It is labelled `kai.resources/adoption=adopted` and owned by
   its node pool from then on, so change its settings on the node pool.
   Uninstalling KRM hands it back to the scheduler unowned, and a reinstall takes it over
   again. See [Uninstall](../../deployments/kai-resource-management-chart/README.md#uninstall).
+
+If a shard uses time-based fair share, three of its settings change:
+
+- A `kValue` without a usage DB is dropped. It has no effect without one.
+- `connectionStringEnvVar` is dropped. A node pool takes the usage DB's address only from
+  `connectionString`; without one, the scheduler uses the Prometheus configured in
+  `kai-config`.
+- `clientType` is always `prometheus`, the only usage DB KAI Scheduler supports outside its
+  own tests.
 
 Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart does
 not create the `default` node pool itself; this step does, from KAI's default shard when there
@@ -224,12 +231,12 @@ is one and otherwise from `defaultNodePool.spec`. It is created once, so later c
 `defaultNodePool.spec` do not reach it, and an install that skips Helm hooks
 (`helm install --no-hooks`, `helm template --no-hooks`) gets no `default` node pool.
 
-Apart from the settings dropped above, and the worker-node label key args KRM adds, which
-restart the shard's scheduler once, the scheduler sees the same shard settings before and
-after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards that
-already have an owning controller, such as a node pool.
+Apart from the time-based fair share changes above, and the worker-node label key args KRM
+adds, which restart the shard's scheduler once, the scheduler sees the same shard settings
+before and after. Shards labelled `kai/ignore-shard-for-krm=true` are skipped, as are shards
+that already have an owning controller, such as a node pool.
 
-The install fails, and changes no shard, when a shard cannot be taken over. The error names
+When a shard cannot be taken over, the install fails and changes no shard. The error names
 the shard and what to change:
 
 - Its partition is not a valid node pool name, for example `Team_A`, or is the `default`
