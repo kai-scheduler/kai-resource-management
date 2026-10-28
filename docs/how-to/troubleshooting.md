@@ -313,6 +313,19 @@ The message carries the underlying error.
 | `node pool "x" is already referenced by another queue` | Two queues in one spec cannot share a node pool |
 | `the nodepool "x" from the DefaultNodePools list has no queue defined in the spec` | Add a queue for it |
 
+### A department is refused its parent
+
+| Message | Fix |
+| --- | --- |
+| `a department cannot be its own parent` | Name another department |
+| `parent department "x" does not exist` | Create the parent first |
+| `parent department "x" is being deleted` | Pick another parent |
+| `... that would make a loop: a → b → a` | The parent is already inside this department. Move it out first |
+| `departments can nest at most 7 levels deep, and this would nest them deeper` | Nest less deeply, counting the departments inside this one |
+
+Only the first rule is part of the Department schema. The rest are checks of the
+department webhook, and do not run with `projectController.webhook.department` off.
+
 ### Department will not delete
 
 ```bash

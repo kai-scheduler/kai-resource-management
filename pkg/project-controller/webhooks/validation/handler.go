@@ -43,14 +43,15 @@ const (
 // resources. The same instance is registered on every webhook path; Handle
 // branches on the incoming resource kind.
 type Validator struct {
-	client client.Client
+	client    client.Client
+	apiReader client.Reader
 }
 
 // NewValidator builds a Validator backed by the given client, used to look up
 // referenced resources (parent departments, node pools, parent queues) during
-// validation.
-func NewValidator(client client.Client) *Validator {
-	return &Validator{client: client}
+// validation. apiReader re-reads a parent department the cache has not seen yet.
+func NewValidator(client client.Client, apiReader client.Reader) *Validator {
+	return &Validator{client: client, apiReader: apiReader}
 }
 
 // Handle decodes the incoming object by kind and runs the matching validation.
@@ -76,7 +77,15 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 			logger.Error(err, "failed to unmarshal department")
 			return admission.Errored(http.StatusBadRequest, fmt.Errorf("failed to unmarshal department: %w", err))
 		}
-		if err := v.validateDepartment(ctx, department); err != nil {
+		var oldDepartment *kaiv1alpha1.Department
+		if req.Operation == admissionv1.Update {
+			oldDepartment = &kaiv1alpha1.Department{}
+			if err := json.Unmarshal(req.OldObject.Raw, oldDepartment); err != nil {
+				logger.Error(err, "failed to unmarshal old department")
+				return admission.Errored(http.StatusBadRequest, fmt.Errorf("failed to unmarshal old department: %w", err))
+			}
+		}
+		if err := v.validateDepartment(ctx, department, oldDepartment); err != nil {
 			logger.Error(err, "department validation failed", "name", department.Name)
 			return toAdmissionResponse(err)
 		}

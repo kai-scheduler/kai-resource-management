@@ -171,7 +171,7 @@ func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcil
 		os.Exit(1)
 	}
 
-	validator := validation.NewValidator(mgr.GetClient())
+	validator := validation.NewValidator(mgr.GetClient(), mgr.GetAPIReader())
 	webhookServer := webhook.NewServer(webhook.Options{
 		Port:    cfg.WebhookPort,
 		CertDir: cfg.WebhookCertDir,

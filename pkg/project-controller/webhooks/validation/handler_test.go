@@ -6,8 +6,10 @@ package validation_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	kaiv2 "github.com/kai-scheduler/api/scheduling/v2"
 	. "github.com/onsi/ginkgo/v2" // nolint:staticcheck // dot import for test framework is intentional
@@ -18,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -79,7 +82,7 @@ var _ = Describe("Validation webhook Handle", func() {
 			&kaiv2.Queue{ObjectMeta: metav1.ObjectMeta{Name: adminQueue}},
 		).Build()
 
-		validator = validation.NewValidator(fakeClient)
+		validator = validation.NewValidator(fakeClient, fakeClient)
 	})
 
 	queue := func(name, nodepool string) kaiv1alpha1.QueueConfig {
@@ -248,6 +251,140 @@ var _ = Describe("Validation webhook Handle", func() {
 			Expect(resp.Allowed).To(BeFalse())
 			Expect(resp.Result.Message).To(ContainSubstring("failed to unmarshal"))
 		})
+
+		Context("parent", func() {
+			newScheme := func() *runtime.Scheme {
+				scheme := runtime.NewScheme()
+				Expect(kaiv1alpha1.AddToScheme(scheme)).To(Succeed())
+				return scheme
+			}
+
+			department := func(name, parent string) *kaiv1alpha1.Department {
+				return &kaiv1alpha1.Department{
+					ObjectMeta: metav1.ObjectMeta{Name: name},
+					Spec:       kaiv1alpha1.DepartmentSpec{Parent: parent},
+				}
+			}
+
+			// chain returns <prefix>1 → <prefix>2 → … → <prefix><n>, <prefix>1 being top-level.
+			chain := func(prefix string, n int) []client.Object {
+				departments := []client.Object{department(prefix+"1", "")}
+				for i := 2; i <= n; i++ {
+					departments = append(departments, department(fmt.Sprintf("%s%d", prefix, i), fmt.Sprintf("%s%d", prefix, i-1)))
+				}
+				return departments
+			}
+
+			validatorWith := func(departments ...client.Object) *validation.Validator {
+				c := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(departments...).Build()
+				return validation.NewValidator(c, c)
+			}
+
+			// request sends a create of the department, or an update when oldParent is set.
+			request := func(v *validation.Validator, name, parent string, oldParent *string) admission.Response {
+				raw, err := json.Marshal(department(name, parent))
+				Expect(err).NotTo(HaveOccurred())
+				req := admissionv1.AdmissionRequest{
+					Operation: admissionv1.Create,
+					Kind: metav1.GroupVersionKind{
+						Group:   kaiv1alpha1.GroupVersion.Group,
+						Version: kaiv1alpha1.GroupVersion.Version,
+						Kind:    "Department",
+					},
+					Object: runtime.RawExtension{Raw: raw},
+				}
+				if oldParent != nil {
+					oldRaw, err := json.Marshal(department(name, *oldParent))
+					Expect(err).NotTo(HaveOccurred())
+					req.Operation = admissionv1.Update
+					req.OldObject = runtime.RawExtension{Raw: oldRaw}
+				}
+				return v.Handle(ctx, admission.Request{AdmissionRequest: req})
+			}
+
+			It("allows an existing parent", func() {
+				Expect(handleDepartment(kaiv1alpha1.DepartmentSpec{Parent: existingParent}).Allowed).To(BeTrue())
+			})
+
+			It("denies a parent that does not exist", func() {
+				expectDenied(handleDepartment(kaiv1alpha1.DepartmentSpec{Parent: missingParent}),
+					`parent department "`+missingParent+`" does not exist`)
+			})
+
+			It("re-reads a parent the cache has not seen yet", func() {
+				emptyCache := fake.NewClientBuilder().WithScheme(newScheme()).Build()
+				apiServer := fake.NewClientBuilder().WithScheme(newScheme()).
+					WithObjects(department("research", "")).Build()
+
+				resp := request(validation.NewValidator(emptyCache, apiServer), "ml", "research", nil)
+
+				Expect(resp.Allowed).To(BeTrue(), resp.Result.Message)
+			})
+
+			It("denies a parent that is being deleted", func() {
+				deleting := department("research", "")
+				deleting.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+				deleting.Finalizers = []string{"test"}
+
+				expectDenied(request(validatorWith(deleting), "ml", "research", nil),
+					`parent department "research" is being deleted`)
+			})
+
+			It("denies a move that would make a loop", func() {
+				v := validatorWith(chain("d", 3)...)
+
+				expectDenied(request(v, "d1", "d3", ptr.To("")),
+					`department "d1" cannot have parent "d3": that would make a loop: d1 → d3 → d2 → d1`)
+			})
+
+			It("allows departments to nest 7 levels deep and denies an 8th", func() {
+				v := validatorWith(chain("d", 7)...)
+
+				Expect(request(v, "sibling", "d6", nil).Allowed).To(BeTrue())
+				expectDenied(request(v, "too-deep", "d7", nil), "departments can nest at most 7 levels deep")
+			})
+
+			It("counts the moved department's own sub-departments", func() {
+				v := validatorWith(append(chain("d", 5), chain("s", 3)...)...)
+
+				Expect(request(v, "s1", "d4", ptr.To("")).Allowed).To(BeTrue())
+				expectDenied(request(v, "s1", "d5", ptr.To("")), "departments can nest at most 7 levels deep")
+			})
+
+			It("allows any other change to a department that is already too deep", func() {
+				v := validatorWith(chain("d", 9)...)
+
+				Expect(request(v, "d9", "d8", ptr.To("d8")).Allowed).To(BeTrue())
+			})
+
+			It("reports a missing node pool and a missing parent together", func() {
+				resp := handleDepartment(kaiv1alpha1.DepartmentSpec{
+					Parent: missingParent,
+					Queues: []kaiv1alpha1.QueueConfig{queue("q-missing", missingNodePool)},
+				})
+
+				expectDenied(resp, missingNodePool)
+				expectDenied(resp, missingParent)
+			})
+
+			It("returns an internal server error when listing departments fails", func() {
+				failingClient := fake.NewClientBuilder().WithScheme(newScheme()).
+					WithObjects(department("research", "")).
+					WithInterceptorFuncs(interceptor.Funcs{
+						List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+							if _, ok := list.(*kaiv1alpha1.DepartmentList); ok {
+								return apierrors.NewServiceUnavailable("api server is down")
+							}
+							return c.List(ctx, list, opts...)
+						},
+					}).Build()
+
+				resp := request(validation.NewValidator(failingClient, failingClient), "ml", "research", nil)
+
+				Expect(resp.Allowed).To(BeFalse())
+				Expect(resp.Result.Code).To(Equal(int32(http.StatusInternalServerError)))
+			})
+		})
 	})
 
 	Context("Queue", func() {
@@ -379,7 +516,7 @@ var _ = Describe("Validation webhook Handle", func() {
 					return apierrors.NewServiceUnavailable("api server is down")
 				},
 			}).Build()
-			failingValidator := validation.NewValidator(failingClient)
+			failingValidator := validation.NewValidator(failingClient, failingClient)
 
 			project := &kaiv1alpha1.Project{
 				ObjectMeta: metav1.ObjectMeta{Name: "proj-1"},
@@ -411,7 +548,7 @@ var _ = Describe("Validation webhook Handle", func() {
 					return apierrors.NewServiceUnavailable("api server is down")
 				},
 			}).Build()
-			failingValidator := validation.NewValidator(failingClient)
+			failingValidator := validation.NewValidator(failingClient, failingClient)
 
 			queue := &kaiv2.Queue{
 				ObjectMeta: metav1.ObjectMeta{Name: "team-a"},

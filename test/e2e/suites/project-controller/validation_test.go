@@ -105,3 +105,52 @@ var _ = Describe("The project webhook", Label("project-controller"), func() {
 		})
 	})
 })
+
+var _ = Describe("The department webhook", Label("project-controller"), func() {
+	newDepartment := func(prefix string, options ...resources.DepartmentOption) *kaires.Department {
+		department := resources.Department(utils.GenerateName(prefix),
+			[]string{testcontext.DefaultNodePoolName}, options...)
+		Expect(testClient.Create(ctx, department)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(testClient.Delete(ctx, department))).To(Succeed())
+			wait.ForDeleted(ctx, testClient, department)
+		})
+		return department
+	}
+
+	It("refuses a department as its own parent", func() {
+		name := utils.GenerateName("pc-self")
+		department := resources.Department(name, nil, resources.WithParent(name))
+
+		Expect(testClient.Create(ctx, department)).
+			To(MatchError(ContainSubstring("a department cannot be its own parent")))
+	})
+
+	It("refuses a parent that would make a loop", func() {
+		top := newDepartment("pc-looptop")
+		child := newDepartment("pc-loopchild", resources.WithParent(top.Name))
+
+		latest := &kaires.Department{}
+		Expect(testClient.Get(ctx, types.NamespacedName{Name: top.Name}, latest)).To(Succeed())
+		latest.Spec.Parent = child.Name
+
+		Expect(testClient.Update(ctx, latest)).To(MatchError(ContainSubstring("would make a loop")))
+	})
+
+	It("refuses departments nested more than 7 levels deep", func() {
+		parent := ""
+		for range 7 {
+			var options []resources.DepartmentOption
+			if parent != "" {
+				options = append(options, resources.WithParent(parent))
+			}
+			parent = newDepartment("pc-depth", options...).Name
+		}
+
+		tooDeep := resources.Department(utils.GenerateName("pc-depth"),
+			[]string{testcontext.DefaultNodePoolName}, resources.WithParent(parent))
+
+		Expect(testClient.Create(ctx, tooDeep)).
+			To(MatchError(ContainSubstring("departments can nest at most 7 levels deep")))
+	})
+})

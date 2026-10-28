@@ -44,16 +44,26 @@ func (v *Validator) validateParent(ctx context.Context, parent string) error {
 	if parent == "" {
 		return nil
 	}
+	_, err := v.getParentDepartment(ctx, parent)
+	return err
+}
 
+// getParentDepartment returns the named parent department. The cache can trail a department
+// created a moment earlier, as when GitOps applies a parent and its children together, so a miss
+// is read again from the API server.
+func (v *Validator) getParentDepartment(ctx context.Context, name string) (*kaiv1alpha1.Department, error) {
 	department := &kaiv1alpha1.Department{}
-	err := v.client.Get(ctx, types.NamespacedName{Name: parent}, department)
+	err := v.client.Get(ctx, types.NamespacedName{Name: name}, department)
 	if apierrors.IsNotFound(err) {
-		return fmt.Errorf("parent department %q does not exist", parent)
+		err = v.apiReader.Get(ctx, types.NamespacedName{Name: name}, department)
+	}
+	if apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("parent department %q does not exist", name)
 	}
 	if err != nil {
-		return newInternalError(fmt.Errorf("failed to get parent department %q: %w", parent, err))
+		return nil, newInternalError(fmt.Errorf("failed to get parent department %q: %w", name, err))
 	}
-	return nil
+	return department, nil
 }
 
 // validateDefaultNodePoolsHaveQueues ensures every node pool listed in the
