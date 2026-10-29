@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  A department cannot be deleted while another department names it as its parent

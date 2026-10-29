@@ -332,8 +332,8 @@ department webhook, and do not run with `projectController.webhook.department` o
 kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
 ```
 
-`DepartmentDeletionBlocked` is `True` while any project names it as parent. Delete or
-re-parent them.
+`DepartmentDeletionBlocked` is `True` while any project or department names it as parent.
+Delete or re-parent them.
 
 ### Project will not delete
 
