@@ -204,6 +204,69 @@ func listQueuesWithLabelSelectors(ctx context.Context, k8sClient client.Client,
 	return queues.Items, nil
 }
 
+// departmentQueueName returns the named department's queue for the nodepool, for a project or a
+// sub-department to sit under. It takes the name from the department spec when the department owns
+// a queue by that name, and otherwise finds the department's queue by OwnerReference, so a
+// collision-suffixed name is still found. It returns "" when there is no department name, the
+// department does not exist, or it has no queue for the nodepool.
+func departmentQueueName(ctx context.Context, k8sClient client.Client, log logr.Logger,
+	departmentName, nodepoolName string) (string, error) {
+	if departmentName == "" {
+		return "", nil
+	}
+
+	department := &kaiv1alpha1.Department{}
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: departmentName}, department); err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Parent department not found, continuing without a parent queue",
+				common.LogDepartmentTag, departmentName, "nodepool", nodepoolName)
+			return "", nil
+		}
+		log.Error(err, "Failed to get parent department", common.LogDepartmentTag, departmentName)
+		return "", err
+	}
+
+	candidateName := ""
+	for i := range department.Spec.Queues {
+		if department.Spec.Queues[i].Nodepool != nodepoolName {
+			continue
+		}
+		candidateName = GetQueueName(department.Spec.Queues[i], department.Name)
+		candidate := &schedv2.Queue{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: candidateName}, candidate)
+		if err == nil && isOwnedByUID(candidate.OwnerReferences, department.UID) {
+			return candidateName, nil
+		}
+		if err != nil && !errors.IsNotFound(err) {
+			return "", err
+		}
+		break // spec entry found but not a valid owned queue - fall back to the owner search
+	}
+	if candidateName == "" {
+		// no queue for this nodepool
+		return "", nil
+	}
+	return departmentQueueByOwner(ctx, k8sClient, log, department, nodepoolName)
+}
+
+// departmentQueueByOwner returns the name of the queue owned by the given department for the
+// nodepool, located by OwnerReference (not by the department identity labels).
+func departmentQueueByOwner(ctx context.Context, k8sClient client.Client, log logr.Logger,
+	department *kaiv1alpha1.Department, nodepoolName string) (string, error) {
+	queues, err := listQueuesForNodepool(ctx, k8sClient, nodepoolName)
+	if err != nil {
+		log.Error(err, "Failed listing queues to find parent queue by owner",
+			common.LogDepartmentTag, department.Name, "nodepool", nodepoolName)
+		return "", err
+	}
+	for i := range queues {
+		if isOwnedByUID(queues[i].OwnerReferences, department.UID) {
+			return queues[i].Name, nil
+		}
+	}
+	return "", nil
+}
+
 // deleteUnnecessaryQueues - in case a nodepool was deleted, we need to delete its queue.
 // ownerKind scopes the deletion to queues owned by the reconciling resource's kind (Project /
 // Department): the department-name label is shared by a department's queues AND its
