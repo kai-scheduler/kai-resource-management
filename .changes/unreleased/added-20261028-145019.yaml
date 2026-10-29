@@ -1,0 +1,3 @@
+kind: Added
+body: |-
+  The department webhook rejects a spec.parent that is missing, terminating, forms a loop, or nests past 7 levels

@@ -218,15 +218,28 @@ func Project(name string, nodePools []string, options ...ProjectOption) *kaires.
 	return project
 }
 
-// Department builds a department with one queue per node pool. A project naming
-// it as parent inherits those queues as the parents of its own.
-func Department(name string, nodePools []string) *kaires.Department {
-	return &kaires.Department{
+// DepartmentOption customises a Department before it is created.
+type DepartmentOption func(*kaires.Department)
+
+// WithParent nests the department under another department, whose queues parent its own.
+func WithParent(department string) DepartmentOption {
+	return func(child *kaires.Department) { child.Spec.Parent = department }
+}
+
+// Department builds a department with one queue per node pool. A project or a
+// department naming it as parent inherits those queues as the parents of its own.
+func Department(name string, nodePools []string, options ...DepartmentOption) *kaires.Department {
+	department := &kaires.Department{
 		ObjectMeta: objectMeta(name),
 		Spec: kaires.DepartmentSpec{
 			Queues: queueConfigs(name, nodePools),
 		},
 	}
+	for _, apply := range options {
+		apply(department)
+	}
+
+	return department
 }
 
 // queueConfigs names one queue per node pool as "<owner>-<node pool>", which keeps the
