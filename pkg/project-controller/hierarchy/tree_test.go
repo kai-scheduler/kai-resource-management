@@ -94,4 +94,12 @@ var _ = Describe("Tree", func() {
 			Expect(tree.Height("a", 100)).To(Equal(3))
 		})
 	})
+
+	Describe("Children", func() {
+		It("lists the departments directly under one, sorted", func() {
+			tree := hierarchy.Tree{"root": "", "b": "root", "a": "root", "a1": "a"}
+			Expect(tree.Children("root")).To(Equal([]string{"a", "b"}))
+			Expect(tree.Children("a1")).To(BeEmpty())
+		})
+	})
 })

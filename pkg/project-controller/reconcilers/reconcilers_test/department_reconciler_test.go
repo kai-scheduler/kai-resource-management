@@ -12,6 +12,7 @@ import (
 	. "github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -201,6 +202,71 @@ var _ = Describe("Department Reconciler Tests", func() {
 			Expect(k8sClientWithDeleted.Get(context.TODO(),
 				departmentReconcileRequest.NamespacedName, &actual)).To(Succeed())
 			Expect(actual.Finalizers).ToNot(ContainElement(config.DepartmentFinalizerName()))
+		})
+
+		Context("with child departments", func() {
+			// reconcileDeletion reconciles the department being deleted next to the given other
+			// departments, and returns it as it stands afterwards.
+			reconcileDeletion := func(others ...*kaiv1alpha1.Department) (
+				kaiv1alpha1.Department, client.Client, error) {
+				deletedDepartment := department.DeepCopy()
+				deletedDepartment.DeletionTimestamp = &now
+				deletedDepartment.Finalizers = []string{config.DepartmentFinalizerName(), "other-finalizer"}
+
+				objects := []client.Object{deletedDepartment}
+				for _, other := range others {
+					objects = append(objects, other)
+				}
+				c := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithStatusSubresource(&kaiv1alpha1.Department{}).
+					WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+					WithObjects(objects...).
+					Build()
+
+				_, err := NewDepartmentReconciler(c).
+					Reconcile(context.TODO(), departmentReconcileRequest)
+				actual := kaiv1alpha1.Department{}
+				Expect(c.Get(context.TODO(), departmentReconcileRequest.NamespacedName, &actual)).To(Succeed())
+				return actual, c, err
+			}
+
+			childOf := func(name, parent string) *kaiv1alpha1.Department {
+				return &kaiv1alpha1.Department{
+					ObjectMeta: metav1.ObjectMeta{Name: name},
+					Spec:       kaiv1alpha1.DepartmentSpec{Parent: parent},
+				}
+			}
+
+			It("Blocks deletion while a child department still references the department", func() {
+				actual, _, err := reconcileDeletion(childOf("child", department.Name))
+
+				Expect(err).To(MatchError(ContainSubstring("child department(s) still reference it")))
+				Expect(actual.Finalizers).To(ContainElement(config.DepartmentFinalizerName()))
+				Expect(actual.Status.Conditions).To(ContainElement(SatisfyAll(
+					HaveField("Type", kaiv1alpha1.DepartmentDeletionBlocked),
+					HaveField("Status", corev1.ConditionTrue),
+					HaveField("Reason", "ChildDepartmentsStillAssigned"),
+					HaveField("Message", ContainSubstring(`"child"`)),
+				)))
+			})
+
+			It("Removes the finalizer once the child department moves away", func() {
+				child := childOf("child", department.Name)
+				_, c, err := reconcileDeletion(child)
+				Expect(err).To(HaveOccurred())
+
+				Expect(c.Get(context.TODO(), client.ObjectKeyFromObject(child), child)).To(Succeed())
+				child.Spec.Parent = ""
+				Expect(c.Update(context.TODO(), child)).To(Succeed())
+				_, err = NewDepartmentReconciler(c).
+					Reconcile(context.TODO(), departmentReconcileRequest)
+
+				Expect(err).ToNot(HaveOccurred())
+				actual := kaiv1alpha1.Department{}
+				Expect(c.Get(context.TODO(), departmentReconcileRequest.NamespacedName, &actual)).To(Succeed())
+				Expect(actual.Finalizers).ToNot(ContainElement(config.DepartmentFinalizerName()))
+			})
 		})
 	})
 })

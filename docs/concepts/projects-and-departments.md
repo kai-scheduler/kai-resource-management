@@ -138,18 +138,19 @@ Deletion is ordered, and the order is enforced rather than merely advised.
 ```mermaid
 flowchart LR
     pod["Delete workloads"] --> proj["Delete projects"]
-    proj --> dept["Delete department"]
+    proj --> dept["Delete departments, innermost first"]
 ```
 
-**A department will not delete while any project still names it as parent.** The
-department stays in `Terminating` and reports:
+**A department will not delete while any project or department still names it as
+parent.** The department stays in `Terminating` and reports:
 
 ```bash
 kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
 ```
 
-`DepartmentDeletionBlocked` is `True`, with a message naming one of the offending
-projects. Delete or re-parent those projects and the department goes.
+`DepartmentDeletionBlocked` is `True`, with a message naming one of them: reason
+`ProjectsStillAssigned` for a project, `ChildDepartmentsStillAssigned` for a department.
+Delete or re-parent them and the department goes.
 
 **A project's own deletion can be made blocking too.** By default a project deletes as
 soon as its queues and namespace are cleaned up, whatever is still running inside it. To

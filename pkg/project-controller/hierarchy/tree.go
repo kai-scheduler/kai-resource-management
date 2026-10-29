@@ -4,7 +4,11 @@
 // Package hierarchy reads the department tree that Department.spec.parent forms.
 package hierarchy
 
-import kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+import (
+	"sort"
+
+	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
+)
 
 // MaxDepth is how many levels departments may nest; a top-level department is level 1.
 const MaxDepth = 7
@@ -59,4 +63,16 @@ func (t Tree) Height(name string, limit int) int {
 		level = next
 	}
 	return height
+}
+
+// Children returns the departments whose parent is name, sorted.
+func (t Tree) Children(name string) []string {
+	var children []string
+	for child, parent := range t {
+		if parent == name {
+			children = append(children, child)
+		}
+	}
+	sort.Strings(children)
+	return children
 }
