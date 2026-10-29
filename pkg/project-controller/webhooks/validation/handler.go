@@ -49,7 +49,7 @@ type Validator struct {
 
 // NewValidator builds a Validator backed by the given client, used to look up
 // referenced resources (parent departments, node pools, parent queues) during
-// validation.
+// validation. apiReader re-reads a parent department the cache has not seen yet.
 func NewValidator(client client.Client, apiReader client.Reader) *Validator {
 	return &Validator{client: client, apiReader: apiReader}
 }

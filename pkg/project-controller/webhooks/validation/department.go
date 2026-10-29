@@ -14,14 +14,23 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/hierarchy"
 )
 
-// validateDepartment reports every problem at once. oldDepartment is nil on create.
+// validateDepartment runs all create/update validations for a Department:
+//   - every node pool referenced by a queue must exist in the cluster (empty
+//     queues are allowed),
+//   - a new or changed parent must exist, must not be being deleted, and must
+//     leave the department tree free of loops and at most hierarchy.MaxDepth
+//     levels deep.
+//
+// oldDepartment is nil on create. All failures are aggregated so the caller
+// sees every problem at once.
 func (v *Validator) validateDepartment(ctx context.Context, department, oldDepartment *kaiv1alpha1.Department) error {
 	var errs error
 
 	if err := v.validateQueueNodePoolsExist(ctx, department.Spec.Queues); err != nil {
 		errs = multierror.Append(errs, err)
 	}
-	// An unchanged parent is not re-checked, so a tree that is already too deep can still be edited.
+	// Only a new parent can break the tree. Re-checking an unchanged one would block every later
+	// write to a department that is already too deep, the finalizer removal included.
 	if oldDepartment == nil || oldDepartment.Spec.Parent != department.Spec.Parent {
 		if err := v.validateDepartmentParent(ctx, department); err != nil {
 			errs = multierror.Append(errs, err)
