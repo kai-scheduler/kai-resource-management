@@ -205,12 +205,11 @@ var _ = Describe("Department Reconciler Tests", func() {
 		})
 
 		Context("with child departments", func() {
-			// reconcileDeletion reconciles a department being deleted, with the given parent, next to
-			// the given other departments, and returns the department as it stands afterwards.
-			reconcileDeletion := func(parent string, others ...*kaiv1alpha1.Department) (
+			// reconcileDeletion reconciles the department being deleted next to the given other
+			// departments, and returns it as it stands afterwards.
+			reconcileDeletion := func(others ...*kaiv1alpha1.Department) (
 				kaiv1alpha1.Department, client.Client, error) {
 				deletedDepartment := department.DeepCopy()
-				deletedDepartment.Spec.Parent = parent
 				deletedDepartment.DeletionTimestamp = &now
 				deletedDepartment.Finalizers = []string{config.DepartmentFinalizerName(), "other-finalizer"}
 
@@ -240,7 +239,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 			}
 
 			It("Blocks deletion while a child department still references the department", func() {
-				actual, _, err := reconcileDeletion("", childOf("child", department.Name))
+				actual, _, err := reconcileDeletion(childOf("child", department.Name))
 
 				Expect(err).To(MatchError(ContainSubstring("child department(s) still reference it")))
 				Expect(actual.Finalizers).To(ContainElement(config.DepartmentFinalizerName()))
@@ -254,7 +253,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 
 			It("Removes the finalizer once the child department moves away", func() {
 				child := childOf("child", department.Name)
-				_, c, err := reconcileDeletion("", child)
+				_, c, err := reconcileDeletion(child)
 				Expect(err).To(HaveOccurred())
 
 				Expect(c.Get(context.TODO(), client.ObjectKeyFromObject(child), child)).To(Succeed())
@@ -266,20 +265,6 @@ var _ = Describe("Department Reconciler Tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 				actual := kaiv1alpha1.Department{}
 				Expect(c.Get(context.TODO(), departmentReconcileRequest.NamespacedName, &actual)).To(Succeed())
-				Expect(actual.Finalizers).ToNot(ContainElement(config.DepartmentFinalizerName()))
-			})
-
-			It("Does not let a department that is its own parent block its own deletion", func() {
-				actual, _, err := reconcileDeletion(department.Name)
-
-				Expect(err).ToNot(HaveOccurred())
-				Expect(actual.Finalizers).ToNot(ContainElement(config.DepartmentFinalizerName()))
-			})
-
-			It("Does not count a child that is also an ancestor", func() {
-				actual, _, err := reconcileDeletion("child", childOf("child", department.Name))
-
-				Expect(err).ToNot(HaveOccurred())
 				Expect(actual.Finalizers).ToNot(ContainElement(config.DepartmentFinalizerName()))
 			})
 		})

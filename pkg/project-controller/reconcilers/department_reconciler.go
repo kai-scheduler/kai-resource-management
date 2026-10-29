@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -199,24 +198,14 @@ func (r *DepartmentReconciler) getProjectsOfDepartment(ctx context.Context,
 	return projectList.Items, nil
 }
 
-// getChildDepartments returns the departments whose parent is the given department. A child that
-// is also its ancestor is left out: that loop can only come from a race or with the webhook off,
-// and counting it would keep both departments from ever being deleted.
+// getChildDepartments returns the names of the departments whose parent is the given department,
+// sorted.
 func (r *DepartmentReconciler) getChildDepartments(ctx context.Context, departmentName string) ([]string, error) {
 	departmentList := &kaiv1alpha1.DepartmentList{}
 	if err := r.client.List(ctx, departmentList); err != nil {
 		return nil, err
 	}
-
-	tree := hierarchy.NewTree(departmentList.Items)
-	ancestors, _ := tree.Ancestors(departmentName, len(tree))
-	var children []string
-	for _, child := range tree.Children(departmentName) {
-		if child != departmentName && !slices.Contains(ancestors, child) {
-			children = append(children, child)
-		}
-	}
-	return children, nil
+	return hierarchy.NewTree(departmentList.Items).Children(departmentName), nil
 }
 
 func (r *DepartmentReconciler) addFinalizerIfNeeded(ctx context.Context,
