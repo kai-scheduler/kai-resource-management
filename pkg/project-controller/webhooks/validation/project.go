@@ -48,9 +48,7 @@ func (v *Validator) validateParent(ctx context.Context, parent string) error {
 	return err
 }
 
-// getParentDepartment returns the named parent department. The cache can trail a department
-// created a moment earlier, as when GitOps applies a parent and its children together, so a miss
-// is read again from the API server.
+// A cache miss is read again live: a parent created a moment ago may not be cached yet.
 func (v *Validator) getParentDepartment(ctx context.Context, name string) (*kaiv1alpha1.Department, error) {
 	department := &kaiv1alpha1.Department{}
 	err := v.client.Get(ctx, types.NamespacedName{Name: name}, department)

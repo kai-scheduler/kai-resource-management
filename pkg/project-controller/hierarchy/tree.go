@@ -4,14 +4,9 @@
 // Package hierarchy reads the department tree that Department.spec.parent forms.
 package hierarchy
 
-import (
-	"sort"
+import kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 
-	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
-)
-
-// MaxDepth is how many levels departments may nest, a top-level department being level 1. It also
-// bounds every walk the admission webhook makes over the tree.
+// MaxDepth is how many levels departments may nest; a top-level department is level 1.
 const MaxDepth = 7
 
 // Tree maps each department name to its parent's name, "" for a top-level department.
@@ -25,9 +20,8 @@ func NewTree(departments []kaiv1alpha1.Department) Tree {
 	return tree
 }
 
-// Ancestors returns up to limit departments above name, nearest first. The walk ends at a
-// top-level department, at a parent that does not exist, or at a repeat; inLoop reports that it
-// came back to name. A walk that repeats without reaching name is under a loop, not in it.
+// Ancestors lists the departments above name, nearest first, up to limit of them.
+// inLoop is true when walking up leads back to name.
 func (t Tree) Ancestors(name string, limit int) (ancestors []string, inLoop bool) {
 	seen := map[string]bool{}
 	for parent := t[name]; parent != "" && len(ancestors) < limit; parent = t[parent] {
@@ -43,8 +37,7 @@ func (t Tree) Ancestors(name string, limit int) (ancestors []string, inLoop bool
 	return ancestors, false
 }
 
-// Height returns how many levels the subtree under name spans, name included, counting at most
-// limit levels.
+// Height counts the levels from name down to its deepest descendant, name included.
 func (t Tree) Height(name string, limit int) int {
 	children := map[string][]string{}
 	for child, parent := range t {
@@ -66,16 +59,4 @@ func (t Tree) Height(name string, limit int) int {
 		level = next
 	}
 	return height
-}
-
-// Children returns the departments whose parent is name, sorted.
-func (t Tree) Children(name string) []string {
-	var children []string
-	for child, parent := range t {
-		if parent == name {
-			children = append(children, child)
-		}
-	}
-	sort.Strings(children)
-	return children
 }

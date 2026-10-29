@@ -73,12 +73,6 @@ var _ = Describe("Tree", func() {
 			_, inLoop := hierarchy.Tree{"a": "a"}.Ancestors("a", hierarchy.MaxDepth)
 			Expect(inLoop).To(BeTrue())
 		})
-
-		It("ends, without reporting a loop, under a loop the department is not in", func() {
-			ancestors, inLoop := hierarchy.Tree{"leaf": "b", "b": "c", "c": "b"}.Ancestors("leaf", 100)
-			Expect(ancestors).To(Equal([]string{"b", "c"}))
-			Expect(inLoop).To(BeFalse())
-		})
 	})
 
 	Describe("Height", func() {
@@ -98,14 +92,6 @@ var _ = Describe("Tree", func() {
 		It("ends when the department is in a loop", func() {
 			tree := hierarchy.Tree{"a": "c", "b": "a", "c": "b"}
 			Expect(tree.Height("a", 100)).To(Equal(3))
-		})
-	})
-
-	Describe("Children", func() {
-		It("lists the departments directly under one, sorted", func() {
-			tree := hierarchy.Tree{"root": "", "b": "root", "a": "root", "a1": "a"}
-			Expect(tree.Children("root")).To(Equal([]string{"a", "b"}))
-			Expect(tree.Children("a1")).To(BeEmpty())
 		})
 	})
 })

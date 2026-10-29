@@ -14,23 +14,14 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/hierarchy"
 )
 
-// validateDepartment runs all create/update validations for a Department:
-//   - every node pool referenced by a queue must exist in the cluster (empty
-//     queues are allowed),
-//   - a new or changed parent must exist, must not be being deleted, and must
-//     leave the department tree free of loops and at most hierarchy.MaxDepth
-//     levels deep.
-//
-// oldDepartment is nil on create. All failures are aggregated so the caller
-// sees every problem at once.
+// validateDepartment reports every problem at once. oldDepartment is nil on create.
 func (v *Validator) validateDepartment(ctx context.Context, department, oldDepartment *kaiv1alpha1.Department) error {
 	var errs error
 
 	if err := v.validateQueueNodePoolsExist(ctx, department.Spec.Queues); err != nil {
 		errs = multierror.Append(errs, err)
 	}
-	// Only a new parent can break the tree. Re-checking an unchanged one would block every later
-	// write to a department that is already too deep, the finalizer removal included.
+	// An unchanged parent is not re-checked, so a tree that is already too deep can still be edited.
 	if oldDepartment == nil || oldDepartment.Spec.Parent != department.Spec.Parent {
 		if err := v.validateDepartmentParent(ctx, department); err != nil {
 			errs = multierror.Append(errs, err)
@@ -68,7 +59,7 @@ func (v *Validator) validateDepartmentParent(ctx context.Context, department *ka
 		return fmt.Errorf("department %q cannot have parent %q: that would make a loop: %s",
 			department.Name, parentName, strings.Join(loop, " → "))
 	}
-	// The department sits at level len(ancestors)+1, and its own subtree adds Height-1 levels below.
+	// Levels above the department, plus the levels of its own subtree.
 	if len(ancestors)+tree.Height(department.Name, hierarchy.MaxDepth) > hierarchy.MaxDepth {
 		return fmt.Errorf("department %q cannot have parent %q: departments can nest at most %d levels deep, "+
 			"and this would nest them deeper", department.Name, parentName, hierarchy.MaxDepth)
