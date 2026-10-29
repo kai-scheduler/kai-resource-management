@@ -1,0 +1,3 @@
+kind: Fixed
+body: |-
+  Updating a project namespace keeps labels the project-controller does not own

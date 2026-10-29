@@ -115,6 +115,15 @@ func (handler NamespaceResourceHandler) handleExistingNamespace(
 		newNamespace.Annotations[key] = value
 	}
 
+	// Same for labels: Pod Security Admission, network policy selectors and other
+	// labels set by anyone else stay, the ones this handler owns are already set.
+	for key, value := range existingNamespace.Labels {
+		if _, owned := newNamespace.Labels[key]; owned {
+			continue
+		}
+		newNamespace.Labels[key] = value
+	}
+
 	// New and existing differ, need to update
 	handler.Log.Info("Existing Namespace differs from Project spec, updating Namespace.",
 		common.LogNamespaceTag, existingNamespace.Name, common.LogProjectTag, projectName)
