@@ -334,7 +334,7 @@ var _ = Describe("Validation webhook Handle", func() {
 				v := validatorWith(chain("d", 3)...)
 
 				expectDenied(request(v, "d1", "d3", ptr.To("")),
-					`department "d1" cannot have parent "d3": that would make a loop: d1 → d3 → d2 → d1`)
+					`department "d1" cannot have parent "d3": that would make a loop: d1 -> d3 -> d2 -> d1`)
 			})
 
 			It("allows departments to nest 7 levels deep and denies an 8th", func() {

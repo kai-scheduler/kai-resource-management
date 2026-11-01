@@ -320,7 +320,7 @@ The message carries the underlying error.
 | `a department cannot be its own parent` | Name another department |
 | `parent department "x" does not exist` | Create the parent first |
 | `parent department "x" is being deleted` | Pick another parent |
-| `... that would make a loop: a → b → a` | The parent is already inside this department. Move it out first |
+| `... that would make a loop: a -> b -> a` | The parent is already inside this department. Move it out first |
 | `departments can nest at most 7 levels deep, and this would nest them deeper` | Nest less deeply, counting the departments inside this one |
 
 Only the first rule is part of the Department schema. The rest are checks of the

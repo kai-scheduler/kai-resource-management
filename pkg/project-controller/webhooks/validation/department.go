@@ -66,7 +66,7 @@ func (v *Validator) validateDepartmentParent(ctx context.Context, department *ka
 	if inLoop {
 		loop := append(append([]string{department.Name}, ancestors...), department.Name)
 		return fmt.Errorf("department %q cannot have parent %q: that would make a loop: %s",
-			department.Name, parentName, strings.Join(loop, " → "))
+			department.Name, parentName, strings.Join(loop, " -> "))
 	}
 	// Levels above the department, plus the levels of its own subtree.
 	if len(ancestors)+tree.Height(department.Name, hierarchy.MaxDepth) > hierarchy.MaxDepth {
