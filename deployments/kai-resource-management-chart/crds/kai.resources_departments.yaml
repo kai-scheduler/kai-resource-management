@@ -44,6 +44,10 @@ spec:
           spec:
             description: DepartmentSpec defines the desired state of Department
             properties:
+              parent:
+                description: The parent department of the department. Empty for a
+                  top-level department.
+                type: string
               queues:
                 description: Department's queues
                 items:
@@ -141,6 +145,10 @@ spec:
                 type: array
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: a department cannot be its own parent
+          rule: '!has(self.spec) || !has(self.spec.parent) || self.spec.parent !=
+            self.metadata.name'
     served: true
     storage: true
     subresources:
