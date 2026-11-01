@@ -244,7 +244,9 @@ projectController:
   # Flags the KRMConfig does not model, appended after every other argument.
   extraArgs: []
   # Validate on create and update: the parent department and any referenced node pools must
-  # exist, and no two queues may claim the same node pool.
+  # exist, and no two queues may claim the same node pool. The department webhook also keeps
+  # departments from nesting in a loop or more than 7 levels deep; with it off, nothing enforces
+  # either.
   webhook:
     project: true
     department: true

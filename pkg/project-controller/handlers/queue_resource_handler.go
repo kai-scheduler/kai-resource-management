@@ -127,7 +127,8 @@ func (handler QueueResourceHandler) handleExisting(ctx context.Context,
 
 func (handler QueueResourceHandler) buildQueueFromSpec(ctx context.Context, queueProjectSpec kaiv1alpha1.QueueConfig,
 	project *kaiv1alpha1.Project) (*schedv2.Queue, error) {
-	parentQueueName, err := handler.parentQueueNameForProject(ctx, project, queueProjectSpec.Nodepool)
+	parentQueueName, err := departmentQueueName(ctx, handler.Client,
+		handler.Log.WithValues(common.LogProjectTag, project.Name), project.Spec.Parent, queueProjectSpec.Nodepool)
 	if err != nil {
 		return nil, err
 	}
@@ -154,79 +155,6 @@ func (handler QueueResourceHandler) buildQueueFromSpec(ctx context.Context, queu
 	populateQueueSpec(queueProjectSpec.Resources, suggestedName, parentQueueName, queueProjectSpec.Priority, &queue.Spec)
 	addNodePoolLabelIfNeeded(queue.Labels, config.Get().NodePoolLabelKey, queueProjectSpec.Nodepool)
 	return queue, nil
-}
-
-// parentQueueNameForProject resolves the name of the parent (department) queue for a project's
-// queue in the given nodepool. It fetches the project's parent Department (project.Spec.Parent
-// is the department name), then:
-//   - derives the queue name from the department spec (GetQueueName) and, if a queue with that
-//     name exists and is owned by the department, uses it; otherwise
-//   - falls back to finding the department-owned queue for the nodepool by OwnerReference (so a
-//     collision-suffixed name is still honored).
-//
-// The parent is located via the
-// department object and OwnerReference. Returns "" when the project has no parent, the parent
-// Department does not exist, or the department has no owned queue for the nodepool.
-func (handler QueueResourceHandler) parentQueueNameForProject(ctx context.Context,
-	project *kaiv1alpha1.Project, nodepoolName string) (string, error) {
-	if project.Spec.Parent == "" {
-		return "", nil
-	}
-
-	department := &kaiv1alpha1.Department{}
-	if err := handler.Client.Get(ctx, client.ObjectKey{Name: project.Spec.Parent}, department); err != nil {
-		if errors.IsNotFound(err) {
-			handler.Log.Info("Parent department for project not found, continuing without a parent queue",
-				common.LogProjectTag, project.Name, common.LogDepartmentTag, project.Spec.Parent, "nodepool", nodepoolName)
-			return "", nil
-		}
-		handler.Log.Error(err, "Failed to get parent department for project",
-			common.LogProjectTag, project.Name, common.LogDepartmentTag, project.Spec.Parent)
-		return "", err
-	}
-
-	// First: take the name from the department spec and validate the queue exists and is owned
-	// by the department.
-	candidateName := ""
-	for i := range department.Spec.Queues {
-		if department.Spec.Queues[i].Nodepool != nodepoolName {
-			continue
-		}
-		candidateName = GetQueueName(department.Spec.Queues[i], department.Name)
-		candidate := &schedv2.Queue{}
-		err := handler.Client.Get(ctx, client.ObjectKey{Name: candidateName}, candidate)
-		if err == nil && isOwnedByUID(candidate.OwnerReferences, department.UID) {
-			return candidateName, nil
-		}
-		if err != nil && !errors.IsNotFound(err) {
-			return "", err
-		}
-		break // spec entry found but not a valid owned queue - fall back to the owner search
-	}
-	if candidateName == "" {
-		// no queue for this nodepool
-		return "", nil
-	}
-	// Fallback: find the queue owned by the department for this nodepool.
-	return handler.parentQueueByOwner(ctx, department, nodepoolName)
-}
-
-// parentQueueByOwner returns the name of the queue owned by the given department for the
-// nodepool, located by OwnerReference (not by the department identity labels).
-func (handler QueueResourceHandler) parentQueueByOwner(ctx context.Context,
-	department *kaiv1alpha1.Department, nodepoolName string) (string, error) {
-	queues, err := listQueuesForNodepool(ctx, handler.Client, nodepoolName)
-	if err != nil {
-		handler.Log.Error(err, "Failed listing queues to find parent queue by owner",
-			common.LogDepartmentTag, department.Name, "nodepool", nodepoolName)
-		return "", err
-	}
-	for i := range queues {
-		if isOwnedByUID(queues[i].OwnerReferences, department.UID) {
-			return queues[i].Name, nil
-		}
-	}
-	return "", nil
 }
 
 // isOwnedByUID reports whether any of the owner references points to the given owner UID.

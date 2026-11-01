@@ -44,16 +44,24 @@ func (v *Validator) validateParent(ctx context.Context, parent string) error {
 	if parent == "" {
 		return nil
 	}
+	_, err := v.getParentDepartment(ctx, parent)
+	return err
+}
 
+// A cache miss is read again live: a parent created a moment ago may not be cached yet.
+func (v *Validator) getParentDepartment(ctx context.Context, name string) (*kaiv1alpha1.Department, error) {
 	department := &kaiv1alpha1.Department{}
-	err := v.client.Get(ctx, types.NamespacedName{Name: parent}, department)
+	err := v.client.Get(ctx, types.NamespacedName{Name: name}, department)
 	if apierrors.IsNotFound(err) {
-		return fmt.Errorf("parent department %q does not exist", parent)
+		err = v.apiReader.Get(ctx, types.NamespacedName{Name: name}, department)
+	}
+	if apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("parent department %q does not exist", name)
 	}
 	if err != nil {
-		return newInternalError(fmt.Errorf("failed to get parent department %q: %w", parent, err))
+		return nil, newInternalError(fmt.Errorf("failed to get parent department %q: %w", name, err))
 	}
-	return nil
+	return department, nil
 }
 
 // validateDefaultNodePoolsHaveQueues ensures every node pool listed in the

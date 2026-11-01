@@ -13,6 +13,7 @@ New here? Read the [overview](overview.md), then follow the
 | --- | --- |
 | Understand what KRM is and how it fits with KAI Scheduler | [Overview](overview.md) |
 | Install it and run my first workload | [Quickstart](getting-started/quickstart.md) |
+| Install it on a cluster that already runs KAI Scheduler | [Installing alongside an existing KAI Scheduler](getting-started/co-install-with-existing-kai.md) |
 | Understand the objects I will be creating | [Concepts](concepts/README.md) |
 | Do one specific thing | [How-to guides](how-to/README.md) |
 | Look up a field, label or condition | [Reference](reference/README.md) |
