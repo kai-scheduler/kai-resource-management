@@ -38,6 +38,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 			WithScheme(scheme).
 			WithStatusSubresource(&kaiv1alpha1.Department{}).
 			WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+			WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 			Build()
 		reconciler = NewDepartmentReconciler(k8sClient)
 
@@ -78,6 +79,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 				WithScheme(scheme).
 				WithStatusSubresource(&kaiv1alpha1.Department{}).
 				WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+				WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 				WithObjects(deletedDepartment, &project).
 				Build()
 			reconcilerWithDeleted := NewDepartmentReconciler(k8sClientWithDeleted)
@@ -121,6 +123,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 				WithScheme(scheme).
 				WithStatusSubresource(&kaiv1alpha1.Department{}).
 				WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+				WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 				WithObjects(deletedDepartment).
 				Build()
 			reconcilerWithDeleted := NewDepartmentReconciler(k8sClientWithDeleted)
@@ -155,6 +158,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 				WithScheme(scheme).
 				WithStatusSubresource(&kaiv1alpha1.Department{}).
 				WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+				WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 				WithObjects(deletedDepartment).
 				Build()
 			reconcilerWithDeleted := NewDepartmentReconciler(k8sClientWithDeleted)
@@ -187,6 +191,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 				WithScheme(scheme).
 				WithStatusSubresource(&kaiv1alpha1.Department{}).
 				WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+				WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 				WithObjects(deletedDepartment, otherProject).
 				Build()
 			reconcilerWithDeleted := NewDepartmentReconciler(k8sClientWithDeleted)
@@ -221,6 +226,7 @@ var _ = Describe("Department Reconciler Tests", func() {
 					WithScheme(scheme).
 					WithStatusSubresource(&kaiv1alpha1.Department{}).
 					WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+					WithIndex(&kaiv1alpha1.Department{}, DepartmentParentIndexField, IndexDepartmentByParent).
 					WithObjects(objects...).
 					Build()
 

@@ -17,7 +17,6 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/common"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
-	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/hierarchy"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,7 +31,16 @@ const (
 	rateLimiterMaxDelay  = time.Second * 10
 
 	ProjectDepartmentIndexField = "spec.parent"
+	DepartmentParentIndexField  = "spec.parent"
 )
+
+func IndexDepartmentByParent(obj client.Object) []string {
+	department, ok := obj.(*kaiv1alpha1.Department)
+	if !ok || department.Spec.Parent == "" {
+		return nil
+	}
+	return []string{department.Spec.Parent}
+}
 
 // IndexProjectByDepartment extracts the department a project references, for use
 // as a field indexer value. Returns nil for projects with no department so they
@@ -127,9 +135,9 @@ func (r *DepartmentReconciler) finalize(ctx context.Context,
 		r.Log.Info("Department cannot be deleted - it still has child departments. "+
 			"Blocking deletion until they are moved or removed.",
 			common.LogDepartmentTag, department.Name, "childDepartmentsCount", len(children),
-			"childDepartment", children[0])
+			"childDepartment", children[0].Name)
 		return r.blockDeletion(ctx, department, "ChildDepartmentsStillAssigned", "child department(s)",
-			len(children), children[0])
+			len(children), children[0].Name)
 	}
 
 	if err := r.removeFinalizer(ctx, department); err != nil {
@@ -198,14 +206,15 @@ func (r *DepartmentReconciler) getProjectsOfDepartment(ctx context.Context,
 	return projectList.Items, nil
 }
 
-// getChildDepartments returns the names of the departments whose parent is the given department,
-// sorted.
-func (r *DepartmentReconciler) getChildDepartments(ctx context.Context, departmentName string) ([]string, error) {
+// getChildDepartments returns the departments whose parent is the given department.
+func (r *DepartmentReconciler) getChildDepartments(ctx context.Context,
+	departmentName string) ([]kaiv1alpha1.Department, error) {
 	departmentList := &kaiv1alpha1.DepartmentList{}
-	if err := r.client.List(ctx, departmentList); err != nil {
+	if err := r.client.List(ctx, departmentList,
+		client.MatchingFields{DepartmentParentIndexField: departmentName}); err != nil {
 		return nil, err
 	}
-	return hierarchy.NewTree(departmentList.Items).Children(departmentName), nil
+	return departmentList.Items, nil
 }
 
 func (r *DepartmentReconciler) addFinalizerIfNeeded(ctx context.Context,
@@ -253,10 +262,14 @@ func (r *DepartmentReconciler) updateFinalizers(ctx context.Context,
 }
 
 func (r *DepartmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Register a field indexer so departments can look up the projects that reference
-	// them by spec.parent (used by getProjectsOfDepartment during finalization).
+	// Register field indexers so a department can look up the projects and child departments
+	// that reference it by spec.parent.
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kaiv1alpha1.Project{},
 		ProjectDepartmentIndexField, IndexProjectByDepartment); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kaiv1alpha1.Department{},
+		DepartmentParentIndexField, IndexDepartmentByParent); err != nil {
 		return err
 	}
 
