@@ -350,7 +350,9 @@ func (reconciler *ProjectReconciler) SetupWithManager(mgr ctrl.Manager, config *
 		WatchesRawSource(source.Channel[client.Object](reconciler.projectEvents, &handler.TypedEnqueueRequestForObject[client.Object]{})).
 		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapNamespaceToProjectEvent)).
 		Watches(&rbacv1.RoleBinding{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapRoleBindingToProjectEvent)).
-		Owns(&kaiv2.Queue{})
+		Owns(&kaiv2.Queue{}).
+		Watches(&kaiv2.Queue{}, handler.EnqueueRequestsFromMapFunc(reconciler.MapQueueToChildProjects),
+			builder.WithPredicates(QueuePlacementChangedPredicate))
 
 	if config.CreateRoleBindings && config.RoleBindingsCm != "" {
 		result = result.Watches(

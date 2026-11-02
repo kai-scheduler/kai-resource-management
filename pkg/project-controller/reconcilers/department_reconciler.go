@@ -241,23 +241,8 @@ func (r *DepartmentReconciler) getChildDepartments(ctx context.Context,
 // MapQueueToChildDepartments maps a department's queue to the departments under that department,
 // so they place their queues under it once it exists, and follow it when it goes away or moves.
 func (r *DepartmentReconciler) MapQueueToChildDepartments(ctx context.Context, obj client.Object) []reconcile.Request {
-	owner, ok := common.ProjectOrDepartmentOwner(obj)
-	if !ok || owner.Kind != common.DepartmentKind {
-		return nil
-	}
-
-	children := &kaiv1alpha1.DepartmentList{}
-	if err := r.client.List(ctx, children, client.MatchingFields{DepartmentParentIndexField: owner.Name}); err != nil {
-		r.Log.Error(err, "Failed listing child departments for a queue event",
-			common.LogQueueTag, obj.GetName(), common.LogDepartmentTag, owner.Name)
-		return nil
-	}
-
-	requests := make([]reconcile.Request, 0, len(children.Items))
-	for _, child := range children.Items {
-		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: child.Name}})
-	}
-	return requests
+	return mapQueueToDepartmentChildren(ctx, r.client, r.Log, obj,
+		&kaiv1alpha1.DepartmentList{}, DepartmentParentIndexField)
 }
 
 func (r *DepartmentReconciler) addFinalizerIfNeeded(ctx context.Context,
