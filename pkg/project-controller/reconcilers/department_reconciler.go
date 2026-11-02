@@ -31,7 +31,16 @@ const (
 	rateLimiterMaxDelay  = time.Second * 10
 
 	ProjectDepartmentIndexField = "spec.parent"
+	DepartmentParentIndexField  = "spec.parent"
 )
+
+func IndexDepartmentByParent(obj client.Object) []string {
+	department, ok := obj.(*kaiv1alpha1.Department)
+	if !ok || department.Spec.Parent == "" {
+		return nil
+	}
+	return []string{department.Spec.Parent}
+}
 
 // IndexProjectByDepartment extracts the department a project references, for use
 // as a field indexer value. Returns nil for projects with no department so they
@@ -89,8 +98,8 @@ func (r *DepartmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 // finalize is invoked when a Department has a deletion timestamp. It only allows
-// the deletion to proceed (by removing our finalizer) once no Project references
-// the department in its spec.
+// the deletion to proceed (by removing our finalizer) once no Project or child
+// Department references the department in its spec.
 func (r *DepartmentReconciler) finalize(ctx context.Context,
 	department *kaiv1alpha1.Department) (ctrl.Result, error) {
 	if !common.ContainsString(config.DepartmentFinalizerName(), department.Finalizers) {
@@ -112,30 +121,50 @@ func (r *DepartmentReconciler) finalize(ctx context.Context,
 			"Blocking deletion until all assigned projects are removed.",
 			common.LogDepartmentTag, department.Name, "projectsCount", len(projects),
 			common.LogProjectTag, projects[0].Name)
+		return r.blockDeletion(ctx, department, "ProjectsStillAssigned", "project(s)", len(projects), projects[0].Name)
+	}
 
-		condition := kaiv1alpha1.DepartmentCondition{
-			Type:   kaiv1alpha1.DepartmentDeletionBlocked,
-			Status: corev1.ConditionTrue,
-			Reason: "ProjectsStillAssigned",
-			Message: fmt.Sprintf("%d project(s) still reference this department, e.g. %q",
-				len(projects), projects[0].Name),
-		}
-		if err := r.updateDepartmentStatusCondition(ctx, department, condition); err != nil {
-			return ctrl.Result{}, err
-		}
+	children, err := r.getChildDepartments(ctx, department.Name)
+	if err != nil {
+		r.Log.Error(err, "Failed listing child departments while finalizing department",
+			common.LogDepartmentTag, department.Name)
+		return ctrl.Result{}, err
+	}
 
-		return ctrl.Result{}, fmt.Errorf(
-			"department %q cannot be deleted: %d project(s) still reference it (e.g. %q)",
-			department.Name, len(projects), projects[0].Name)
+	if len(children) > 0 {
+		r.Log.Info("Department cannot be deleted - it still has child departments. "+
+			"Blocking deletion until they are moved or removed.",
+			common.LogDepartmentTag, department.Name, "childDepartmentsCount", len(children),
+			"childDepartment", children[0].Name)
+		return r.blockDeletion(ctx, department, "ChildDepartmentsStillAssigned", "child department(s)",
+			len(children), children[0].Name)
 	}
 
 	if err := r.removeFinalizer(ctx, department); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	r.Log.Info("No projects reference the department - finalization complete",
+	r.Log.Info("No projects or child departments reference the department - finalization complete",
 		common.LogDepartmentTag, department.Name)
 	return ctrl.Result{}, nil
+}
+
+// blockDeletion records on the department why it cannot be deleted yet, and returns an error so
+// the deletion is retried.
+func (r *DepartmentReconciler) blockDeletion(ctx context.Context, department *kaiv1alpha1.Department,
+	reason, referrers string, count int, example string) (ctrl.Result, error) {
+	condition := kaiv1alpha1.DepartmentCondition{
+		Type:    kaiv1alpha1.DepartmentDeletionBlocked,
+		Status:  corev1.ConditionTrue,
+		Reason:  reason,
+		Message: fmt.Sprintf("%d %s still reference this department, e.g. %q", count, referrers, example),
+	}
+	if err := r.updateDepartmentStatusCondition(ctx, department, condition); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, fmt.Errorf("department %q cannot be deleted: %d %s still reference it (e.g. %q)",
+		department.Name, count, referrers, example)
 }
 
 // updateDepartmentStatusCondition upserts the given condition into the department's status
@@ -175,6 +204,17 @@ func (r *DepartmentReconciler) getProjectsOfDepartment(ctx context.Context,
 		return nil, err
 	}
 	return projectList.Items, nil
+}
+
+// getChildDepartments returns the departments whose parent is the given department.
+func (r *DepartmentReconciler) getChildDepartments(ctx context.Context,
+	departmentName string) ([]kaiv1alpha1.Department, error) {
+	departmentList := &kaiv1alpha1.DepartmentList{}
+	if err := r.client.List(ctx, departmentList,
+		client.MatchingFields{DepartmentParentIndexField: departmentName}); err != nil {
+		return nil, err
+	}
+	return departmentList.Items, nil
 }
 
 func (r *DepartmentReconciler) addFinalizerIfNeeded(ctx context.Context,
@@ -222,10 +262,14 @@ func (r *DepartmentReconciler) updateFinalizers(ctx context.Context,
 }
 
 func (r *DepartmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Register a field indexer so departments can look up the projects that reference
-	// them by spec.parent (used by getProjectsOfDepartment during finalization).
+	// Register field indexers so a department can look up the projects and child departments
+	// that reference it by spec.parent.
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kaiv1alpha1.Project{},
 		ProjectDepartmentIndexField, IndexProjectByDepartment); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kaiv1alpha1.Department{},
+		DepartmentParentIndexField, IndexDepartmentByParent); err != nil {
 		return err
 	}
 

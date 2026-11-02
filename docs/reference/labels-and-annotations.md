@@ -195,7 +195,7 @@ and removing it skips whatever cleanup it was guarding.
 | --- | --- | --- | --- |
 | `nodepool.kai.scheduler/finalize` | configurable | NodePool | Nodes still need reassigning, or a project still has a queue for the pool |
 | `kai.resources.finalizers.project` | configurable | Project | Queues and namespace are still being cleaned up, or a delete-blocker matches |
-| `kai.resources.finalizers.department` | configurable | Department | Any project still names it as parent |
+| `kai.resources.finalizers.department` | configurable | Department | Any project or department still names it as parent |
 
 An object sitting in `Terminating` is waiting on one of these, and its status conditions
 say what for.

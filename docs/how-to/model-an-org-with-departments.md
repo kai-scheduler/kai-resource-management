@@ -155,7 +155,7 @@ The hierarchy is enforced on the way out too.
 kubectl delete department engineering
 ```
 
-That hangs — deliberately — while any project still names it:
+That hangs — deliberately — while any project or department still names it:
 
 ```bash
 kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
@@ -166,7 +166,8 @@ kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
   "message":"2 project(s) still reference this department, e.g. \"research\""}]
 ```
 
-Delete or re-parent the projects and it completes on its own.
+Delete or re-parent them and it completes on its own. A department still named by another
+department reports `ChildDepartmentsStillAssigned` instead.
 
 To require that a project's own namespace be emptied before it can go, set:
 
