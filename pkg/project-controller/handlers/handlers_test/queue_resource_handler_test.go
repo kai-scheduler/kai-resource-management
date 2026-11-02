@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -48,12 +49,12 @@ var _ = Describe("Queue Resource Handler", func() {
 
 		k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 		handler = NewQueueResourceHandler(k8sClient)
-		departmentHandler = NewDepartmentHandler(k8sClient)
+		departmentHandler = NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
 
 		// will create the parent queues that project handler is expecting
-		err := departmentHandler.Handle(context.Background(), &dep1)
+		_, err := departmentHandler.Handle(context.Background(), &dep1)
 		Expect(err).Should(Succeed())
-		err = departmentHandler.Handle(context.Background(), &dep2)
+		_, err = departmentHandler.Handle(context.Background(), &dep2)
 		Expect(err).Should(Succeed())
 
 		// persist the department objects so the project handler can look up the parent queue
@@ -377,7 +378,7 @@ var _ = Describe("Queue Resource Handler", func() {
 
 			// create the department (queues + persisted object for parent lookup)
 			newDep := KaiTestDepartment3.DeepCopy()
-			err = departmentHandler.Handle(context.Background(), newDep)
+			_, err = departmentHandler.Handle(context.Background(), newDep)
 			Expect(err).Should(Succeed())
 			Expect(k8sClient.Create(context.Background(), newDep)).To(Succeed())
 

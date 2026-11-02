@@ -326,6 +326,20 @@ The message carries the underlying error.
 Only the first rule is part of the Department schema. The rest are checks of the
 department webhook, and do not run with `projectController.webhook.department` off.
 
+### A department's queue stays a root queue
+
+```bash
+kubectl get events --field-selector reason=ParentQueueLoop
+```
+
+The controller never builds a loop of queues, which would stop KAI Scheduler. When
+placing a department's queue under its parent's would close one, the queue stays a root
+queue, the department gets a `ParentQueueLoop` Warning event, and the controller retries
+every minute.
+
+For a moment this is normal, while two departments swap places. If it lasts, the
+departments' parents form a loop: fix the `parent` of one of them.
+
 ### Department will not delete
 
 ```bash
@@ -551,7 +565,7 @@ KAI Resource Management (Department "research") ...
 ```
 
 With `commonArgs.allowExternalQueues` on, a queue that no project or department owns
-cannot be placed under one that does, because KRM manages only its own two-level tree. See
+cannot be placed under one that does, because KRM manages only its own tree. See
 [keeping the two kinds of tree apart](../concepts/queues-and-quota.md#keeping-the-two-kinds-of-tree-apart).
 Either pick a parent KRM does not manage, or model the workload as a project under that
 department instead of a hand-made queue. To see who owns the parent:

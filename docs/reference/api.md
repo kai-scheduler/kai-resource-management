@@ -133,10 +133,12 @@ All **controller-written**.
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
+| `parent` | string | — | The department this department sits inside. Must exist, must not be this department, and must not make a loop or nest departments more than 7 levels deep. Empty means a top-level department |
 | `queues` | array | **required** | One entry per node pool. See [QueueConfig](#queueconfig) |
 
-A department has no namespace, no `parent`, and runs nothing. Its queues are the parents of
-its projects' queues **for the same node pool**.
+A department has no namespace and runs nothing. Its queues are the parents of its
+projects' and child departments' queues **for the same node pool**, and sit under its own
+parent's queue for that pool.
 
 ### `status`
 

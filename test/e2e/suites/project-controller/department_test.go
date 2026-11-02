@@ -6,6 +6,7 @@ package project_controller
 import (
 	"time"
 
+	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,5 +62,64 @@ var _ = Describe("Deleting a department", Ordered, Label("project-controller"), 
 		wait.ForDeleted(ctx, testClient, project)
 
 		wait.ForDeleted(ctx, testClient, department)
+	})
+})
+
+var _ = Describe("Nested departments", Ordered, Label("project-controller"), func() {
+	var top, middle, other, leaf *kaires.Department
+
+	// newDepartment creates a department and registers its deletion, so cleanup removes children
+	// before the parents whose deletion they would block.
+	newDepartment := func(prefix string, options ...resources.DepartmentOption) *kaires.Department {
+		department := resources.Department(utils.GenerateName(prefix),
+			[]string{testcontext.DefaultNodePoolName}, options...)
+		Expect(testClient.Create(ctx, department)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(testClient.Delete(ctx, department))).To(Succeed())
+			wait.ForDeleted(ctx, testClient, department)
+		})
+		return department
+	}
+
+	queueOf := func(owner string) string {
+		return resources.QueueName(owner, testcontext.DefaultNodePoolName)
+	}
+
+	expectParentQueue := func(owner, parentOwner string) {
+		Eventually(func(g Gomega) {
+			queue := &schedv2.Queue{}
+			g.Expect(testClient.Get(ctx, types.NamespacedName{Name: queueOf(owner)}, queue)).To(Succeed())
+			g.Expect(queue.Spec.ParentQueue).To(Equal(queueOf(parentOwner)))
+		}).Should(Succeed())
+	}
+
+	BeforeAll(func() {
+		top = newDepartment("pc-top")
+		other = newDepartment("pc-other")
+		middle = newDepartment("pc-middle", resources.WithParent(top.Name))
+		leaf = newDepartment("pc-leaf", resources.WithParent(middle.Name))
+	})
+
+	It("places each queue under its parent's queue, down to a project", func() {
+		project, _ := newProject(resources.WithParentDepartment(leaf.Name))
+
+		expectParentQueue(middle.Name, top.Name)
+		expectParentQueue(leaf.Name, middle.Name)
+		expectParentQueue(project.Name, leaf.Name)
+	})
+
+	It("moves a department's queue in place, keeping the departments under it", func() {
+		before := wait.ForQueue(ctx, testClient, queueOf(middle.Name))
+
+		Eventually(func(g Gomega) {
+			latest := &kaires.Department{}
+			g.Expect(testClient.Get(ctx, types.NamespacedName{Name: middle.Name}, latest)).To(Succeed())
+			latest.Spec.Parent = other.Name
+			g.Expect(testClient.Update(ctx, latest)).To(Succeed())
+		}).Should(Succeed())
+
+		expectParentQueue(middle.Name, other.Name)
+		Expect(wait.ForQueue(ctx, testClient, queueOf(middle.Name)).UID).To(Equal(before.UID))
+		expectParentQueue(leaf.Name, middle.Name)
 	})
 })

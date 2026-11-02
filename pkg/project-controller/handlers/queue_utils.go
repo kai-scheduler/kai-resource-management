@@ -219,10 +219,10 @@ func departmentQueueName(ctx context.Context, k8sClient client.Client, log logr.
 	if err := k8sClient.Get(ctx, client.ObjectKey{Name: departmentName}, department); err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("Parent department not found, continuing without a parent queue",
-				common.LogDepartmentTag, departmentName, "nodepool", nodepoolName)
+				"parentDepartment", departmentName, "nodepool", nodepoolName)
 			return "", nil
 		}
-		log.Error(err, "Failed to get parent department", common.LogDepartmentTag, departmentName)
+		log.Error(err, "Failed to get parent department", "parentDepartment", departmentName)
 		return "", err
 	}
 
@@ -256,7 +256,7 @@ func departmentQueueByOwner(ctx context.Context, k8sClient client.Client, log lo
 	queues, err := listQueuesForNodepool(ctx, k8sClient, nodepoolName)
 	if err != nil {
 		log.Error(err, "Failed listing queues to find parent queue by owner",
-			common.LogDepartmentTag, department.Name, "nodepool", nodepoolName)
+			"parentDepartment", department.Name, "nodepool", nodepoolName)
 		return "", err
 	}
 	for i := range queues {
@@ -265,6 +265,31 @@ func departmentQueueByOwner(ctx context.Context, k8sClient client.Client, log lo
 		}
 	}
 	return "", nil
+}
+
+// wouldCloseQueueLoop reports whether queueName is parentQueue or above it. It reads live: the
+// cache may not hold this controller's last write yet.
+func wouldCloseQueueLoop(ctx context.Context, reader client.Reader, queueName, parentQueue string) (bool, error) {
+	seen := map[string]bool{}
+	for name := parentQueue; name != ""; {
+		if name == queueName {
+			return true, nil
+		}
+		if seen[name] {
+			return false, nil
+		}
+		seen[name] = true
+
+		queue := &schedv2.Queue{}
+		if err := reader.Get(ctx, client.ObjectKey{Name: name}, queue); err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		name = queue.Spec.ParentQueue
+	}
+	return false, nil
 }
 
 // deleteUnnecessaryQueues - in case a nodepool was deleted, we need to delete its queue.

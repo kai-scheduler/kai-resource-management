@@ -18,7 +18,8 @@ KRM adds five things:
 
 - **Node pools** — named slices of the cluster's nodes, each with its own scheduler
   configuration.
-- **Departments and projects** — a two-level team hierarchy, cluster-scoped.
+- **Departments and projects** — a team hierarchy, cluster-scoped: departments can nest,
+  and projects sit at the bottom.
 - **Queues** — per-project, per-node-pool quota with a guaranteed share, a hard ceiling,
   and a weight that governs how idle capacity is shared out.
 - **Project namespaces** — created and maintained for you, so a team gets a place to

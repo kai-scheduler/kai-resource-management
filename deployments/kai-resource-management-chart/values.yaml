@@ -246,7 +246,7 @@ projectController:
   # Validate on create and update: the parent department and any referenced node pools must
   # exist, and no two queues may claim the same node pool. The department webhook also keeps
   # departments from nesting in a loop or more than 7 levels deep; with it off, nothing enforces
-  # either.
+  # the depth, and the controller keeps any queue that would close a loop a root queue.
   webhook:
     project: true
     department: true

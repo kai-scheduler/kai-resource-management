@@ -15,8 +15,8 @@ import (
 )
 
 // validateQueue keeps queue trees that KRM does not own apart from the ones it does: KRM
-// models exactly two levels (department queue, then project queue), so a queue it does not
-// own, placed under one of its queues, builds a tree it can neither model nor safely reconcile.
+// builds its tree from Departments and Projects, so a queue it does not own, placed under one
+// of its queues, builds a tree it can neither model nor safely reconcile.
 // oldQueue is nil on create.
 func (v *Validator) validateQueue(ctx context.Context, queue, oldQueue *kaiv2.Queue) error {
 	parentName := queue.Spec.ParentQueue
@@ -50,7 +50,7 @@ func (v *Validator) validateQueue(ctx context.Context, queue, oldQueue *kaiv2.Qu
 		return nil
 	}
 	return fmt.Errorf("queue %q cannot use %q as its parent queue: %q is managed by KAI Resource Management "+
-		"(%s %q), which supports only its own two-level hierarchy. Choose a parent queue that "+
+		"(%s %q), which supports only its own queue tree. Choose a parent queue that "+
 		"KAI Resource Management does not manage, or create a Project instead of this queue",
 		queue.Name, parentName, parentName, owner.Kind, owner.Name)
 }

@@ -20,15 +20,23 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
 	rateLimiterBaseDelay = time.Millisecond * 500
 	rateLimiterMaxDelay  = time.Second * 10
+
+	heldQueueRetryInterval = time.Minute
 
 	ProjectDepartmentIndexField = "spec.parent"
 	DepartmentParentIndexField  = "spec.parent"
@@ -40,6 +48,16 @@ func IndexDepartmentByParent(obj client.Object) []string {
 		return nil
 	}
 	return []string{department.Spec.Parent}
+}
+
+// QueuePlacementChangedPredicate passes queue creates, deletes and parent changes, and drops the
+// status updates KAI Scheduler makes constantly.
+var QueuePlacementChangedPredicate = predicate.Funcs{
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		oldQueue, oldOK := e.ObjectOld.(*kaiv2.Queue)
+		newQueue, newOK := e.ObjectNew.(*kaiv2.Queue)
+		return oldOK && newOK && oldQueue.Spec.ParentQueue != newQueue.Spec.ParentQueue
+	},
 }
 
 // IndexProjectByDepartment extracts the department a project references, for use
@@ -60,13 +78,13 @@ type DepartmentReconciler struct {
 	departmentHandler handlers.DepartmentHandler
 }
 
-func NewDepartmentReconciler(client client.Client) *DepartmentReconciler {
+func NewDepartmentReconciler(client client.Client, apiReader client.Reader, recorder events.EventRecorder) *DepartmentReconciler {
 	logger := ctrl.Log.WithName(common.LogDepartmentTag)
 
 	return &DepartmentReconciler{
 		client:            client,
 		Log:               logger,
-		departmentHandler: handlers.NewDepartmentHandler(client),
+		departmentHandler: handlers.NewDepartmentHandler(client, apiReader, recorder),
 	}
 }
 
@@ -90,9 +108,12 @@ func (r *DepartmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	err := r.departmentHandler.Handle(ctx, department)
+	heldAsRoot, err := r.departmentHandler.Handle(ctx, department)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
+	}
+	if heldAsRoot {
+		return ctrl.Result{RequeueAfter: heldQueueRetryInterval}, nil
 	}
 	return ctrl.Result{}, nil
 }
@@ -217,6 +238,28 @@ func (r *DepartmentReconciler) getChildDepartments(ctx context.Context,
 	return departmentList.Items, nil
 }
 
+// MapQueueToChildDepartments maps a department's queue to the departments under that department,
+// so they place their queues under it once it exists, and follow it when it goes away or moves.
+func (r *DepartmentReconciler) MapQueueToChildDepartments(ctx context.Context, obj client.Object) []reconcile.Request {
+	owner, ok := common.ProjectOrDepartmentOwner(obj)
+	if !ok || owner.Kind != common.DepartmentKind {
+		return nil
+	}
+
+	children := &kaiv1alpha1.DepartmentList{}
+	if err := r.client.List(ctx, children, client.MatchingFields{DepartmentParentIndexField: owner.Name}); err != nil {
+		r.Log.Error(err, "Failed listing child departments for a queue event",
+			common.LogQueueTag, obj.GetName(), common.LogDepartmentTag, owner.Name)
+		return nil
+	}
+
+	requests := make([]reconcile.Request, 0, len(children.Items))
+	for _, child := range children.Items {
+		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: child.Name}})
+	}
+	return requests
+}
+
 func (r *DepartmentReconciler) addFinalizerIfNeeded(ctx context.Context,
 	department *kaiv1alpha1.Department) error {
 	if common.ContainsString(config.DepartmentFinalizerName(), department.Finalizers) {
@@ -276,6 +319,8 @@ func (r *DepartmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kaiv1alpha1.Department{}).
 		Owns(&kaiv2.Queue{}).
+		Watches(&kaiv2.Queue{}, handler.EnqueueRequestsFromMapFunc(r.MapQueueToChildDepartments),
+			builder.WithPredicates(QueuePlacementChangedPredicate)).
 		WithOptions(controller.Options{RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[ctrl.Request](rateLimiterBaseDelay, rateLimiterMaxDelay)}).
 		Complete(r)
 }

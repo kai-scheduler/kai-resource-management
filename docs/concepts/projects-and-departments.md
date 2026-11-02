@@ -4,8 +4,9 @@ A **project** is a team. It is the unit that owns quota, owns a namespace, and t
 workloads are submitted into. A **department** is a group of projects that share a larger
 node pool of quota.
 
-Both are cluster-scoped, and the hierarchy is exactly two levels deep: a project may name
-one department as its parent, and a department has no parent of its own.
+Both are cluster-scoped. A project may name one department as its parent, and a department
+may name another department as its own, so departments can nest. Projects are always at the
+bottom: nothing names a project as its parent.
 
 ```mermaid
 flowchart TD
@@ -27,6 +28,32 @@ carved out of its own, and idle capacity is redistributed within it before it le
 
 The parent is optional. A project with no `parent` is a root in its own right — fine for a
 small cluster, and the thing to reach for when you have no organizational layer to model.
+
+### Departments inside departments
+
+A department with a `parent` sits inside that department, the way a project does:
+
+```yaml
+apiVersion: kai.resources/v1alpha1
+kind: Department
+metadata:
+  name: ml
+spec:
+  parent: engineering
+  queues:
+    - nodepool: h100
+      resources:
+        gpu: { deserved: 4 }
+```
+
+Its queue for a node pool goes under the parent department's queue for the same node pool,
+so its guarantee is carved out of the parent's. Where the parent has no queue for that node
+pool, the queue is a root instead. Changing `parent` moves the department's queues, with
+the departments and projects inside them, without recreating anything.
+
+Departments nest at most seven levels deep, and never in a loop. The department webhook
+refuses a `parent` that breaks either rule; see
+[the webhook's checks](../how-to/troubleshooting.md#a-department-is-refused-its-parent).
 
 ## What creating a project gives you
 

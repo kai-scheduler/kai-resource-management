@@ -15,6 +15,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/handlers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -47,7 +48,7 @@ var _ = Describe("Queue naming", func() {
 	Describe("collision - a random suffix is appended when the suggested name is taken", func() {
 		It("keeps the suggested name as a prefix and appends a suffix when another resource owns it", func() {
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-			handler := handlers.NewDepartmentHandler(k8sClient)
+			handler := handlers.NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
 
 			// A department whose default-nodepool queue has no explicit name, so its suggested
 			// name is the fallback "<department-name>" = "dep-a".
@@ -79,7 +80,7 @@ var _ = Describe("Queue naming", func() {
 			Expect(k8sClient.Create(context.Background(), takenQueue)).To(Succeed())
 
 			// When
-			Expect(handler.Handle(context.Background(), department)).To(Succeed())
+			Expect(handler.Handle(context.Background(), department)).Error().NotTo(HaveOccurred())
 
 			// Then - dep-a's queue was created with the suggested name as a prefix plus a random
 			// suffix (not the exact suggested name, which is taken by other-dep), and is owned by dep-a.

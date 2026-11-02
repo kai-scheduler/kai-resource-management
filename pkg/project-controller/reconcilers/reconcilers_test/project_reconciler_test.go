@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -75,8 +76,8 @@ var _ = Describe("Project Reconciler Tests", func() {
 		newNamespaceName = handlers.DefaultProjectNamespaceName(&project)
 
 		// will create the parent queues that project Reconcile is expecting
-		departmentHandler := handlers.NewDepartmentHandler(k8sClient)
-		err := departmentHandler.Handle(context.Background(), &dep)
+		departmentHandler := handlers.NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
+		_, err := departmentHandler.Handle(context.Background(), &dep)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
