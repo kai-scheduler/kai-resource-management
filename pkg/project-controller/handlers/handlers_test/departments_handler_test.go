@@ -19,9 +19,11 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/test"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -42,7 +44,7 @@ var _ = Describe("Department Handler Tests", func() {
 		queuenp1 = *test.KaiTestQueueDep1Np1.DeepCopy()
 
 		k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
-		handler = handlers.NewDepartmentHandler(k8sClient)
+		handler = handlers.NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
 	})
 
 	Context("With external queues allowed, Queues carrying the department's label", func() {
@@ -80,7 +82,7 @@ var _ = Describe("Department Handler Tests", func() {
 				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
 			}
 
-			Expect(handler.Handle(context.Background(), withThirdPool)).To(Succeed())
+			Expect(handler.Handle(context.Background(), withThirdPool)).Error().NotTo(HaveOccurred())
 
 			updated, err := getQueue(k8sClient, owned.Name)
 			Expect(err).ToNot(HaveOccurred())
@@ -116,7 +118,7 @@ var _ = Describe("Department Handler Tests", func() {
 				Expect(k8sClient.Create(context.TODO(), existing.DeepCopy())).To(Succeed())
 			}
 
-			Expect(handler.Handle(context.Background(), &dep2)).To(Succeed())
+			Expect(handler.Handle(context.Background(), &dep2)).Error().NotTo(HaveOccurred())
 
 			_, err := getQueue(k8sClient, owned.Name)
 			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the owned Queue is deleted")
@@ -142,7 +144,7 @@ var _ = Describe("Department Handler Tests", func() {
 			Expect(beforeCreation).To(BeZero())
 
 			// When
-			err := handler.Handle(context.Background(), &dep2)
+			_, err := handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
 
 			// Then
@@ -160,7 +162,7 @@ var _ = Describe("Department Handler Tests", func() {
 			populateGVK(&dep1)
 
 			// When
-			err := handler.Handle(context.Background(), &dep1)
+			_, err := handler.Handle(context.Background(), &dep1)
 			Expect(err).Should(Succeed())
 
 			// Then
@@ -183,7 +185,7 @@ var _ = Describe("Department Handler Tests", func() {
 		})
 
 		It("Not modifying the queues when the department name changes (only owner ref name)", func() {
-			err := handler.Handle(context.Background(), &dep2)
+			_, err := handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
 
 			assertQueuesIdenticalToDepartmentSpec(k8sClient, &dep2, test.TestDepartment2Id)
@@ -193,7 +195,7 @@ var _ = Describe("Department Handler Tests", func() {
 			renamedDep.Name = "different-name"
 
 			// validate spec as expected for new department name after Handle
-			err = handler.Handle(context.Background(), renamedDep)
+			_, err = handler.Handle(context.Background(), renamedDep)
 			Expect(err).Should(Succeed())
 			assertQueuesIdenticalToDepartmentSpec(k8sClient, renamedDep, test.TestDepartment2Id)
 
@@ -220,7 +222,7 @@ var _ = Describe("Department Handler Tests", func() {
 			Expect(err).Should(Succeed())
 
 			// When
-			err = handler.Handle(context.Background(), &dep2)
+			_, err = handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
 
 			// Then
@@ -234,9 +236,9 @@ var _ = Describe("Department Handler Tests", func() {
 			Expect(err).Should(Succeed())
 			createdDepartmentQueueNameSomeNodepool := queue.Name
 
-			err = handler.Handle(context.Background(), &dep2)
+			_, err = handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
-			err = handler.Handle(context.Background(), &dep2)
+			_, err = handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
 
 			assertQueuesIdenticalToDepartmentSpecInner(k8sClient, &dep2,
@@ -261,7 +263,7 @@ var _ = Describe("Department Handler Tests", func() {
 			dep3.Spec.Queues[1].Nodepool = "the-longest-possible-nodepool-name-that-is-exactly-63-charslon2"
 
 			// When
-			err := handler.Handle(context.Background(), dep3)
+			_, err := handler.Handle(context.Background(), dep3)
 			Expect(err).Should(Succeed())
 
 			// Then
@@ -277,7 +279,7 @@ var _ = Describe("Department Handler Tests", func() {
 			queue1Name := queue1.Name
 
 			// Handle again to ensure no changes
-			err = handler.Handle(context.Background(), dep3)
+			_, err = handler.Handle(context.Background(), dep3)
 			Expect(err).Should(Succeed())
 
 			assertQueuesIdenticalToDepartmentSpecInner(k8sClient, dep3, test.TestDepartment3Id, false)
@@ -294,7 +296,7 @@ var _ = Describe("Department Handler Tests", func() {
 	Describe("Department Handler Tests - validate correct deletion of queues", func() {
 		It("Delete queue if nodepool deleted - removed from department spec", func() {
 			// When
-			err := handler.Handle(context.Background(), &dep2)
+			_, err := handler.Handle(context.Background(), &dep2)
 			Expect(err).Should(Succeed())
 
 			// Then
@@ -309,7 +311,7 @@ var _ = Describe("Department Handler Tests", func() {
 			modifiedDep.Spec.Queues = []kaiv1alpha1.QueueConfig{modifiedDep.Spec.Queues[0]}
 
 			// validate spec as expected after Handle
-			err = handler.Handle(context.Background(), modifiedDep)
+			_, err = handler.Handle(context.Background(), modifiedDep)
 			Expect(err).Should(Succeed())
 
 			assertQueuesIdenticalToDepartmentSpec(k8sClient, modifiedDep, test.TestDepartment2Id)
@@ -319,17 +321,134 @@ var _ = Describe("Department Handler Tests", func() {
 		})
 	})
 
+	Context("Nested departments", func() {
+		var recorder *events.FakeRecorder
+
+		BeforeEach(func() {
+			recorder = events.NewFakeRecorder(10)
+			handler = handlers.NewDepartmentHandler(k8sClient, k8sClient, recorder)
+		})
+
+		// newDepartment creates a department with one unnamed queue per node pool, so its queues are
+		// named "<name>" in the default node pool and "<name>-<nodepool>" elsewhere.
+		newDepartment := func(name, parent string, nodepools ...string) *kaiv1alpha1.Department {
+			department := &kaiv1alpha1.Department{
+				ObjectMeta: metav1.ObjectMeta{Name: name, UID: types.UID(name + "-uid")},
+				Spec:       kaiv1alpha1.DepartmentSpec{Parent: parent},
+			}
+			for _, nodepool := range nodepools {
+				department.Spec.Queues = append(department.Spec.Queues, kaiv1alpha1.QueueConfig{Nodepool: nodepool})
+			}
+			Expect(k8sClient.Create(context.TODO(), department)).To(Succeed())
+			return department
+		}
+
+		reparent := func(department *kaiv1alpha1.Department, parent string) {
+			department.Spec.Parent = parent
+			Expect(k8sClient.Update(context.TODO(), department)).To(Succeed())
+		}
+
+		handle := func(department *kaiv1alpha1.Department) (heldAsRoot bool) {
+			heldAsRoot, err := handler.Handle(context.Background(), department)
+			Expect(err).NotTo(HaveOccurred())
+			return heldAsRoot
+		}
+
+		parentQueueOf := func(queueName string) string {
+			queue, err := getQueue(k8sClient, queueName)
+			Expect(err).NotTo(HaveOccurred())
+			return queue.Spec.ParentQueue
+		}
+
+		otherPool := test.SomeNodePoolName
+		inOtherPool := func(name string) string { return name + "-" + otherPool }
+
+		It("places each queue under the parent department's queue in the same node pool", func() {
+			handle(newDepartment("research", "", test.DefaultNodePoolName, otherPool))
+
+			Expect(handle(newDepartment("ml", "research", test.DefaultNodePoolName, otherPool))).To(BeFalse())
+
+			Expect(parentQueueOf("ml")).To(Equal("research"))
+			Expect(parentQueueOf(inOtherPool("ml"))).To(Equal(inOtherPool("research")))
+		})
+
+		It("makes a queue a root queue where the parent department has no queue in its node pool", func() {
+			handle(newDepartment("research", "", test.DefaultNodePoolName))
+
+			handle(newDepartment("ml", "research", test.DefaultNodePoolName, otherPool))
+
+			Expect(parentQueueOf("ml")).To(Equal("research"))
+			Expect(parentQueueOf(inOtherPool("ml"))).To(BeEmpty())
+		})
+
+		It("makes the queues root queues when the parent department does not exist", func() {
+			Expect(handle(newDepartment("ml", "missing", test.DefaultNodePoolName))).To(BeFalse())
+
+			Expect(parentQueueOf("ml")).To(BeEmpty())
+		})
+
+		It("moves a department's queues in place to the new parent department", func() {
+			handle(newDepartment("research", "", test.DefaultNodePoolName))
+			handle(newDepartment("platform", "", test.DefaultNodePoolName))
+			ml := newDepartment("ml", "research", test.DefaultNodePoolName)
+			handle(ml)
+			before, err := getQueue(k8sClient, "ml")
+			Expect(err).NotTo(HaveOccurred())
+
+			reparent(ml, "platform")
+			handle(ml)
+
+			after, err := getQueue(k8sClient, "ml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(after.UID).To(Equal(before.UID))
+			Expect(after.Spec.ParentQueue).To(Equal("platform"))
+		})
+
+		It("keeps a queue a root queue rather than close a loop of departments", func() {
+			a := newDepartment("a", "b", test.DefaultNodePoolName)
+			b := newDepartment("b", "a", test.DefaultNodePoolName)
+			handle(a)
+			handle(b)
+			Expect(parentQueueOf("b")).To(Equal("a"))
+
+			Expect(handle(a)).To(BeTrue())
+
+			Expect(parentQueueOf("a")).To(BeEmpty())
+			Expect(recorder.Events).To(Receive(ContainSubstring(handlers.ParentQueueLoopReason)))
+		})
+
+		It("places a held queue once the queue blocking it moves away", func() {
+			// a sits under b, and the two swap places. b is reconciled first, while a's queue is
+			// still under b's.
+			b := newDepartment("b", "", test.DefaultNodePoolName)
+			a := newDepartment("a", "b", test.DefaultNodePoolName)
+			handle(b)
+			handle(a)
+			Expect(parentQueueOf("a")).To(Equal("b"))
+
+			reparent(b, "a")
+			reparent(a, "")
+			Expect(handle(b)).To(BeTrue())
+			Expect(parentQueueOf("b")).To(BeEmpty())
+
+			handle(a)
+			Expect(handle(b)).To(BeFalse())
+			Expect(parentQueueOf("a")).To(BeEmpty())
+			Expect(parentQueueOf("b")).To(Equal("a"))
+		})
+	})
+
 	It("Fails to Handle queues", func() {
 		badScheme := runtime.NewScheme()
 		Expect(clientgoscheme.AddToScheme(badScheme)).Should(Succeed())
 		Expect(kaiv1alpha1.AddToScheme(badScheme)).Should(Succeed())
 		// not adding kaiv2 to scheme - so queue handler should fail
 		badK8sClient := fake.NewClientBuilder().WithScheme(badScheme).Build()
-		badHandler := handlers.NewDepartmentHandler(badK8sClient)
+		badHandler := handlers.NewDepartmentHandler(badK8sClient, badK8sClient, events.NewFakeRecorder(10))
 
 		Expect(badK8sClient.Create(context.TODO(), &dep1)).To(Succeed())
 
-		err := badHandler.Handle(context.TODO(), &dep1)
+		_, err := badHandler.Handle(context.TODO(), &dep1)
 		Expect(err).To(HaveOccurred())
 	})
 })

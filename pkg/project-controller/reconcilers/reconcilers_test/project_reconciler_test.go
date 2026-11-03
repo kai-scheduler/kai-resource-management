@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -75,8 +76,8 @@ var _ = Describe("Project Reconciler Tests", func() {
 		newNamespaceName = handlers.DefaultProjectNamespaceName(&project)
 
 		// will create the parent queues that project Reconcile is expecting
-		departmentHandler := handlers.NewDepartmentHandler(k8sClient)
-		err := departmentHandler.Handle(context.Background(), &dep)
+		departmentHandler := handlers.NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
+		_, err := departmentHandler.Handle(context.Background(), &dep)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -527,6 +528,33 @@ var _ = Describe("Project Reconciler Tests", func() {
 					Namespace: TestNamespace.Name,
 				},
 			}
+		})
+
+		It("Maps a department's queue to the projects under that department", func() {
+			underDepartment := func(name, department string) *kaiv1alpha1.Project {
+				return &kaiv1alpha1.Project{
+					ObjectMeta: metav1.ObjectMeta{Name: name},
+					Spec:       kaiv1alpha1.ProjectSpec{Parent: department},
+				}
+			}
+			queueOwnedBy := func(kind string) *kaiv2.Queue {
+				return &kaiv2.Queue{ObjectMeta: metav1.ObjectMeta{Name: "research", OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: kaiv1alpha1.GroupVersion.Identifier(), Kind: kind, Name: "research"}}}}
+			}
+			c := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithIndex(&kaiv1alpha1.Project{}, ProjectDepartmentIndexField, IndexProjectByDepartment).
+				WithObjects(underDepartment("a", "research"), underDepartment("b", "research"),
+					underDepartment("c", "platform")).
+				Build()
+			mapper := NewProjectReconciler(c, c, scheme, projectEvents, projectConfig)
+
+			Expect(mapper.MapQueueToChildProjects(context.TODO(), queueOwnedBy("Department"))).To(ConsistOf(
+				ctrl.Request{NamespacedName: types.NamespacedName{Name: "a"}},
+				ctrl.Request{NamespacedName: types.NamespacedName{Name: "b"}},
+			))
+			Expect(mapper.MapQueueToChildProjects(context.TODO(), queueOwnedBy("Project"))).To(BeEmpty())
+			Expect(mapper.MapQueueToChildProjects(context.TODO(), &kaiv2.Queue{})).To(BeEmpty())
 		})
 
 		It("Maps RoleBinding correctly", func() {

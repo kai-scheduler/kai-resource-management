@@ -93,7 +93,7 @@ All written by the project-controller.
 | --- | --- | --- |
 | `project` | configurable | The project owning this queue |
 | `kai.resources/project-id` | configurable | That project's UID |
-| `kai.resources/department-name` | configurable | The department — on a department's own queues, and on its projects' queues |
+| `kai.resources/department-name` | configurable | The department — on a department's own queues, and on its projects' queues. A child department's queues carry their own department, not the parent |
 | `kai.scheduler/node-pool` | configurable | The node pool. **Absent means the `default` node pool** |
 
 The department label is on both a department's queues and its projects' queues, so it is

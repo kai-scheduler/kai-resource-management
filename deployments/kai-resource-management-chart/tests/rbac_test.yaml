@@ -83,6 +83,21 @@ tests:
           path: rules[0].verbs
           content: "*"
 
+  - it: lets the project-controller record Events through the events.k8s.io API
+    set:
+      image.registry: reg.example.com/kai
+    template: templates/project-controller/clusterrole.yaml
+    documentSelector:
+      path: kind
+      value: ClusterRole
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["events.k8s.io"]
+            resources: ["events"]
+            verbs: ["create", "patch"]
+
   - it: feature ClusterRoles disappear when their feature is off
     set:
       image.registry: reg.example.com/kai
