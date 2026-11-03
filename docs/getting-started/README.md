@@ -3,6 +3,7 @@
 | Document | For |
 | --- | --- |
 | [Quickstart](quickstart.md) | Installing KAI Resource Management and running your first workload through it |
+| [Installing alongside an existing KAI Scheduler](co-install-with-existing-kai.md) | Adding KRM to a cluster that already runs KAI Scheduler, keeping its shards and queues |
 | [Building from source](building-from-source.md) | Contributors building, testing and validating the repository |
 | [Adding a Helm hook](adding-a-helm-hook.md) | Contributors adding a lifecycle Job to the chart |
 
