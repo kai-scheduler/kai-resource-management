@@ -501,7 +501,7 @@ func generateQueueNameForResource(ctx context.Context, k8sClient client.Client,
 	}
 
 	for i := 0; i < generateQueueNameTries; i++ {
-		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, projectName, departmentName, newSuggestedQueueName, ownerUID) {
+		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, departmentName, projectName, newSuggestedQueueName, ownerUID) {
 			return newSuggestedQueueName
 		}
 
