@@ -414,6 +414,30 @@ var _ = Describe("Queue Resource Handler", func() {
 		})
 	})
 
+	It("Gives a project its own queue when a department of the same name holds the queue name", func() {
+		depQueueName := GetQueueName(dep2.Spec.Queues[0], dep2.Name)
+		depQueue, err := getQueue(k8sClient, depQueueName)
+		Expect(err).Should(Succeed())
+
+		sameNameProject := TestProject.DeepCopy()
+		sameNameProject.Name = dep2.Name
+		sameNameProject.UID = "57"
+		sameNameProject.Spec.Queues = sameNameProject.Spec.Queues[:1]
+		sameNameProject.Spec.Queues[0].Name = depQueueName
+
+		_, err = handler.HandleResource(*sameNameProject)
+		Expect(err).Should(Succeed())
+
+		projectQueue, err := getQueueForProjectByLabel(k8sClient, sameNameProject.Name, DefaultNodePoolName)
+		Expect(err).Should(Succeed())
+		Expect(projectQueue.Name).ToNot(Equal(depQueueName))
+		Expect(projectQueue.Name).To(HavePrefix(depQueueName))
+
+		unchanged, err := getQueue(k8sClient, depQueueName)
+		Expect(err).Should(Succeed())
+		Expect(unchanged.UID).To(Equal(depQueue.UID))
+	})
+
 	It("Validate naming of queues", func() {
 		By("validate project queue too long name gets trimmed with random suffix", func() {
 			// create a project with a queue name that is too long
