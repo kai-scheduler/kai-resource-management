@@ -169,17 +169,7 @@ func (handler NamespaceResourceHandler) handleUserExternalNamespaceForProject(pr
 }
 
 func (handler NamespaceResourceHandler) labelExternalNamespaceForProject(project *kaiv1alpha1.Project, existingNamespace corev1.Namespace) (string, ProjectConditionReason, error) {
-	updated := false
-	if existingNamespace.Labels == nil {
-		existingNamespace.Labels = map[string]string{}
-	}
-
-	// Labels the namespace to mark it as kai namespace
-	projectNameLabel, found := existingNamespace.Labels[config.Get().NamespaceProjectLabelKey]
-	if !found {
-		existingNamespace.Labels[config.Get().NamespaceProjectLabelKey] = project.Name
-		updated = true
-	}
+	projectNameLabel := existingNamespace.Labels[config.Get().NamespaceProjectLabelKey]
 	if projectNameLabel != "" && projectNameLabel != project.Name {
 		// If the label exists but with another project name,
 		// we want to avoid an infinite live lock that every project update the label again and again
@@ -187,6 +177,25 @@ func (handler NamespaceResourceHandler) labelExternalNamespaceForProject(project
 			common.LogNamespaceTag, existingNamespace.Name, common.LogProjectTag, projectNameLabel, common.LogProjectTag, project.Name)
 		statusMsg := fmt.Sprintf("'%s' %s", config.Get().NamespaceProjectLabelKey, common.QueueLabelMissingFromNamespaceStatusMsg)
 		return statusMsg, NamespaceLabelMissing, errors.New(statusMsg)
+	}
+
+	// Same contract as the namespaces this controller creates: an administrator who marked the
+	// namespace as manually overridden owns its labels and annotations until the mark is removed.
+	if common.IsManuallyOverridden(&existingNamespace) {
+		handler.Log.Info("External Namespace is marked as manually overridden, it will not be updated",
+			common.LogNamespaceTag, existingNamespace.Name, common.LogProjectTag, project.Name)
+		return "", "", nil
+	}
+
+	updated := false
+	if existingNamespace.Labels == nil {
+		existingNamespace.Labels = map[string]string{}
+	}
+
+	// Labels the namespace to mark it as kai namespace
+	if projectNameLabel == "" {
+		existingNamespace.Labels[config.Get().NamespaceProjectLabelKey] = project.Name
+		updated = true
 	}
 
 	if existingNamespace.Annotations == nil {
