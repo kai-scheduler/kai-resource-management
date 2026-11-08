@@ -6,6 +6,7 @@ package handlers_test
 import (
 	"context"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -436,6 +437,21 @@ var _ = Describe("Department Handler Tests", func() {
 			Expect(parentQueueOf("a")).To(BeEmpty())
 			Expect(parentQueueOf("b")).To(Equal("a"))
 		})
+	})
+
+	It("sets the queue's min runtimes from the department", func() {
+		dep1.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{
+			PreemptMinRuntime: ptr.To("1h30m"),
+			ReclaimMinRuntime: ptr.To("1w"),
+		}
+
+		_, err := handler.Handle(context.Background(), &dep1)
+		Expect(err).Should(Succeed())
+
+		queue, err := getQueue(k8sClient, dep1.Spec.Queues[0].Name)
+		Expect(err).Should(Succeed())
+		Expect(queue.Spec.PreemptMinRuntime).To(Equal(&metav1.Duration{Duration: 90 * time.Minute}))
+		Expect(queue.Spec.ReclaimMinRuntime).To(Equal(&metav1.Duration{Duration: 7 * 24 * time.Hour}))
 	})
 
 	It("Fails to Handle queues", func() {

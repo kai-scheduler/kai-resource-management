@@ -157,6 +157,8 @@ The element type of `spec.queues` on both Project and Department.
 | `name` | string | **required** | The queue's name. If it collides with another owner's queue, a random suffix is appended, so read the real name back |
 | `nodepool` | string | **required** | The node pool this queue's quota applies to. Must exist |
 | `priority` | int32 | `100` | Ordering against sibling queues; higher wins |
+| `minRuntime.preemptMinRuntime` | duration | — | Minimum runtime before a workload in this queue may be preempted. Overrides the node pool's value; unset, it is inherited from the parent department's queue, then the node pool |
+| `minRuntime.reclaimMinRuntime` | duration | — | Minimum runtime before quota this queue borrowed may be reclaimed. Inherited the same way |
 | `resources.gpu` | object | — | See below |
 | `resources.cpu` | object | — | See below |
 | `resources.memory` | object | — | See below |

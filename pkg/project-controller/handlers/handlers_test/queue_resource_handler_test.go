@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"time"
 
 	"k8s.io/utils/ptr"
 
@@ -569,6 +570,46 @@ var _ = Describe("Queue Resource Handler", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(actualQueue.Spec.ParentQueue).To(BeEmpty())
 			}
+		})
+	})
+
+	Context("minRuntime", func() {
+		It("sets the queue's min runtimes from the project, parsing days like the node pool", func() {
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{
+				PreemptMinRuntime: ptr.To("5m"),
+				ReclaimMinRuntime: ptr.To("2d"),
+			}
+
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			withMinRuntime, err := getQueue(k8sClient, project.Spec.Queues[0].Name)
+			Expect(err).Should(Succeed())
+			Expect(withMinRuntime.Spec.PreemptMinRuntime).To(Equal(&metav1.Duration{Duration: 5 * time.Minute}))
+			Expect(withMinRuntime.Spec.ReclaimMinRuntime).To(Equal(&metav1.Duration{Duration: 48 * time.Hour}))
+
+			without, err := getQueue(k8sClient, project.Spec.Queues[1].Name)
+			Expect(err).Should(Succeed())
+			Expect(without.Spec.PreemptMinRuntime).To(BeNil())
+			Expect(without.Spec.ReclaimMinRuntime).To(BeNil())
+		})
+
+		It("clears a min runtime the project no longer sets", func() {
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{
+				PreemptMinRuntime: ptr.To("5m"),
+				ReclaimMinRuntime: ptr.To("10m"),
+			}
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{ReclaimMinRuntime: ptr.To("10m")}
+			_, err = handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			updated, err := getQueue(k8sClient, project.Spec.Queues[0].Name)
+			Expect(err).Should(Succeed())
+			Expect(updated.Spec.PreemptMinRuntime).To(BeNil())
+			Expect(updated.Spec.ReclaimMinRuntime).To(Equal(&metav1.Duration{Duration: 10 * time.Minute}))
 		})
 	})
 

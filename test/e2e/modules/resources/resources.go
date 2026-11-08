@@ -191,6 +191,14 @@ func WithQueueResources(queueResources *kaires.QueueResourcesConfig, priority *i
 	}
 }
 
+func WithMinRuntime(minRuntime *kaires.QueueMinRuntime) ProjectOption {
+	return func(project *kaires.Project) {
+		for i := range project.Spec.Queues {
+			project.Spec.Queues[i].MinRuntime = minRuntime
+		}
+	}
+}
+
 func WithNamespace(namespace string) ProjectOption {
 	return func(project *kaires.Project) { project.Spec.Namespace = namespace }
 }

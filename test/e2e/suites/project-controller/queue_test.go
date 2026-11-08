@@ -4,10 +4,13 @@
 package project_controller
 
 import (
+	"time"
+
 	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaires "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,7 +36,11 @@ var _ = Describe("The queue a project derives", Ordered, Label("project-controll
 	BeforeAll(func() {
 		configured = resources.Project(utils.GenerateName("pc-queueconf"),
 			[]string{testcontext.DefaultNodePoolName},
-			resources.WithQueueResources(quota, ptr.To(int32(42))))
+			resources.WithQueueResources(quota, ptr.To(int32(42))),
+			resources.WithMinRuntime(&kaires.QueueMinRuntime{
+				PreemptMinRuntime: ptr.To("5m"),
+				ReclaimMinRuntime: ptr.To("2d"),
+			}))
 		bare = resources.Project(utils.GenerateName("pc-queuebare"),
 			[]string{testcontext.DefaultNodePoolName})
 
@@ -66,6 +73,22 @@ var _ = Describe("The queue a project derives", Ordered, Label("project-controll
 			resources.QueueName(configured.Name, testcontext.DefaultNodePoolName))
 
 		Expect(queue.Spec.Priority).To(HaveValue(Equal(42)))
+	})
+
+	It("carries the min runtimes the project asked for", func() {
+		queue := wait.ForQueue(ctx, testClient,
+			resources.QueueName(configured.Name, testcontext.DefaultNodePoolName))
+
+		Expect(queue.Spec.PreemptMinRuntime).To(HaveValue(Equal(metav1.Duration{Duration: 5 * time.Minute})))
+		Expect(queue.Spec.ReclaimMinRuntime).To(HaveValue(Equal(metav1.Duration{Duration: 48 * time.Hour})))
+	})
+
+	It("leaves the min runtimes unset when the project names none", func() {
+		queue := wait.ForQueue(ctx, testClient,
+			resources.QueueName(bare.Name, testcontext.DefaultNodePoolName))
+
+		Expect(queue.Spec.PreemptMinRuntime).To(BeNil())
+		Expect(queue.Spec.ReclaimMinRuntime).To(BeNil())
 	})
 
 	It("falls back to the default priority when the project names none", func() {

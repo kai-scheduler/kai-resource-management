@@ -1,0 +1,6 @@
+kind: Changed
+body: |-
+  A NodePool's minRuntime values must be durations such as 5m or 2d; a value KAI Scheduler could not parse, which it treated as 0s, is now rejected
+custom:
+  Issue: "164"
+  Author: noiyemini
