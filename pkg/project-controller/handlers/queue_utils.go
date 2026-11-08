@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/xhit/go-str2duration/v2"
 
 	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -19,6 +20,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,11 +52,12 @@ func GetQueueName(queue kaiv1alpha1.QueueConfig, ownerName string) string {
 	return fmt.Sprintf("%s-%s", ownerName, queue.Nodepool)
 }
 
-func populateQueueSpec(resources *kaiv1alpha1.QueueResourcesConfig, displayName, parentQueue string, priority *int32, outputQueueSpec *schedv2.QueueSpec) {
+func populateQueueSpec(log logr.Logger, queueConfig kaiv1alpha1.QueueConfig, displayName, parentQueue string, outputQueueSpec *schedv2.QueueSpec) {
 	priorityValue := ptr.To(DefaultQueuePriority)
-	if priority != nil {
-		priorityValue = ptr.To(int(*priority))
+	if queueConfig.Priority != nil {
+		priorityValue = ptr.To(int(*queueConfig.Priority))
 	}
+	resources := queueConfig.Resources
 	if resources == nil {
 		resources = &kaiv1alpha1.QueueResourcesConfig{}
 	}
@@ -80,6 +83,27 @@ func populateQueueSpec(resources *kaiv1alpha1.QueueResourcesConfig, displayName,
 		},
 		Priority: priorityValue,
 	}
+	if queueConfig.MinRuntime != nil {
+		outputQueueSpec.PreemptMinRuntime = parseMinRuntime(log, queueConfig.MinRuntime.PreemptMinRuntime,
+			"preemptMinRuntime", queueConfig.Nodepool)
+		outputQueueSpec.ReclaimMinRuntime = parseMinRuntime(log, queueConfig.MinRuntime.ReclaimMinRuntime,
+			"reclaimMinRuntime", queueConfig.Nodepool)
+	}
+}
+
+// parseMinRuntime uses str2duration to parse. A value it cannot parse is left
+// unset, so the queue inherits it.
+func parseMinRuntime(log logr.Logger, value *string, field, nodepool string) *metav1.Duration {
+	if value == nil {
+		return nil
+	}
+	duration, err := str2duration.ParseDuration(*value)
+	if err != nil {
+		log.Error(err, "Ignoring a min runtime that is not a duration", "field", field, "value", *value,
+			"nodepool", nodepool)
+		return nil
+	}
+	return &metav1.Duration{Duration: duration}
 }
 
 func addNodePoolLabelIfNeeded(labels map[string]string, nodepoolLabelKey, nodepoolName string) {
@@ -202,6 +226,94 @@ func listQueuesWithLabelSelectors(ctx context.Context, k8sClient client.Client,
 		return []schedv2.Queue{}, err
 	}
 	return queues.Items, nil
+}
+
+// departmentQueueName returns the named department's queue for the nodepool, for a project or a
+// sub-department to sit under. It takes the name from the department spec when the department owns
+// a queue by that name, and otherwise finds the department's queue by OwnerReference, so a
+// collision-suffixed name is still found. It returns "" when there is no department name, the
+// department does not exist, or it has no queue for the nodepool.
+func departmentQueueName(ctx context.Context, k8sClient client.Client, log logr.Logger,
+	departmentName, nodepoolName string) (string, error) {
+	if departmentName == "" {
+		return "", nil
+	}
+
+	department := &kaiv1alpha1.Department{}
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: departmentName}, department); err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Parent department not found, continuing without a parent queue",
+				"parentDepartment", departmentName, "nodepool", nodepoolName)
+			return "", nil
+		}
+		log.Error(err, "Failed to get parent department", "parentDepartment", departmentName)
+		return "", err
+	}
+
+	candidateName := ""
+	for i := range department.Spec.Queues {
+		if department.Spec.Queues[i].Nodepool != nodepoolName {
+			continue
+		}
+		candidateName = GetQueueName(department.Spec.Queues[i], department.Name)
+		candidate := &schedv2.Queue{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: candidateName}, candidate)
+		if err == nil && isOwnedByUID(candidate.OwnerReferences, department.UID) {
+			return candidateName, nil
+		}
+		if err != nil && !errors.IsNotFound(err) {
+			return "", err
+		}
+		break // spec entry found but not a valid owned queue - fall back to the owner search
+	}
+	if candidateName == "" {
+		// no queue for this nodepool
+		return "", nil
+	}
+	return departmentQueueByOwner(ctx, k8sClient, log, department, nodepoolName)
+}
+
+// departmentQueueByOwner returns the name of the queue owned by the given department for the
+// nodepool, located by OwnerReference (not by the department identity labels).
+func departmentQueueByOwner(ctx context.Context, k8sClient client.Client, log logr.Logger,
+	department *kaiv1alpha1.Department, nodepoolName string) (string, error) {
+	queues, err := listQueuesForNodepool(ctx, k8sClient, nodepoolName)
+	if err != nil {
+		log.Error(err, "Failed listing queues to find parent queue by owner",
+			"parentDepartment", department.Name, "nodepool", nodepoolName)
+		return "", err
+	}
+	for i := range queues {
+		if isOwnedByUID(queues[i].OwnerReferences, department.UID) {
+			return queues[i].Name, nil
+		}
+	}
+	return "", nil
+}
+
+// wouldCloseQueueLoop reports whether queueName is parentQueue or above it. It reads live: the
+// cache may not hold this controller's last write yet.
+func wouldCloseQueueLoop(ctx context.Context, reader client.Reader, queueName, parentQueue string) (bool, error) {
+	seen := map[string]bool{}
+	for name := parentQueue; name != ""; {
+		if name == queueName {
+			return true, nil
+		}
+		if seen[name] {
+			return false, nil
+		}
+		seen[name] = true
+
+		queue := &schedv2.Queue{}
+		if err := reader.Get(ctx, client.ObjectKey{Name: name}, queue); err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		name = queue.Spec.ParentQueue
+	}
+	return false, nil
 }
 
 // deleteUnnecessaryQueues - in case a nodepool was deleted, we need to delete its queue.
@@ -413,7 +525,7 @@ func generateQueueNameForResource(ctx context.Context, k8sClient client.Client,
 	}
 
 	for i := 0; i < generateQueueNameTries; i++ {
-		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, projectName, departmentName, newSuggestedQueueName, ownerUID) {
+		if !isSuggestedQueueTakenByOtherResource(ctx, k8sClient, departmentName, projectName, newSuggestedQueueName, ownerUID) {
 			return newSuggestedQueueName
 		}
 

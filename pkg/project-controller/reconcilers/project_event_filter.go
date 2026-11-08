@@ -131,6 +131,11 @@ func (reconciler *ProjectReconciler) MapRoleBindingToProjectEvent(_ context.Cont
 	return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: projectName}}}
 }
 
+func (reconciler *ProjectReconciler) MapQueueToChildProjects(ctx context.Context, object client.Object) []reconcile.Request {
+	return mapQueueToDepartmentChildren(ctx, reconciler.Client, reconciler.Log, object,
+		&kaiv1alpha1.ProjectList{}, ProjectDepartmentIndexField)
+}
+
 // MapRoleBindingsConfigMapToProjectEvents fans an edit of the role bindings
 // configmap out to every Project, since the configmap describes the desired
 // RoleBindings for all of them.

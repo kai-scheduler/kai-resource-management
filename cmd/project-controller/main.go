@@ -139,7 +139,8 @@ func createReconcileEventTriggers(mgr manager.Manager, projectEvents chan event.
 }
 
 func createDepartmentReconciler(mgr manager.Manager) {
-	err := reconcilers.NewDepartmentReconciler(mgr.GetClient()).SetupWithManager(mgr)
+	err := reconcilers.NewDepartmentReconciler(mgr.GetClient(), mgr.GetAPIReader(),
+		mgr.GetEventRecorder("project-controller")).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", common.LogDepartmentTag)
 		os.Exit(1)
@@ -171,7 +172,7 @@ func registerValidationWebhooks(mgr manager.Manager, cfg *config.ProjectReconcil
 		os.Exit(1)
 	}
 
-	validator := validation.NewValidator(mgr.GetClient())
+	validator := validation.NewValidator(mgr.GetClient(), mgr.GetAPIReader())
 	webhookServer := webhook.NewServer(webhook.Options{
 		Port:    cfg.WebhookPort,
 		CertDir: cfg.WebhookCertDir,

@@ -129,6 +129,43 @@ research-h100      engineering-h100   8          16
 A `PARENT` of `<none>` on a project's queue means the parenting did not happen — check
 that the department has a queue for that same node pool.
 
+## Splitting a department further
+
+Departments nest. To give a group inside engineering a budget of its own, create a
+department that names engineering as its parent, and put the group's projects under it:
+
+```yaml
+apiVersion: kai.resources/v1alpha1
+kind: Department
+metadata:
+  name: ml
+spec:
+  parent: engineering
+  queues:
+    - name: ml-h100
+      nodepool: h100
+      resources:
+        gpu: { deserved: 8, limit: 16, overQuotaWeight: 1 }
+```
+
+The three rules above apply one level up: the parent must exist, it needs a queue for each
+of the child's node pools, and the children's `deserved` should add up to the parent's.
+Departments nest at most seven levels deep.
+
+```bash
+kubectl get departments -o custom-columns=NAME:.metadata.name,PARENT:.spec.parent
+```
+
+```text
+NAME          PARENT
+engineering   <none>
+ml            engineering
+```
+
+The queues follow: `ml-h100` has `engineering-h100` as its parent, and the h100 queue of a
+project under ml has `ml-h100`. To move ml elsewhere, change its `parent`; its queues, and
+everything under them, move without being recreated.
+
 ## Choosing the numbers
 
 | You want | Set |
@@ -155,7 +192,7 @@ The hierarchy is enforced on the way out too.
 kubectl delete department engineering
 ```
 
-That hangs — deliberately — while any project still names it:
+That hangs — deliberately — while any project or department still names it:
 
 ```bash
 kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
@@ -166,7 +203,8 @@ kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
   "message":"2 project(s) still reference this department, e.g. \"research\""}]
 ```
 
-Delete or re-parent the projects and it completes on its own.
+Delete or re-parent them and it completes on its own. A department still named by another
+department reports `ChildDepartmentsStillAssigned` instead.
 
 To require that a project's own namespace be emptied before it can go, set:
 

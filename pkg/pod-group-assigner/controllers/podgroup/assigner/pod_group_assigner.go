@@ -366,7 +366,7 @@ func (pga *PodGroupAssigner) getPodGroupPods(ctx context.Context, podGroupMeta m
 	err := pga.Client.List(
 		ctx,
 		pods,
-		&client.ListOptions{FieldSelector: podsByPodGroupFieldSelector})
+		&client.ListOptions{Namespace: podGroupMeta.Namespace, FieldSelector: podsByPodGroupFieldSelector})
 	if err != nil {
 		log.Ctx(ctx).Error().Msgf("Failed listing pods with field selector <%s>, err: <%s>",
 			podsByPodGroupFieldSelector.String(), err.Error())

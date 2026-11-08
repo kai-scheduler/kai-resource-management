@@ -32,11 +32,17 @@ make gen-license      # Add missing Apache-2.0 source headers
 For a behavior-changing pull request, create a changelog fragment:
 
 ```bash
-make changelog KIND=Added BODY="Add configurable project namespace prefix"
+make changelog KIND=Added BODY="Add configurable project namespace prefix" AUTHOR="<github-user>" ISSUE="<pr-or-issue-number>"
 ```
 
 Valid changelog kinds are `Added`, `Changed`, `Fixed`, and `Removed`. Keep the
 body user-facing and under 20 words.
+
+Always set `AUTHOR` (the pull request author's GitHub username) and `ISSUE` (the
+pull request number, or a linked issue number if one exists); without them the
+release notes lose the credit and the link. If the pull request number is not
+known yet, use the issue number, and update the fragment once the pull request is
+open.
 
 Never edit `CHANGELOG.md` directly; it is written at release time. Pull requests
 that do not change behavior apply the `skip-changelog` label instead of adding a

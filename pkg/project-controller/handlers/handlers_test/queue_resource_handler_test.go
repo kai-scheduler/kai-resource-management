@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"time"
 
 	"k8s.io/utils/ptr"
 
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -48,12 +50,12 @@ var _ = Describe("Queue Resource Handler", func() {
 
 		k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 		handler = NewQueueResourceHandler(k8sClient)
-		departmentHandler = NewDepartmentHandler(k8sClient)
+		departmentHandler = NewDepartmentHandler(k8sClient, k8sClient, events.NewFakeRecorder(10))
 
 		// will create the parent queues that project handler is expecting
-		err := departmentHandler.Handle(context.Background(), &dep1)
+		_, err := departmentHandler.Handle(context.Background(), &dep1)
 		Expect(err).Should(Succeed())
-		err = departmentHandler.Handle(context.Background(), &dep2)
+		_, err = departmentHandler.Handle(context.Background(), &dep2)
 		Expect(err).Should(Succeed())
 
 		// persist the department objects so the project handler can look up the parent queue
@@ -377,7 +379,7 @@ var _ = Describe("Queue Resource Handler", func() {
 
 			// create the department (queues + persisted object for parent lookup)
 			newDep := KaiTestDepartment3.DeepCopy()
-			err = departmentHandler.Handle(context.Background(), newDep)
+			_, err = departmentHandler.Handle(context.Background(), newDep)
 			Expect(err).Should(Succeed())
 			Expect(k8sClient.Create(context.Background(), newDep)).To(Succeed())
 
@@ -411,6 +413,30 @@ var _ = Describe("Queue Resource Handler", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(projQueue.Spec.ParentQueue).To(Equal(createdDep3QueueNameSomeNodePool))
 		})
+	})
+
+	It("Gives a project its own queue when a department of the same name holds the queue name", func() {
+		depQueueName := GetQueueName(dep2.Spec.Queues[0], dep2.Name)
+		depQueue, err := getQueue(k8sClient, depQueueName)
+		Expect(err).Should(Succeed())
+
+		sameNameProject := TestProject.DeepCopy()
+		sameNameProject.Name = dep2.Name
+		sameNameProject.UID = "57"
+		sameNameProject.Spec.Queues = sameNameProject.Spec.Queues[:1]
+		sameNameProject.Spec.Queues[0].Name = depQueueName
+
+		_, err = handler.HandleResource(*sameNameProject)
+		Expect(err).Should(Succeed())
+
+		projectQueue, err := getQueueForProjectByLabel(k8sClient, sameNameProject.Name, DefaultNodePoolName)
+		Expect(err).Should(Succeed())
+		Expect(projectQueue.Name).ToNot(Equal(depQueueName))
+		Expect(projectQueue.Name).To(HavePrefix(depQueueName))
+
+		unchanged, err := getQueue(k8sClient, depQueueName)
+		Expect(err).Should(Succeed())
+		Expect(unchanged.UID).To(Equal(depQueue.UID))
 	})
 
 	It("Validate naming of queues", func() {
@@ -544,6 +570,46 @@ var _ = Describe("Queue Resource Handler", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(actualQueue.Spec.ParentQueue).To(BeEmpty())
 			}
+		})
+	})
+
+	Context("minRuntime", func() {
+		It("sets the queue's min runtimes from the project, parsing days like the node pool", func() {
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{
+				PreemptMinRuntime: ptr.To("5m"),
+				ReclaimMinRuntime: ptr.To("2d"),
+			}
+
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			withMinRuntime, err := getQueue(k8sClient, project.Spec.Queues[0].Name)
+			Expect(err).Should(Succeed())
+			Expect(withMinRuntime.Spec.PreemptMinRuntime).To(Equal(&metav1.Duration{Duration: 5 * time.Minute}))
+			Expect(withMinRuntime.Spec.ReclaimMinRuntime).To(Equal(&metav1.Duration{Duration: 48 * time.Hour}))
+
+			without, err := getQueue(k8sClient, project.Spec.Queues[1].Name)
+			Expect(err).Should(Succeed())
+			Expect(without.Spec.PreemptMinRuntime).To(BeNil())
+			Expect(without.Spec.ReclaimMinRuntime).To(BeNil())
+		})
+
+		It("clears a min runtime the project no longer sets", func() {
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{
+				PreemptMinRuntime: ptr.To("5m"),
+				ReclaimMinRuntime: ptr.To("10m"),
+			}
+			_, err := handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			project.Spec.Queues[0].MinRuntime = &kaiv1alpha1.QueueMinRuntime{ReclaimMinRuntime: ptr.To("10m")}
+			_, err = handler.HandleResource(project)
+			Expect(err).Should(Succeed())
+
+			updated, err := getQueue(k8sClient, project.Spec.Queues[0].Name)
+			Expect(err).Should(Succeed())
+			Expect(updated.Spec.PreemptMinRuntime).To(BeNil())
+			Expect(updated.Spec.ReclaimMinRuntime).To(Equal(&metav1.Duration{Duration: 10 * time.Minute}))
 		})
 	})
 

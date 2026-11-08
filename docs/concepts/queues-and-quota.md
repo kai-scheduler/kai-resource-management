@@ -41,6 +41,10 @@ If the department has no queue for a node pool its project uses, the project's q
 that pool simply has no parent — it becomes a root of its own, unconstrained by the
 department. That is usually a mistake in the spec rather than an intent.
 
+A department inside another department is parented the same way, so the tree can be
+deeper than two levels: its queue for a node pool sits under its parent department's
+queue for that pool, and caps the projects and departments under it.
+
 ## The three numbers
 
 Each of `gpu`, `cpu` and `memory` takes three values, and they answer three different
@@ -231,22 +235,23 @@ commonArgs:
   allowExternalQueues: true
 ```
 
-Turn it on when you install the chart. Installing with it off leaves existing queues
+Installed beside an existing KAI Scheduler (`kai-scheduler.enabled=false`), the chart turns
+it on unless you set it to `false`. Otherwise, turn it on when you install the chart.
+Installing with it off leaves existing queues
 alone, but the first project or department whose derived name matches one takes it over,
 and a queue taken over keeps the owner reference, so turning the flag on later does not
 hand it back.
 
 ### Keeping the two kinds of tree apart
 
-KRM's queue tree is exactly two levels deep: a department's queue, with its projects'
-queues under it. So with `allowExternalQueues` on, the project-controller also rejects a
-queue that no project or department owns when its `parentQueue` is one that does. It
-rejects creating such a queue, and moving an existing one there:
+KRM's queue tree is built from departments and projects alone. So with
+`allowExternalQueues` on, the project-controller also rejects a queue that no project or
+department owns when its `parentQueue` is one that does. It rejects creating such a queue,
+and moving an existing one there:
 
 ```text
 queue "team-x" cannot use "research" as its parent queue: "research" is managed by
-KAI Resource Management (Department "research"), which supports only its own two-level
-hierarchy. ...
+KAI Resource Management (Department "research"), which supports only its own queue tree. ...
 ```
 
 Everything else is accepted: a root queue, a queue under one of your own queues, and

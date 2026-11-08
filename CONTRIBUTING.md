@@ -107,11 +107,16 @@ directly.
 For automated or non-interactive use:
 
 ```bash
-make changelog KIND=Added BODY="Add configurable project namespace prefix"
+make changelog KIND=Added BODY="Add configurable project namespace prefix" AUTHOR="<github-user>" ISSUE="<pr-or-issue-number>"
 ```
 
 Valid kinds are `Added`, `Changed`, `Fixed`, and `Removed`. Keep the body clear,
 user-facing, and under 20 words.
+
+Always set `AUTHOR` to your GitHub username and `ISSUE` to the pull request
+number, or a linked issue number if one exists, so the release notes credit you
+and link to the change. If the pull request number is not known yet, use the
+issue number, and update the fragment once the pull request is open.
 
 Changelog fragments are not required for internal refactors, tests,
 documentation, or CI-only changes. Apply the `skip-changelog` label to those

@@ -160,12 +160,15 @@ scc-check: helm-deps ## Verify every ServiceAccount the chart renders is granted
 validate: mod-check lint license-check header-format-check notice-check sync-crds-check crd-rbac-check scc-check ## Run all repository validation without changing tracked files; tests are separate.
 
 .PHONY: changelog
-changelog: changie ## Add a changelog fragment; agents pass KIND and BODY.
+changelog: changie ## Add a changelog fragment; agents pass KIND, BODY, AUTHOR and ISSUE.
 	@if [ -n "$(KIND)" ] && [ -n "$(BODY)" ]; then \
 		kind_lower=$$(echo "$(KIND)" | tr '[:upper:]' '[:lower:]'); \
 		timestamp=$$(date '+%Y%m%d-%H%M%S'); \
 		output=".changes/unreleased/$${kind_lower}-$${timestamp}.yaml"; \
 		printf 'kind: %s\nbody: |-\n  %s\n' "$(KIND)" "$(BODY)" > "$${output}"; \
+		if [ -n "$(AUTHOR)" ] || [ -n "$(ISSUE)" ]; then \
+			printf 'custom:\n  Author: "%s"\n  Issue: "%s"\n' "$(AUTHOR)" "$(ISSUE)" >> "$${output}"; \
+		fi; \
 		echo "Created $${output}"; \
 	elif [ -n "$(KIND)" ] || [ -n "$(BODY)" ]; then \
 		echo "Both KIND and BODY must be set for non-interactive mode"; \

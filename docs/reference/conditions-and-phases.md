@@ -100,7 +100,7 @@ nothing blocks a project's deletion.
 
 | Condition | `True` means | What to do |
 | --- | --- | --- |
-| `DepartmentDeletionBlocked` | Projects still name this department as parent | The message names one. Delete or re-parent them |
+| `DepartmentDeletionBlocked` | Projects or departments still name this department as parent: reason `ProjectsStillAssigned` or `ChildDepartmentsStillAssigned` | The message names one. Delete or re-parent them |
 
 A department has no phase — it either exists or it is waiting to be deleted.
 

@@ -313,14 +313,41 @@ The message carries the underlying error.
 | `node pool "x" is already referenced by another queue` | Two queues in one spec cannot share a node pool |
 | `the nodepool "x" from the DefaultNodePools list has no queue defined in the spec` | Add a queue for it |
 
+### A department is refused its parent
+
+| Message | Fix |
+| --- | --- |
+| `a department cannot be its own parent` | Name another department |
+| `parent department "x" does not exist` | Create the parent first |
+| `parent department "x" is being deleted` | Pick another parent |
+| `... that would make a loop: a -> b -> a` | The parent is already inside this department. Move it out first |
+| `departments can nest at most 7 levels deep, and this would nest them deeper` | Nest less deeply, counting the departments inside this one |
+
+Only the first rule is part of the Department schema. The rest are checks of the
+department webhook, and do not run with `projectController.webhook.department` off.
+
+### A department's queue stays a root queue
+
+```bash
+kubectl get events --field-selector reason=ParentQueueLoop
+```
+
+The controller never builds a loop of queues, which would stop KAI Scheduler. When
+placing a department's queue under its parent's would close one, the queue stays a root
+queue, the department gets a `ParentQueueLoop` Warning event, and the controller retries
+every minute.
+
+For a moment this is normal, while two departments swap places. If it lasts, the
+departments' parents form a loop: fix the `parent` of one of them.
+
 ### Department will not delete
 
 ```bash
 kubectl get department engineering -o jsonpath='{.status.conditions}' | jq
 ```
 
-`DepartmentDeletionBlocked` is `True` while any project names it as parent. Delete or
-re-parent them.
+`DepartmentDeletionBlocked` is `True` while any project or department names it as parent.
+Delete or re-parent them.
 
 ### Project will not delete
 
@@ -538,7 +565,7 @@ KAI Resource Management (Department "research") ...
 ```
 
 With `commonArgs.allowExternalQueues` on, a queue that no project or department owns
-cannot be placed under one that does, because KRM manages only its own two-level tree. See
+cannot be placed under one that does, because KRM manages only its own tree. See
 [keeping the two kinds of tree apart](../concepts/queues-and-quota.md#keeping-the-two-kinds-of-tree-apart).
 Either pick a parent KRM does not manage, or model the workload as a project under that
 department instead of a hand-made queue. To see who owns the parent:

@@ -20,6 +20,10 @@ inputs:
     description: Go toolchain to install
     required: false
     default: '1.26.8'
+  helm_version:
+    description: Helm to install
+    required: false
+    default: 'v3.22.0'
 
 runs:
   using: composite
@@ -46,6 +50,13 @@ runs:
         path: /mnt/images
         key: images-${{ github.sha }}
         fail-on-cache-miss: true
+
+    # Helm 4 applies webhook configurations before the default NodePool, whose webhook
+    # is not served until the operator runs, so the install fails.
+    - name: Set up Helm
+      uses: azure/setup-helm@v5
+      with:
+        version: ${{ inputs.helm_version }}
 
     - name: Create the kind cluster
       uses: helm/kind-action@v1.14.0

@@ -307,6 +307,23 @@ var _ = Describe("Pod Group Assigner Tests", Ordered, func() {
 			expectUnschedulableOnNodePool(pg, assignmentParams, k8sClient)
 		})
 
+		It("Ignores pods of another namespace that carry the same pod group name", func() {
+			pg := types.NamespacedName{Namespace: testNamespace, Name: generatePodGroupName()}
+			nodePoolOptions := []string{testNodePools[0].Name}
+
+			createdPodGroups = append(createdPodGroups, pg)
+			createPodGroupAndPodsFromSpec("Ignores pods of another namespace that carry the same pod group name", pg, nodePoolOptions, 0, k8sClient)
+
+			foreignPod := getPodObjWithNodeAffinity("foreign-pod", pg.Name, testNamespace2,
+				getNodeSelectorTermsForNodePoolOptions(nodePoolOptions))
+			createPod(foreignPod, k8sClient)
+			DeferCleanup(deletePod, namespacedNameFor(foreignPod), k8sClient)
+
+			// the pod group has no pods of its own, so the foreign pod must not drive its assignment
+			assignmentParams.NodePoolName = testUnexistingNodePool
+			consistentlyExpectNodePoolAssignment(pg, assignmentParams, k8sClient)
+		})
+
 		It("Queue names for project with suffix - Assign Pod Group to Node Pools one by one", func() {
 			pg := types.NamespacedName{Namespace: testNamespace2, Name: generatePodGroupName()}
 			nodePoolOptions := []string{testNodePools[1].Name, testNodePools[0].Name, testNodePools[2].Name}

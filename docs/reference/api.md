@@ -133,10 +133,12 @@ All **controller-written**.
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
+| `parent` | string | — | The department this department sits inside. Must exist, must not be this department, and must not make a loop or nest departments more than 7 levels deep. Empty means a top-level department |
 | `queues` | array | **required** | One entry per node pool. See [QueueConfig](#queueconfig) |
 
-A department has no namespace, no `parent`, and runs nothing. Its queues are the parents of
-its projects' queues **for the same node pool**.
+A department has no namespace and runs nothing. Its queues are the parents of its
+projects' and child departments' queues **for the same node pool**, and sit under its own
+parent's queue for that pool.
 
 ### `status`
 
@@ -155,6 +157,8 @@ The element type of `spec.queues` on both Project and Department.
 | `name` | string | **required** | The queue's name. If it collides with another owner's queue, a random suffix is appended, so read the real name back |
 | `nodepool` | string | **required** | The node pool this queue's quota applies to. Must exist |
 | `priority` | int32 | `100` | Ordering against sibling queues; higher wins |
+| `minRuntime.preemptMinRuntime` | duration | — | Minimum runtime before a workload in this queue may be preempted. Overrides the node pool's value; unset, it is inherited from the parent department's queue, then the node pool |
+| `minRuntime.reclaimMinRuntime` | duration | — | Minimum runtime before quota this queue borrowed may be reclaimed. Inherited the same way |
 | `resources.gpu` | object | — | See below |
 | `resources.cpu` | object | — | See below |
 | `resources.memory` | object | — | See below |

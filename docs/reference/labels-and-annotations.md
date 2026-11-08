@@ -93,7 +93,7 @@ All written by the project-controller.
 | --- | --- | --- |
 | `project` | configurable | The project owning this queue |
 | `kai.resources/project-id` | configurable | That project's UID |
-| `kai.resources/department-name` | configurable | The department — on a department's own queues, and on its projects' queues |
+| `kai.resources/department-name` | configurable | The department — on a department's own queues, and on its projects' queues. A child department's queues carry their own department, not the parent |
 | `kai.scheduler/node-pool` | configurable | The node pool. **Absent means the `default` node pool** |
 
 The department label is on both a department's queues and its projects' queues, so it is
@@ -164,7 +164,8 @@ The only annotations you set yourself, rather than reading.
 | `kai.resources/adoption` | `adopted` | Written | The shard existed before KRM and was taken over by the node pool that owns it. Uninstall removes the shard's node pool owner reference and its `kai.resources/` labels and annotations, and leaves the shard in place. A shard without it is deleted with its node pool. See [installing on a cluster that already has shards](../concepts/node-pools.md#installing-on-a-cluster-that-already-has-shards) |
 | `kai.resources/managed-shard-args` | comma-separated arg keys | Written | Annotation listing the `args` keys KRM wrote. KRM removes a listed key once its node pool stops setting it, and leaves every unlisted key — args you added by hand — alone. A shard without it gets it on its next update; until then KRM treats every arg as its own |
 
-See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler).
+See [Leaving a partition to another scheduler](../concepts/node-pools.md#leaving-a-partition-to-another-scheduler)
+and [installing alongside an existing KAI Scheduler](../getting-started/co-install-with-existing-kai.md).
 
 ```bash
 kubectl get schedulingshard -l kai/ignore-shard-for-krm=true \
@@ -194,7 +195,7 @@ and removing it skips whatever cleanup it was guarding.
 | --- | --- | --- | --- |
 | `nodepool.kai.scheduler/finalize` | configurable | NodePool | Nodes still need reassigning, or a project still has a queue for the pool |
 | `kai.resources.finalizers.project` | configurable | Project | Queues and namespace are still being cleaned up, or a delete-blocker matches |
-| `kai.resources.finalizers.department` | configurable | Department | Any project still names it as parent |
+| `kai.resources.finalizers.department` | configurable | Department | Any project or department still names it as parent |
 
 An object sitting in `Terminating` is waiting on one of these, and its status conditions
 say what for.
@@ -210,7 +211,7 @@ Not labels, but the other thing that acts on your objects at create time.
 | `kai-nodepool-validation` | Validating | `nodepools` on create and delete | `nodePoolController.webhook.nodepool` |
 | `krm-schedulingshard-validation` | Validating | `schedulingshards` on create and update | `nodePoolController.webhook.nodepool` |
 | `kai-project-validation` | Validating | `projects`, `departments` on create and update | `projectController.webhook.project`, `.department` |
-| `kai-queue-tree-validation` | Validating | `queues` on create and update, only a queue KRM does not own gaining a parent | `commonArgs.allowExternalQueues` (off by default) |
+| `kai-queue-tree-validation` | Validating | `queues` on create and update, only a queue KRM does not own gaining a parent | `commonArgs.allowExternalQueues` (on by default only beside an existing KAI Scheduler) |
 
 All use `failurePolicy: Fail`, so an unreachable controller means the API server rejects
 the resources it intercepts. Turn a webhook off through its value rather than by scaling

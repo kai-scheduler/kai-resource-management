@@ -8,7 +8,7 @@ flags are false and external queues are not allowed. Allowing external queues is
 the binary serve /validate-queue, so it gates the cert even though queue has no flag of its own.
 */ -}}
 {{- $pcWebhook := .Values.projectController.webhook | default dict }}
-{{- $externalQueues := (.Values.commonArgs | default dict).allowExternalQueues }}
+{{- $externalQueues := include "kai-resource-management.allowExternalQueues" . }}
 {{- if and .Values.projectController.enabled (or $pcWebhook.project $pcWebhook.department $externalQueues) }}
 {{- $webhook := $pcWebhook }}
 {{- $secretName := $webhook.certSecretName | default "project-controller-tls-secret" }}

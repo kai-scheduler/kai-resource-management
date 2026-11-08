@@ -1,0 +1,6 @@
+kind: Added
+body: |-
+  Departments can nest under another department, up to 7 levels deep, through spec.parent
+custom:
+  Issue: "150"
+  Author: noiyemini

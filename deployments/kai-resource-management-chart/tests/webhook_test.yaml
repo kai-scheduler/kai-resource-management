@@ -250,6 +250,8 @@ tests:
       - equal: {path: metadata.name, value: kai-project-validation}
         template: templates/project-controller/webhook.yaml
         documentIndex: 1
+      - notExists: {path: spec.global.allowExternalQueues}
+        template: templates/krm-config.yaml
 
   - it: validates Queues once external queues are allowed
     set:
@@ -289,6 +291,30 @@ tests:
       - equal: {path: "webhooks[0].matchConditions[2].name", value: parent-changed}
         template: templates/project-controller/webhook.yaml
         documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+
+  # Beside an existing KAI Scheduler every Queue predates KRM, and one a same-named project
+  # takes over is not handed back later, so the default flips there.
+  - it: allows external queues by default beside an existing KAI Scheduler
+    set:
+      kai-scheduler.enabled: false
+    asserts:
+      - equal: {path: spec.global.allowExternalQueues, value: true}
+        template: templates/krm-config.yaml
+      - hasDocuments: {count: 3}
+        template: templates/project-controller/webhook.yaml
+      - equal: {path: "webhooks[0].clientConfig.service.path", value: /validate-queue}
+        template: templates/project-controller/webhook.yaml
+        documentSelector: {path: metadata.name, value: kai-queue-tree-validation}
+
+  - it: keeps external queues off beside an existing KAI Scheduler when set to false
+    set:
+      kai-scheduler.enabled: false
+      commonArgs.allowExternalQueues: false
+    asserts:
+      - notExists: {path: spec.global.allowExternalQueues}
+        template: templates/krm-config.yaml
+      - hasDocuments: {count: 2}
+        template: templates/project-controller/webhook.yaml
 
   - it: serves the Queue webhook and its cert with both toggled webhooks off
     # The operator mounts the Secret when external queues are allowed, reading the same
