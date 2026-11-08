@@ -170,7 +170,7 @@ func (h *DepartmentHandler) buildQueueFromSpec(queueDepartmentSpec kaiv1alpha1.Q
 			}},
 		},
 	}
-	populateQueueSpec(queueDepartmentSpec.Resources, department.Name, parentQueueName, queueDepartmentSpec.Priority, &queue.Spec)
+	populateQueueSpec(h.Log.WithValues(common.LogDepartmentTag, department.Name), queueDepartmentSpec, department.Name, parentQueueName, &queue.Spec)
 	addNodePoolLabelIfNeeded(queue.Labels, config.Get().NodePoolLabelKey, queueDepartmentSpec.Nodepool)
 	return queue
 }

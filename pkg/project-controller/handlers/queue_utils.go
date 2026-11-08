@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/xhit/go-str2duration/v2"
 
 	schedv2 "github.com/kai-scheduler/api/scheduling/v2"
 	kaiv1alpha1 "github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
@@ -19,6 +20,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management/pkg/project-controller/config"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,11 +52,12 @@ func GetQueueName(queue kaiv1alpha1.QueueConfig, ownerName string) string {
 	return fmt.Sprintf("%s-%s", ownerName, queue.Nodepool)
 }
 
-func populateQueueSpec(resources *kaiv1alpha1.QueueResourcesConfig, displayName, parentQueue string, priority *int32, outputQueueSpec *schedv2.QueueSpec) {
+func populateQueueSpec(log logr.Logger, queueConfig kaiv1alpha1.QueueConfig, displayName, parentQueue string, outputQueueSpec *schedv2.QueueSpec) {
 	priorityValue := ptr.To(DefaultQueuePriority)
-	if priority != nil {
-		priorityValue = ptr.To(int(*priority))
+	if queueConfig.Priority != nil {
+		priorityValue = ptr.To(int(*queueConfig.Priority))
 	}
+	resources := queueConfig.Resources
 	if resources == nil {
 		resources = &kaiv1alpha1.QueueResourcesConfig{}
 	}
@@ -80,6 +83,27 @@ func populateQueueSpec(resources *kaiv1alpha1.QueueResourcesConfig, displayName,
 		},
 		Priority: priorityValue,
 	}
+	if queueConfig.MinRuntime != nil {
+		outputQueueSpec.PreemptMinRuntime = parseMinRuntime(log, queueConfig.MinRuntime.PreemptMinRuntime,
+			"preemptMinRuntime", queueConfig.Nodepool)
+		outputQueueSpec.ReclaimMinRuntime = parseMinRuntime(log, queueConfig.MinRuntime.ReclaimMinRuntime,
+			"reclaimMinRuntime", queueConfig.Nodepool)
+	}
+}
+
+// parseMinRuntime uses str2duration to parse. A value it cannot parse is left
+// unset, so the queue inherits it.
+func parseMinRuntime(log logr.Logger, value *string, field, nodepool string) *metav1.Duration {
+	if value == nil {
+		return nil
+	}
+	duration, err := str2duration.ParseDuration(*value)
+	if err != nil {
+		log.Error(err, "Ignoring a min runtime that is not a duration", "field", field, "value", *value,
+			"nodepool", nodepool)
+		return nil
+	}
+	return &metav1.Duration{Duration: duration}
 }
 
 func addNodePoolLabelIfNeeded(labels map[string]string, nodepoolLabelKey, nodepoolName string) {

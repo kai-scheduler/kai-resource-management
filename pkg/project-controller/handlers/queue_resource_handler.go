@@ -152,7 +152,7 @@ func (handler QueueResourceHandler) buildQueueFromSpec(ctx context.Context, queu
 		},
 	}
 
-	populateQueueSpec(queueProjectSpec.Resources, suggestedName, parentQueueName, queueProjectSpec.Priority, &queue.Spec)
+	populateQueueSpec(handler.Log.WithValues(common.LogProjectTag, project.Name), queueProjectSpec, suggestedName, parentQueueName, &queue.Spec)
 	addNodePoolLabelIfNeeded(queue.Labels, config.Get().NodePoolLabelKey, queueProjectSpec.Nodepool)
 	return queue, nil
 }

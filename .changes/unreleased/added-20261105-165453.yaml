@@ -1,0 +1,6 @@
+kind: Added
+body: |-
+  Projects and departments can set preemptMinRuntime and reclaimMinRuntime per node pool in spec.queues[].minRuntime, overriding the node pool's minimum runtimes
+custom:
+  Issue: "164"
+  Author: noiyemini

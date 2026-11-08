@@ -170,8 +170,9 @@ create. With `kai-scheduler.enabled=false` it defaults to `true`.
   leaves the rest alone.
 - **`false`:** KRM treats every queue as its own. A project whose queue has the same name as
   one of yours takes that queue over, moves it under the project's department and rewrites
-  its quota and priority, so any queues below it end up in KRM's tree. Turning the flag on
-  later does not hand it back.
+  its quota, priority and minimum runtimes, so any queues below it end up in KRM's tree.
+  Turning the flag on later does not hand it back. To keep a queue's `preemptMinRuntime` or
+  `reclaimMinRuntime`, set the same value in the project's `minRuntime` before you create it.
 
 See [queues KRM did not create](../concepts/queues-and-quota.md#queues-krm-did-not-create).
 

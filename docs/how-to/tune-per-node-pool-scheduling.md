@@ -78,6 +78,25 @@ Both are durations. They buy a workload a floor of useful runtime before it can 
 interrupted, at the cost of making the node pool slower to respond to a reclaim. Longer
 values mean more wasted work when something *does* need the capacity back.
 
+Durations take `s`, `m`, `h`, `d` (24h) and `w` (7d), such as `90s`, `1h30m` or `2d`.
+
+These values are the node pool's defaults. A project or department can override them for its
+own queue in that node pool:
+
+```yaml
+kind: Project
+spec:
+  queues:
+    - nodepool: h100
+      minRuntime:
+        preemptMinRuntime: 30m
+```
+
+A value the queue leaves unset is inherited from the parent department's queue, then from
+the node pool, so here `reclaimMinRuntime` keeps the node pool's `10m`. Which queue's value
+applies to a reclaim depends on where the two queues meet in the tree; see
+[KAI Scheduler's minimum runtime docs](https://github.com/kai-scheduler/KAI-Scheduler/blob/main/docs/plugins/minruntime.md).
+
 ## Usage-aware fairness
 
 By default fairness looks only at what a queue is using *right now*. A team that hammered
