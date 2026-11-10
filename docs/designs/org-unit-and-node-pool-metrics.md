@@ -148,6 +148,37 @@ A new operand in `pkg/operator/operands/prometheus-rules`:
 
 Names follow `<p>_<measure>_per_<scope>`.
 
+| Measure | Unit | Queue | Project | Department | Node | Node pool |
+| --- | --- | :-: | :-: | :-: | :-: | :-: |
+| `gpu_count` | GPUs | | | | ✅ | ✅ |
+| `cpu_cores_count` | cores | | | | ✅ | ✅ |
+| `total_memory_bytes` | bytes | | | | ✅ | ✅ |
+| `gpu_memory_total_mebibytes` | MiB | | | | ✅ | ✅ |
+| `deserved_gpu_count` | GPUs | ✅ | ✅ | ✅ | | |
+| `deserved_cpu_cores` | cores | ✅ | ✅ | ✅ | | |
+| `deserved_memory_bytes` | bytes | ✅ | ✅ | ✅ | | |
+| `allocated_gpu_count` | GPUs | ✅ | ✅ | ✅ | | ✅ |
+| `allocated_cpu_cores` | cores | ✅ | ✅ | ✅ | | ✅ |
+| `allocated_memory_bytes` | bytes | ✅ | ✅ | ✅ | | ✅ |
+| `used_cpu_cores` | cores | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `used_memory_bytes` | bytes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gpu_utilization` | % | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `cpu_utilization` | % | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `memory_utilization` | % | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gpu_memory_utilization` | % | | | | ✅ | ✅ |
+
+- **Deserved** is the quota; `-1` means unlimited.
+- **Allocated** is what KAI gave.
+- **Used** is what is actually consumed. For a queue, project or department it counts their
+  own pods only. For a node it counts everything on the machine, including system
+  processes, so it is higher than the sum of the projects on that node.
+- **Utilization** differs by scope:
+  - Queue, project and department: how much of what they were allocated they use. Only
+    their own pods count, and a department includes its sub-departments.
+  - Node and node pool: how busy the hardware is. Every GPU and core counts, allocated or
+    not.
+- GPU utilization is the share of time the GPU was running work (see below).
+
 ### Per queue
 
 Labels: `queue_name, project, department, nodepool`.
