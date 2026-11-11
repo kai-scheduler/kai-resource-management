@@ -363,6 +363,117 @@ var _ = Describe("Namespace Resource Handler", func() {
 			Expect(actual.Labels[config.Get().NamespaceProjectLabelKey]).To(Equal(anotherProject.Name))
 		})
 
+		It("Leaves a manually overridden namespace alone", func() {
+			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			actual.Labels = map[string]string{config.Get().ResourceManualOverrideLabelKey: "true"}
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			project.Spec.Namespace = userExternalNamespace.Name
+			project.Spec.EnforceKaiScheduler = true
+			Expect(testClient.Create(context.TODO(), &project)).To(Succeed())
+
+			conditions, err := testHandler.HandleResource(project)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(conditions)).To(Equal(1))
+			Expect(conditions[0].Status).To(Equal(v1.ConditionTrue))
+
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Labels).ToNot(HaveKey(config.Get().NamespaceProjectLabelKey))
+			Expect(actual.Annotations).ToNot(HaveKey(config.Get().EnforceSchedulerAnnotationKey))
+		})
+
+		It("Keeps enforce-scheduler false on a manually overridden namespace", func() {
+			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			actual.Labels = map[string]string{
+				config.Get().NamespaceProjectLabelKey:       project.Name,
+				config.Get().ResourceManualOverrideLabelKey: "true",
+			}
+			actual.Annotations = map[string]string{config.Get().EnforceSchedulerAnnotationKey: "false"}
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			project.Spec.Namespace = userExternalNamespace.Name
+			project.Spec.EnforceKaiScheduler = true
+			Expect(testClient.Create(context.TODO(), &project)).To(Succeed())
+
+			_, err = testHandler.HandleResource(project)
+			Expect(err).ToNot(HaveOccurred())
+
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Annotations[config.Get().EnforceSchedulerAnnotationKey]).To(Equal("false"))
+		})
+
+		It("Resumes syncing once the manual override is removed", func() {
+			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			actual.Labels = map[string]string{config.Get().ResourceManualOverrideLabelKey: "true"}
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			project.Spec.Namespace = userExternalNamespace.Name
+			project.Spec.EnforceKaiScheduler = true
+			Expect(testClient.Create(context.TODO(), &project)).To(Succeed())
+
+			_, err = testHandler.HandleResource(project)
+			Expect(err).ToNot(HaveOccurred())
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Labels).ToNot(HaveKey(config.Get().NamespaceProjectLabelKey))
+
+			delete(actual.Labels, config.Get().ResourceManualOverrideLabelKey)
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			_, err = testHandler.HandleResource(project)
+			Expect(err).ToNot(HaveOccurred())
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Labels[config.Get().NamespaceProjectLabelKey]).To(Equal(project.Name))
+			Expect(actual.Annotations[config.Get().EnforceSchedulerAnnotationKey]).To(Equal("true"))
+		})
+
+		It("Sets the project name on an empty project label", func() {
+			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			actual.Labels = map[string]string{config.Get().NamespaceProjectLabelKey: ""}
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			project.Spec.Namespace = userExternalNamespace.Name
+			Expect(testClient.Create(context.TODO(), &project)).To(Succeed())
+
+			conditions, err := testHandler.HandleResource(project)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(conditions)).To(Equal(1))
+			Expect(conditions[0].Message).To(Equal(""))
+
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Labels[config.Get().NamespaceProjectLabelKey]).To(Equal(project.Name))
+		})
+
+		It("Error when a manually overridden namespace has other project in label value", func() {
+			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			actual.Labels = map[string]string{
+				config.Get().NamespaceProjectLabelKey:       anotherProject.Name,
+				config.Get().ResourceManualOverrideLabelKey: "true",
+			}
+			Expect(testClient.Update(context.TODO(), &actual)).To(Succeed())
+
+			project.Spec.Namespace = userExternalNamespace.Name
+			Expect(testClient.Create(context.TODO(), &project)).To(Succeed())
+
+			conditions, err := testHandler.HandleResource(project)
+			Expect(err).To(HaveOccurred())
+			Expect(len(conditions)).To(Equal(1))
+			Expect(conditions[0].Message).To(Equal(fmt.Sprintf("'%s' %s", RunaiQueueLabel, QueueLabelMissingFromNamespaceStatusMsg)))
+
+			actual, err = testHandler.GetNamespace(userExternalNamespace.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual.Labels[config.Get().NamespaceProjectLabelKey]).To(Equal(anotherProject.Name))
+		})
+
 		It("Error - not updating label when namespace has un-existing project in label value", func() {
 			actual, err := testHandler.GetNamespace(userExternalNamespace.Name)
 			Expect(err).ToNot(HaveOccurred())
