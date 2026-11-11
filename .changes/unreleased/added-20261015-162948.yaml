@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Installing or upgrading turns every pre-existing SchedulingShard into a NodePool that owns it, keeping its settings

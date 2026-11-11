@@ -1,3 +1,0 @@
-kind: Changed
-body: |-
-  commonArgs.allowExternalQueues defaults to true when installed beside an existing KAI Scheduler (kai-scheduler.enabled=false)

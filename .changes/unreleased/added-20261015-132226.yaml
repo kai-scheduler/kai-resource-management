@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Set a node pool's usage Prometheus address and query parameters with timeBasedFairShare.connectionString and extraParams
