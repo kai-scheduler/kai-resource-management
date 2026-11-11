@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Add schedulerNamespace to place ServiceMonitors beside an existing KAI Scheduler

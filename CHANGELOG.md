@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.19.0] - 2026-11-11
+
+### Added
+- Helm chart OCI tags without v prefix, enabling semver ranges like ~0.18.0
+- Set a node pool's usage Prometheus address and query parameters with timeBasedFairShare.connectionString and extraParams
+- Installing or upgrading turns every pre-existing SchedulingShard into a NodePool that owns it, keeping its settings
+- Release adopted SchedulingShards and strip NodePool finalizers on uninstall beside an existing KAI Scheduler
+- Install beside an existing KAI Scheduler with kai-scheduler.enabled=false, taking its label keys and scheduler name from its kai-config
+- Add schedulerNamespace to place ServiceMonitors beside an existing KAI Scheduler
+- The department webhook rejects a spec.parent that is missing, terminating, forms a loop, or nests past 7 levels [#150](https://github.com/kai-scheduler/kai-resource-management/issues/150) [noiyemini](https://github.com/noiyemini)
+- A department cannot be deleted while another department names it as its parent [#150](https://github.com/kai-scheduler/kai-resource-management/issues/150) [noiyemini](https://github.com/noiyemini)
+- Departments can nest under another department, up to 7 levels deep, through spec.parent [#150](https://github.com/kai-scheduler/kai-resource-management/issues/150) [noiyemini](https://github.com/noiyemini)
+- Projects and departments can set preemptMinRuntime and reclaimMinRuntime per node pool in spec.queues[].minRuntime, overriding the node pool's minimum runtimes [#164](https://github.com/kai-scheduler/kai-resource-management/issues/164) [noiyemini](https://github.com/noiyemini)
+
+### Changed
+- commonArgs.allowExternalQueues defaults to true when installed beside an existing KAI Scheduler (kai-scheduler.enabled=false)
+- A NodePool's minRuntime values must be durations such as 5m or 2d; a value KAI Scheduler could not parse, which it treated as 0s, is now rejected [#164](https://github.com/kai-scheduler/kai-resource-management/issues/164) [noiyemini](https://github.com/noiyemini)
+- Bundle KAI Scheduler v0.19.0
+
+### Fixed
+- Pod group assignment reads only pods in the pod group's own namespace [#169](https://github.com/kai-scheduler/kai-resource-management/issues/169) [blacksoxx](https://github.com/blacksoxx)
+- Updating a project namespace keeps labels the project-controller does not own [#171](https://github.com/kai-scheduler/kai-resource-management/issues/171) [blacksoxx](https://github.com/blacksoxx)
+- A project's queue moves under its department's queue when that queue is created after the project
+- A department or project no longer loses its queue to a new, randomly suffixed one when two reconciles of it race, and a project named like a department now gets its own queue instead of none [noiyemini](https://github.com/noiyemini)
+- The project controller leaves an externally referenced namespace alone while it carries the manual-override label [#197](https://github.com/kai-scheduler/kai-resource-management/issues/197) [blacksoxx](https://github.com/blacksoxx)
+
 ## [v0.18.4] - 2026-10-12
 
 ### Added

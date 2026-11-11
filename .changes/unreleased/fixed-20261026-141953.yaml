@@ -1,6 +1,0 @@
-kind: Fixed
-body: |-
-  Pod group assignment reads only pods in the pod group's own namespace
-custom:
-  Author: "blacksoxx"
-  Issue: "169"

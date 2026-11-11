@@ -1,5 +1,0 @@
-kind: Fixed
-body: |-
-  A department or project no longer loses its queue to a new, randomly suffixed one when two reconciles of it race, and a project named like a department now gets its own queue instead of none
-custom:
-  Author: "noiyemini"

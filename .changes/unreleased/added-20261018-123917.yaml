@@ -1,3 +1,0 @@
-kind: Added
-body: |-
-  Release adopted SchedulingShards and strip NodePool finalizers on uninstall beside an existing KAI Scheduler

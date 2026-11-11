@@ -1,3 +1,0 @@
-kind: Fixed
-body: |-
-  A project's queue moves under its department's queue when that queue is created after the project

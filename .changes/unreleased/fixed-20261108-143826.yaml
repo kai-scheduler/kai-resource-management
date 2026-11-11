@@ -1,6 +1,0 @@
-kind: Fixed
-body: |-
-  The project controller leaves an externally referenced namespace alone while it carries the manual-override label
-custom:
-  Author: "blacksoxx"
-  Issue: "197"
