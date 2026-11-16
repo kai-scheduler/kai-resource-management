@@ -153,6 +153,29 @@ var _ = Describe("getTimeBasedFairShareFields", func() {
 				Expect(*result.UsageParams.WindowSize).To(Equal(monitoringv1.Duration("168h")))
 			})
 
+			// The shard's windowSize is a Prometheus duration: whole numbers, units largest first.
+			It("should rewrite a fractional size as a Prometheus duration", func() {
+				nodePool.Spec.SchedulingShardConfig.TimeBasedFairShare.Window = &v1alpha1.FairShareWindow{
+					Size: ptr.To("1.5d"),
+				}
+
+				result := getTimeBasedFairShareFields(nodePool)
+
+				Expect(result.UsageParams.WindowSize).NotTo(BeNil())
+				Expect(*result.UsageParams.WindowSize).To(Equal(monitoringv1.Duration("1d12h")))
+			})
+
+			It("should rewrite units out of Prometheus order", func() {
+				nodePool.Spec.SchedulingShardConfig.TimeBasedFairShare.Window = &v1alpha1.FairShareWindow{
+					Size: ptr.To("30m2h"),
+				}
+
+				result := getTimeBasedFairShareFields(nodePool)
+
+				Expect(result.UsageParams.WindowSize).NotTo(BeNil())
+				Expect(*result.UsageParams.WindowSize).To(Equal(monitoringv1.Duration("2h30m")))
+			})
+
 			It("should use default for invalid duration string", func() {
 				nodePool.Spec.SchedulingShardConfig.TimeBasedFairShare.Window = &v1alpha1.FairShareWindow{
 					Size: ptr.To("not-a-duration"),
