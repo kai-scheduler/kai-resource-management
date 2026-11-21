@@ -1,0 +1,3 @@
+kind: Fixed
+body: |-
+  A node pool fair-share window size like 1.5d no longer makes its SchedulingShard write fail
