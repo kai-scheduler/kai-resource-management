@@ -16,6 +16,7 @@ import (
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1"
 	"github.com/kai-scheduler/kai-resource-management-api/kai/v1alpha1/schedulingshardargs"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/prometheus/common/model"
 	"github.com/rs/zerolog/log"
 	"github.com/xhit/go-str2duration/v2"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -380,10 +381,15 @@ func parseDurationParam(value *string, fallback time.Duration, field, nodePool s
 	return &metav1.Duration{Duration: fallback}
 }
 
+// A node pool's duration may have fractions ("1.5d") or units in any order ("30m2h"); the shard
+// takes only a Prometheus duration, so a value Prometheus cannot read is rewritten as one.
 func parseMonitoringDurationParam(value *string, fallback time.Duration, field, nodePool string) *monitoringv1.Duration {
 	if value != nil {
-		if _, err := str2duration.ParseDuration(*value); err == nil {
+		if _, err := model.ParseDuration(*value); err == nil {
 			return ptr.To(monitoringv1.Duration(*value))
+		}
+		if duration, err := str2duration.ParseDuration(*value); err == nil {
+			return ptr.To(monitoringv1.Duration(model.Duration(duration).String()))
 		}
 		log.Warn().Msgf("failed to parse TimeBasedFairShare.%s '%s' for NodePool '%s'", field, *value, nodePool)
 	}
