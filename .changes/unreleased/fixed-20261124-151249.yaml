@@ -1,0 +1,6 @@
+kind: Fixed
+body: |-
+  Treat an empty node-pool assignment label as unassigned so the project or default node pool applies
+custom:
+  Author: "ankitgala007"
+  Issue: "223"

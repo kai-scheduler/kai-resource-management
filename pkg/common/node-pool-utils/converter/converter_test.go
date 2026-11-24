@@ -244,6 +244,12 @@ var _ = Describe("GetRequestedNodePools", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal([]string{defaultNodePoolName}))
 		})
+		It("continues if label is present but empty", func() {
+			objectMeta.Labels = map[string]string{labelKeyNodePool: ""}
+			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal([]string{defaultNodePoolName}))
+		})
 		It("continues if label is missing", func() {
 			objectMeta.Labels = map[string]string{}
 			result, err := converter.GetRequestedNodePools(ctx, objectMeta, kindPod, testIdentifiers, sources)
