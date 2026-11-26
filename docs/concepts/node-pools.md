@@ -157,9 +157,11 @@ the scheduler instance responsible for that node pool's nodes and queues, which 
 per-pool scheduling configuration possible at all: bin-packing on one pool and spreading on
 another, different preemption guarantees, different fairness policy.
 
-You do not create or edit the shard. You configure it through the node pool's
+You do not create the shard. You configure it through the node pool's
 `schedulingShardConfig` — see
-[tuning per-node-pool scheduling](../how-to/tune-per-node-pool-scheduling.md).
+[tuning per-node-pool scheduling](../how-to/tune-per-node-pool-scheduling.md). KRM rewrites
+only the shard fields the node pool sets; anything else on the shard, including args you add
+by hand, is left alone.
 
 If Prometheus is installed, each node pool also gets a `ServiceMonitor` for its shard.
 
