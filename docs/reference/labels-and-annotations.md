@@ -156,6 +156,12 @@ The only annotations you set yourself, rather than reading.
 | --- | --- | --- | --- |
 | `kai/force-delete` | `true` | Read | Skip deletion blockers and delete anyway. Anything left behind is yours to clean up |
 
+## SchedulingShard annotations
+
+| Key | Values | R/W | Meaning |
+| --- | --- | --- | --- |
+| `kai.resources/managed-shard-args` | comma-separated arg keys | Written | Annotation listing the `args` keys KRM wrote. KRM removes a listed key once its node pool stops setting it, and leaves every unlisted key — args you added by hand — alone. A shard without it gets it on its next update; until then KRM treats every arg as its own |
+
 ## The manual-override label
 
 | Key | Default | R/W | Meaning |
