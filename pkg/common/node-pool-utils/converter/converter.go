@@ -62,7 +62,7 @@ func GetRequestedNodePools(ctx context.Context, objectMeta metav1.ObjectMeta, ki
 	// 3. object's labels
 	// see if there's a node pool label on the object itself
 	nodePoolName, found := objectMeta.Labels[identifiers.NodePoolAssignmentLabelKey]
-	if found && nodePoolName != identifiers.UnexistingNodepoolSentinel {
+	if found && nodePoolName != "" && nodePoolName != identifiers.UnexistingNodepoolSentinel {
 		log.Debug().Msgf("For %s <%s/%s>, got node pool list from node pool label: <[%s]>",
 			kind, objectMeta.Namespace, objectMeta.Name, nodePoolName)
 		return []string{nodePoolName}, nil
